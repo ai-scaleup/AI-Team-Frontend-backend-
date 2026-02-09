@@ -1,0 +1,268 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AgentName {
+  JIM
+  ALEX
+  MIKE
+  TONY
+  LARA
+  VALENTINA
+  DANIELE
+  SIMONE
+  NIKO
+  ALADINO
+  LAURA
+  DAN
+  MAX
+  SOFIA
+  ROBERTA
+  SARA_AI
+  // --- test agents ---
+  TEST_JIM
+  TEST_ALEX
+  TEST_MIKE
+  TEST_TONY
+  TEST_LARA
+  TEST_VALENTINA
+  TEST_DANIELE
+  TEST_SIMONE
+  TEST_NIKO
+  TEST_ALADINO
+  TEST_LAURA
+  TEST_DAN
+  TEST_MAX
+  TEST_SOFIA
+  TEST_ROBERTA
+}
+
+// ─────────────────────────────────────────────────────────────
+// User Preference Enums (Italian)
+// ─────────────────────────────────────────────────────────────
+enum ContentLanguage {
+  ITALIANO
+  INGLESE
+  SPAGNOLO
+  FRANCESE
+  TEDESCO
+  PORTOGHESE
+  ALTRO
+}
+
+enum ToneOfVoice {
+  PROFESSIONALE_FORMALE
+  AMICHEVOLE_INFORMALE
+  TECNICO_ESPERTO
+  MOTIVAZIONALE_ENERGETICO
+  EMPATICO_COMPRENSIVO
+  INNOVATIVO_VISIONARIO
+  DIVERTENTE_CREATIVO
+}
+
+enum MarketingKnowledge {
+  BASE
+  INTERMEDIO
+  AVANZATO
+  EXPERT
+}
+
+enum ResponseLength {
+  CONCISA
+  BILANCIATA
+  DETTAGLIATA
+}
+
+enum EmojiUsage {
+  MAI
+  MINIMO
+  MODERATO
+  FREQUENTE
+}
+
+enum ProactivityLevel {
+  SOLO_REATTIVO
+  MODERATAMENTE_PROATTIVO
+  MOLTO_PROATTIVO
+}
+
+enum QuestionStyle {
+  UNA_ALLA_VOLTA
+  A_GRUPPI
+  MINIMO_INDISPENSABILE
+}
+
+enum DecisionHelpStyle {
+  ANALISI_OPZIONI
+  RACCOMANDAZIONE_DIRETTA
+  ENTRAMBI
+}
+
+enum LearningPreference {
+  APPRENDIMENTO_CONTINUO
+  COMPORTAMENTO_STATICO
+  AGGIORNAMENTI_PERIODICI
+}
+
+enum MarketComparison {
+  SEMPRE
+  SOLO_RILEVANTI
+  MAI
+}
+
+model User {
+  id            String           @id @default(uuid())
+  email         String           @unique
+  oauthId       String           @unique
+  username      String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  // Per-agent assignments with timing & expiry
+  agents        AssignedAgent[]
+  // Per-group assignments with timing & expiry
+  groups        AssignedGroup[]
+  // User conversations
+  conversations Conversation[]
+  // User preferences (one-to-many: per agent)
+  preferences   UserPreference[]
+}
+
+// ─────────────────────────────────────────────────────────────
+// User Preferences Model (Per User + Agent combination)
+// ─────────────────────────────────────────────────────────────
+model UserPreference {
+  id                  String             @id @default(uuid())
+  oauthId             String // User's OAuth ID
+  agentName           AgentName // Each agent has its own preferences per user
+  // ── SECTION: IDENTITY ──
+  displayName         String? // What user wants to be called
+  businessName        String? // Name of user's business
+  // ── SECTION: TONGUE (Language) ──
+  contentLanguage     ContentLanguage    @default(ITALIANO) // Language for AI-generated content
+  responseLanguage    ContentLanguage    @default(ITALIANO) // Language for AI responses
+  // ── SECTION: BRAND STYLE ──
+  toneOfVoice         ToneOfVoice        @default(PROFESSIONALE_FORMALE)
+  marketingKnowledge  MarketingKnowledge @default(INTERMEDIO)
+  // ── SECTION: INTERACTION ──
+  responseLength      ResponseLength     @default(BILANCIATA)
+  emojiUsage          EmojiUsage         @default(MINIMO)
+  // ── SECTION: AI BEHAVIOR ──
+  proactivityLevel    ProactivityLevel   @default(MODERATAMENTE_PROATTIVO)
+  questionStyle       QuestionStyle      @default(UNA_ALLA_VOLTA)
+  decisionHelpStyle   DecisionHelpStyle  @default(ENTRAMBI)
+  // ── SECTION: PERSONALIZATION ──
+  learningPreference  LearningPreference @default(APPRENDIMENTO_CONTINUO)
+  marketComparison    MarketComparison   @default(SOLO_RILEVANTI)
+  // ── ONBOARDING STATUS ──
+  onboardingCompleted Boolean            @default(false)
+  onboardingStep      Int                @default(0)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  user                User               @relation(fields: [oauthId], references: [oauthId], onDelete: Cascade)
+
+  @@unique([oauthId, agentName], map: "uniq_preference_per_user_agent")
+  @@index([oauthId])
+  @@index([agentName])
+}
+
+model AssignedAgent {
+  id           String    @id @default(uuid())
+  userId       String
+  agentName    AgentName
+  startsAt     DateTime  @default(now())
+  expiresAt    DateTime?
+  durationDays Int?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, agentName, isActive], map: "uniq_active_agent_per_user")
+  @@index([userId, isActive])
+  @@index([expiresAt])
+}
+
+model AgentGroup {
+  id          String           @id @default(uuid())
+  name        String           @unique
+  description String?
+  isActive    Boolean          @default(true)
+  items       AgentGroupItem[]
+  assignments AssignedGroup[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([isActive])
+}
+
+model AgentGroupItem {
+  id        String     @id @default(uuid())
+  groupId   String
+  agentName AgentName
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  group     AgentGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, agentName], map: "uniq_agent_per_group")
+  @@index([groupId])
+}
+
+model AssignedGroup {
+  id           String     @id @default(uuid())
+  userId       String
+  groupId      String
+  startsAt     DateTime   @default(now())
+  expiresAt    DateTime?
+  durationDays Int?
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group        AgentGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupId, isActive], map: "uniq_active_group_per_user")
+  @@index([userId, isActive])
+  @@index([groupId])
+  @@index([expiresAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Conversation & Message Models
+// ─────────────────────────────────────────────────────────────
+model Conversation {
+  id          String    @id
+  userId      String
+  title       String
+  agentId     String
+  sessionId   String
+  folderId    String?
+  archived    Boolean   @default(false)
+  lastUpdated DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  messages    Message[]
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([agentId])
+  @@index([archived])
+  @@index([lastUpdated])
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  text           String
+  sender         String
+  time           String
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+}
