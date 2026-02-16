@@ -1,11 +1,5 @@
-import * as pdfjsLib from "pdfjs-dist"
 import mammoth from "mammoth"
 import * as XLSX from "xlsx"
-
-if (typeof window !== "undefined") {
-    // Configure PDF.js worker
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
-}
 
 /**
  * Extracts text content from a File object based on its type/extension.
@@ -18,6 +12,11 @@ export async function extractFileContent(file: File): Promise<string> {
     try {
         // PDF
         if (fileType === "application/pdf" || fileName.endsWith(".pdf")) {
+            const pdfjsLib = await import("pdfjs-dist")
+            if (typeof window !== "undefined") {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
+            }
+
             const arrayBuffer = await file.arrayBuffer()
             const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
             let text = ""
