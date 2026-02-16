@@ -8,11 +8,13 @@ import { AdminModule } from './admin/admin.module';
 import { ConversationModule } from './conversations/conversation.module';
 import { UserPreferenceModule } from './user-preference/user-preference.module';
 import { SaraAiModule } from './sara-ai/sara-ai.module';
+import { JenniferModule } from './jennifer/jennifer.module';
+
 
 
 
 @Module({
-  imports: [PrismaModule, UserModule, ClerkModule, AdminModule, ConversationModule, UserPreferenceModule, SaraAiModule],
+  imports: [PrismaModule, UserModule, ClerkModule, AdminModule, ConversationModule, UserPreferenceModule, SaraAiModule, JenniferModule],
   controllers: [AppController],
   providers: [AppService],
 })

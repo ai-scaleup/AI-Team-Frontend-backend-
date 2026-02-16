@@ -266,3 +266,16 @@ model Message {
 
   @@index([conversationId])
 }
+
+model ChatLog {
+  id          Int      @id @default(autoincrement())
+  sessionId   String   @map("session_id") @db.VarChar(255)
+  sender      String   @db.VarChar(50)
+  messageText String   @map("message_text")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("chat_logs")
+  @@index([sessionId])
+  @@index([sender])
+}
+
