@@ -42,299 +42,10 @@ import { useUser } from "@clerk/nextjs"
 import { UserPreferences, UserPreference, AgentName } from "@/types/preferences"
 import { userPreferenceService } from "@/services/preferenceService"
 import { conversationService } from "@/services/conversationService"
-import * as pdfjsLib from "pdfjs-dist"
-import mammoth from "mammoth"
-import * as XLSX from "xlsx"
+import { Conversation, Message as ApiMessage, CreateConversationDto } from "@/types/conversation"
+import { extractFileContent } from "@/utils/fileExtraction"
 
-// --- Pinecone Vector Type Definition ---
-// This type definition is added to resolve the 'PineconeVector is undeclared' error.
-interface PineconeVector {
-  id: string
-  values: number[]
-  metadata: Record<string, any>
-}
-
-if (typeof window !== "undefined") {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
-}
-
-// Removed Pinecone initialization, assuming it's handled via environment variables in fetch calls
-// const pinecone = new Pinecone({
-//   apiKey: process.env.NEXT_PUBLIC_PINECONE_API_KEY || "",
-// })
-
-// --- TYPES ---
-interface Message {
-  text: string
-  sender: "ai" | "user"
-  time: string
-  files?: string[]
-  raw?: string
-}
-
-interface ChatSession {
-  id: string
-  messages: Message[]
-  title: string
-  lastUpdated: string
-  folderId: string | null
-  archived: boolean
-  agentId: string
-  sessionId?: string
-}
-
-interface FolderType {
-  id: string
-  name: string
-  createdAt: string
-}
-
-// --- CONSTANTS ---
-const USER_AVATAR =
-  "https://www.shutterstock.com/image-vector/vector-flat-illustration-grayscale-avatar-600nw-2264922221.jpg"
-
-// --- FILE EXTRACTION FUNCTIONS ---
-async function extractFileContent(file: File): Promise<string> {
-  const fileType = file.type
-  const fileName = file.name.toLowerCase()
-
-  try {
-    if (fileType === "application/pdf" || fileName.endsWith(".pdf")) {
-      const arrayBuffer = await file.arrayBuffer()
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
-      let text = ""
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i)
-        const content = await page.getTextContent()
-        const pageText = content.items.map((item: any) => item.str).join(" ")
-        text += pageText + "\n"
-      }
-      return text.trim()
-    }
-
-    if (
-      fileType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-      fileName.endsWith(".docx")
-    ) {
-      const arrayBuffer = await file.arrayBuffer()
-      const result = await mammoth.extractRawText({ arrayBuffer })
-      return result.value.trim()
-    }
-
-    if (
-      fileType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
-      fileType === "application/vnd.ms-excel" ||
-      fileName.endsWith(".xlsx") ||
-      fileName.endsWith(".xls")
-    ) {
-      const arrayBuffer = await file.arrayBuffer()
-      const workbook = XLSX.read(arrayBuffer, { type: "array" })
-      let text = ""
-      workbook.SheetNames.forEach((sheetName) => {
-        const sheet = workbook.Sheets[sheetName]
-        const csv = XLSX.utils.sheet_to_csv(sheet)
-        text += `Sheet: ${sheetName}\n${csv}\n\n`
-      })
-      return text.trim()
-    }
-
-    if (fileType === "text/csv" || fileName.endsWith(".csv")) {
-      return await file.text()
-    }
-
-    if (fileType === "application/json" || fileName.endsWith(".json")) {
-      const text = await file.text()
-      try {
-        const json = JSON.parse(text)
-        return JSON.stringify(json, null, 2)
-      } catch {
-        return text
-      }
-    }
-
-    if (fileType === "text/html" || fileName.endsWith(".html") || fileName.endsWith(".htm")) {
-      const text = await file.text()
-      const div = document.createElement("div")
-      div.innerHTML = text
-      return div.textContent || div.innerText || text
-    }
-
-    if (fileType === "text/markdown" || fileName.endsWith(".md")) {
-      return await file.text()
-    }
-
-    if (
-      fileType.startsWith("text/") ||
-      fileName.endsWith(".txt") ||
-      fileName.endsWith(".js") ||
-      fileName.endsWith(".ts") ||
-      fileName.endsWith(".jsx") ||
-      fileName.endsWith(".tsx") ||
-      fileName.endsWith(".py") ||
-      fileName.endsWith(".java") ||
-      fileName.endsWith(".c") ||
-      fileName.endsWith(".cpp") ||
-      fileName.endsWith(".css") ||
-      fileName.endsWith(".scss") ||
-      fileName.endsWith(".sql") ||
-      fileName.endsWith(".xml") ||
-      fileName.endsWith(".yaml") ||
-      fileName.endsWith(".yml")
-    ) {
-      return await file.text()
-    }
-
-    if (fileType.startsWith("image/")) {
-      return `[Image file: ${file.name}, Type: ${fileType}, Size: ${(file.size / 1024).toFixed(2)} KB]`
-    }
-
-    if (fileType.startsWith("audio/")) {
-      return `[Audio file: ${file.name}, Type: ${fileType}, Size: ${(file.size / 1024).toFixed(2)} KB]`
-    }
-
-    if (fileType.startsWith("video/")) {
-      return `[Video file: ${file.name}, Type: ${fileType}, Size: ${(file.size / 1024).toFixed(2)} KB]`
-    }
-
-    try {
-      return await file.text()
-    } catch {
-      return `[Binary file: ${file.name}, Type: ${fileType}, Size: ${(file.size / 1024).toFixed(2)} KB]`
-    }
-  } catch (error) {
-    console.error(`Error extracting content from ${file.name}:`, error)
-    return `[Error extracting content from ${file.name}: ${error instanceof Error ? error.message : String(error)}]`
-  }
-}
-
-// --- PINECONE HELPER FUNCTIONS ---
-async function getEmbedding(text: string): Promise<number[]> {
-  const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY
-  const model = process.env.NEXT_PUBLIC_OPENAI_MODEL || "text-embedding-ada-002"
-
-  if (!apiKey) {
-    throw new Error("OpenAI API key not configured")
-  }
-
-  const response = await fetch("https://api.openai.com/v1/embeddings", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      input: text,
-      model: model,
-    }),
-  })
-
-  if (!response.ok) {
-    const error = await response.text()
-    throw new Error(`Failed to get embedding: ${response.status}`)
-  }
-
-  const data = await response.json()
-  return data.data[0].embedding
-}
-
-async function upsertToPinecone(vectors: PineconeVector[], namespace: string): Promise<boolean> {
-  const pineconeHost = process.env.NEXT_PUBLIC_PINECONE_HOST
-  const pineconeApiKey = process.env.NEXT_PUBLIC_PINECONE_API_KEY
-
-  if (!pineconeHost || !pineconeApiKey) {
-    throw new Error("Pinecone not configured")
-  }
-
-  const url = `${pineconeHost}/vectors/upsert`
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Api-Key": pineconeApiKey,
-    },
-    body: JSON.stringify({
-      vectors: vectors,
-      namespace: namespace,
-    }),
-  })
-
-  if (!response.ok) {
-    const error = await response.text()
-    throw new Error(`Failed to upsert to Pinecone: ${response.status}`)
-  }
-
-  return true
-}
-
-async function upsertFileToPinecone(
-  fileName: string,
-  content: string,
-  namespace: string,
-  chatId?: string,
-  agentId?: string,
-): Promise<void> {
-  console.log("[v0] Starting Pinecone upsert for file:", fileName)
-  console.log("[v0] Namespace:", namespace)
-  console.log("[v0] Content length:", content.length)
-
-  const timestamp = Date.now()
-  const cleanFileName = fileName.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase()
-
-  const maxChunkSize = 8000
-  const chunks: string[] = []
-
-  if (content.length <= maxChunkSize) {
-    chunks.push(content)
-  } else {
-    const paragraphs = content.split(/\n\n+/)
-    let currentChunk = ""
-
-    for (const para of paragraphs) {
-      if (currentChunk.length + para.length > maxChunkSize) {
-        if (currentChunk) chunks.push(currentChunk.trim())
-        currentChunk = para
-      } else {
-        currentChunk += (currentChunk ? "\n\n" : "") + para
-      }
-    }
-    if (currentChunk) chunks.push(currentChunk.trim())
-  }
-
-  console.log("[v0] File split into", chunks.length, "chunks")
-
-  const vectors: PineconeVector[] = []
-
-  for (let i = 0; i < chunks.length; i++) {
-    const chunk = chunks[i]
-    console.log("[v0] Getting embedding for chunk", i + 1, "of", chunks.length)
-    const embedding = await getEmbedding(chunk)
-
-    const vectorId =
-      chunks.length === 1 ? `file_${cleanFileName}_${timestamp}` : `file_${cleanFileName}_${timestamp}_part${i + 1}`
-
-    vectors.push({
-      id: vectorId,
-      values: embedding,
-      metadata: {
-        text: chunk,
-        sender: "file",
-        timestamp: new Date().toISOString(),
-        chatId: chatId || "",
-        agentId: agentId || "",
-        namespace: namespace,
-        fileName: fileName,
-        fileType: fileName.split(".").pop() || "unknown",
-        chunkIndex: i,
-        totalChunks: chunks.length,
-      },
-    })
-  }
-
-  console.log("[v0] Upserting", vectors.length, "vectors to Pinecone namespace:", namespace)
-  await upsertToPinecone(vectors, namespace)
-  console.log("[v0] Successfully upserted file to Pinecone:", fileName)
-}
+// --- PINECONE HELPER FUNCTIONS REMOVED ---
 
 // --- ROBUST MARKDOWN SHIM v4 ---
 const simpleMarkdown = {
@@ -649,6 +360,35 @@ export default function App() {
 
   const [pendingFileContents, setPendingFileContents] = useState<{ fileName: string; content: string }[]>([])
 
+  // --- TYPES ---
+  interface Message {
+    text: string
+    sender: "ai" | "user"
+    time: string
+    files?: string[]
+    raw?: string
+  }
+
+  interface ChatSession {
+    id: string
+    messages: Message[]
+    title: string
+    lastUpdated: string
+    folderId: string | null
+    archived: boolean
+    agentId: string
+    sessionId?: string
+  }
+
+  interface FolderType {
+    id: string
+    name: string
+    createdAt: string
+  }
+
+  // --- CONSTANTS ---
+  const USER_AVATAR =
+    "https://www.shutterstock.com/image-vector/vector-flat-illustration-grayscale-avatar-600nw-2264922221.jpg"
   // --- REFS ---
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -1382,6 +1122,14 @@ export default function App() {
 
     setIsLoading(true)
 
+    let fileContext = ""
+    if (selectedFiles.length > 0) {
+      for (const file of selectedFiles) {
+        const content = await extractFileContent(file)
+        fileContext += `\n\n[File Content: ${file.name}]\n${content}\n[End File Content]`
+      }
+    }
+
     const userMessage: Message = {
       text: inputValue,
       sender: "user",
@@ -1457,32 +1205,13 @@ export default function App() {
             text: userMessage.text,
             sender: userMessage.sender,
             time: userMessage.time,
+            files: userMessage.files,
           })
           console.log("✅ Alex AI: User message saved to API")
         } catch (error) {
           console.error("❌ Alex AI: Failed to save user message:", error)
         }
       }
-    }
-
-    // Upsert pending file contents to Pinecone on send
-    if (pendingFileContents.length > 0 && CURRENT_NAMESPACE.current) {
-      for (const fileData of pendingFileContents) {
-        try {
-          console.log("[v0] Uploading file:", fileData.fileName)
-          await upsertFileToPinecone(
-            fileData.fileName,
-            fileData.content,
-            CURRENT_NAMESPACE.current,
-            currentChatIdForSend || undefined,
-            activeAgentId,
-          )
-          console.log("[v0] Successfully uploaded:", fileData.fileName)
-        } catch (error) {
-          console.error("[v0] Failed to upsert file to Pinecone:", fileData.fileName, error)
-        }
-      }
-      setPendingFileContents([])
     }
 
     const aiResponsePlaceholder: Message = { text: "...", sender: "ai", time: "", raw: "" }
@@ -1514,7 +1243,6 @@ export default function App() {
           metadata: {
             namespace: CURRENT_NAMESPACE.current,
             source: activeAgentId,
-            files: pendingFileContents.map((f) => ({ name: f.fileName, size: f.content.length })),
           },
           chatId: currentChatIdForSend,
         }),
@@ -1602,6 +1330,37 @@ export default function App() {
         }
       }
 
+      // Upsert pending file contents to Pinecone on send - REMOVED
+      // if (pendingFileContents.length > 0 && CURRENT_NAMESPACE.current) {
+      //   try {
+      //     console.log("Attempting to upsert file contents to Pinecone...")
+      //     const upsertPromises = pendingFileContents.map(async (fileData) => {
+      //       const response = await fetch("/api/pinecone/upsert", {
+      //         method: "POST",
+      //         headers: { "Content-Type": "application/json" },
+      //         body: JSON.stringify({
+      //           namespace: CURRENT_NAMESPACE.current,
+      //           text: fileData.content,
+      //           metadata: {
+      //             fileName: fileData.fileName,
+      //             chatId: currentChatIdForSend,
+      //             timestamp: new Date().toISOString(),
+      //             source: "user_uploaded_file",
+      //           },
+      //         }),
+      //       })
+      //       if (!response.ok) {
+      //         const errorData = await response.json()
+      //         throw new Error(`Pinecone upsert failed for ${fileData.fileName}: ${errorData.error}`)
+      //       }
+      //       return response.json()
+      //     })
+      //     await Promise.all(upsertPromises)
+      //     console.log("✅ Alex AI: File contents upserted to Pinecone successfully.")
+      //   } catch (error) {
+      //     console.error("❌ Alex AI: Failed to upsert file contents to Pinecone:", error)
+      //   }
+      // }
 
       setPendingFileContents([])
       if (fileInputRef.current) fileInputRef.current.value = ""

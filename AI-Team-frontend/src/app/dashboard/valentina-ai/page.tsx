@@ -40,6 +40,7 @@ import { useUser } from "@clerk/nextjs"
 import { type UserPreference, type AgentName } from "@/types/preferences"
 import { userPreferenceService } from "@/services/preferenceService"
 import { conversationService } from "@/services/conversationService"
+import { extractFileContent } from "@/utils/fileExtraction"
 
 // --- TYPES ---
 interface Message {
@@ -1051,6 +1052,14 @@ export default function App() {
 
     setIsLoading(true)
 
+    let fileContext = ""
+    if (selectedFiles.length > 0) {
+      for (const file of selectedFiles) {
+        const content = await extractFileContent(file)
+        fileContext += `\n\n[File Content: ${file.name}]\n${content}\n[End File Content]`
+      }
+    }
+
     const userMessage: Message = {
       text: inputValue,
       sender: "user",
@@ -1123,6 +1132,7 @@ export default function App() {
             text: userMessage.text,
             sender: userMessage.sender,
             time: userMessage.time,
+            files: userMessage.files,
           })
           console.log("✅ Valentina AI: User message saved to API")
         } catch (error) {
@@ -1154,6 +1164,7 @@ export default function App() {
           chatInput:
             inputValue +
             (selectedFiles.length ? ` [Attached: ${selectedFiles.map((f) => f.name).join(", ")}]` : "") +
+            fileContext +
             `\n\nUSER_PROFILE_DATA: ${JSON.stringify(userPrefs)}`,
           sessionId: sessionId,
           useMemory: useMemory,

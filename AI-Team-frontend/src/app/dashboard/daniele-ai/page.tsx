@@ -40,6 +40,7 @@ import { useUser } from "@clerk/nextjs"
 import { UserPreferences, UserPreference, AgentName } from "@/types/preferences"
 import { userPreferenceService } from "@/services/preferenceService"
 import { conversationService } from "@/services/conversationService"
+import { extractFileContent } from "@/utils/fileExtraction"
 
 // --- TYPES ---
 interface Message {
@@ -1049,6 +1050,14 @@ export default function App() {
 
     setIsLoading(true)
 
+    let fileContext = ""
+    if (selectedFiles.length > 0) {
+      for (const file of selectedFiles) {
+        const content = await extractFileContent(file)
+        fileContext += `\n\n[File Content: ${file.name}]\n${content}\n[End File Content]`
+      }
+    }
+
     const userMessage: Message = {
       text: inputValue,
       sender: "user",
@@ -1153,11 +1162,10 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chatInput:
-            inputValue +
-            (selectedFiles.length ? ` [Attached: ${selectedFiles.map((f) => f.name).join(", ")}]` : "") +
-            `\n\nUSER_PROFILE_DATA: ${JSON.stringify(userPrefs)}`,
-          sessionId: sessionId,
-          useMemory: useMemory,
+            inputValue + (selectedFiles.length ? ` [Attached: ${selectedFiles.map((f) => f.name).join(", ")}]` : "") +
+            fileContext +
+            `\n\n<SYSTEM_CONTEXT_DO_NOT_REPLY>\nUSER_PROFILE_DATA: ${JSON.stringify(userPrefs)}\n</SYSTEM_CONTEXT_DO_NOT_REPLY>`,
+          sessionId: sessionId, // Use chat-specific sessionId for conversation continuity,
           metadata: { namespace: CURRENT_NAMESPACE.current, source: activeAgentId },
           chatId: currentChatIdForSend,
         }),
