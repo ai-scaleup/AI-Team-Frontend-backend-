@@ -1237,6 +1237,7 @@ export default function App() {
           chatInput:
             inputValue +
             (selectedFiles.length ? ` [Attached: ${selectedFiles.map((f) => f.name).join(", ")}]` : "") +
+            fileContext +
             `\n\nUSER_PROFILE_DATA: ${JSON.stringify(userPrefs)}`,
           sessionId: sessionId,
           useMemory: useMemory,
