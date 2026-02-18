@@ -21,7 +21,6 @@ import {
   Users,
   LayoutGrid,
   ChevronLeft,
-  BrainCircuit,
   FolderPlus,
   Folder,
   FolderOpen,

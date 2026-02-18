@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react"
 import { MessageSquare, User, Bot, Loader2, Calendar, ChevronRight } from "lucide-react"
+import JenniferWidget from "@/components/ui/JenniferWidget"
 
-// Use localhost for development testing as verified
-const API_BASE = "http://localhost:3000"
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE
 
 interface ChatLog {
     sender: string
@@ -200,6 +200,7 @@ export default function JenniferPage() {
 
                 </div>
             </div>
+            <JenniferWidget />
         </div>
     )
 }

@@ -8,6 +8,7 @@ import PreferencesButton from "@/components/preferences/PreferencesButton"
 import { UserPreferences, UserPreference, AgentName } from "@/types/preferences"
 import { userPreferenceService } from "@/services/preferenceService"
 import { conversationService } from "@/services/conversationService"
+import { extractFileContent } from "@/utils/fileExtraction"
 import {
   Edit2,
   Trash2,
@@ -39,9 +40,6 @@ import {
   Menu,
   Home,
 } from "lucide-react"
-
-import { Conversation, Message as ApiMessage, CreateConversationDto } from "@/types/conversation"
-import { extractFileContent } from "@/utils/fileExtraction"
 
 // --- TYPES ---
 interface Message {
@@ -1096,33 +1094,14 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
       const newChatId = "chat_" + Date.now()
       const newSessionId = "session_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9)
       const agent = AGENTS_DB[activeAgentId]
-
-      let messageText = `Ciao! Sono **${agent.name}**. ${agent.description} Come posso aiutarti?`
-
-      if (agent.name === "Tony AI") {
-        messageText = `Ciao! Sono **Tony AI**.
-Il tuo consulente vendite digitale con 30 anni di esperienza. Analizzo i dati e ottimizzo il funnel.
-
-30 anni di esperienza nel mondo commerciale. Sono qui per aiutarti a sviluppare strategie di vendita efficaci e implementare processi che massimizzino i tuoi risultati commerciali.
-
-Posso supportarti in queste aree principali:
-- **STRATEGIA E ACQUISIZIONE**: Sviluppo di strategie commerciali, identificazione target ideale, lead generation e ottimizzazione del funnel di vendita.
-- **CUSTOMER MANAGEMENT**: Gestione clienti VIP, programmi di fidelizzazione, strategie di upsell/cross-sell e riduzione del churn.
-- **TEAM E PROCESSI**: Formazione team vendite, ottimizzazione CRM, creazione di script e gestione performance commerciali.
-
-Per poter sviluppare la strategia commerciale più efficace per te, ho bisogno che mi rispondi nel modo più preciso possibile ad alcune domande che chiameremo **'DOMANDE DI TONY AI'**. Disponi già di queste domande e delle relative risposte?
-
-In alternativa, preferisci una consulenza completa per sviluppare un sales plan strutturato, oppure vuoi concentrarti su una delle 3 aree specifiche sopra menzionate?`
-      }
-
       const welcomeMsg: Message = {
-        text: messageText,
+        text: `Ciao! Sono **${agent.name}**. ${agent.description} Come posso aiutarti?`,
         sender: "ai",
         time: new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }),
       }
       const newChat: ChatSession = {
         id: newChatId,
-        title: `Missione con ${agent.name} `,
+        title: `Missione con ${agent.name}`,
         messages: [welcomeMsg, userMessage],
         lastUpdated: new Date().toISOString(),
         folderId: null,
@@ -1142,7 +1121,7 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
         try {
           await conversationService.createConversation(user.id, {
             id: newChatId,
-            title: `Missione con ${agent.name} `,
+            title: `Missione con ${agent.name}`,
             agentId: activeAgentId,
             sessionId: newSessionId,
             messages: [welcomeMsg, userMessage],
@@ -1169,7 +1148,6 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
             text: userMessage.text,
             sender: userMessage.sender,
             time: userMessage.time,
-            files: userMessage.files,
           })
           console.log("✅ Tony AI: User message saved to API")
         } catch (error) {
@@ -1194,7 +1172,6 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
 
       if (!currentChatIdForSend) throw new Error("currentChatIdForSend is null")
 
-      // --- N8N INTEGRATION ---
       const response = await fetch(N8N_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1202,7 +1179,7 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
           chatInput:
             inputValue + (selectedFiles.length ? ` [Attached: ${selectedFiles.map((f) => f.name).join(", ")}]` : "") +
             fileContext +
-            `\n\n<SYSTEM_CONTEXT_DO_NOT_REPLY>\nUSER_PROFILE_DATA: ${JSON.stringify(userPrefs)} \n</SYSTEM_CONTEXT_DO_NOT_REPLY > `,
+            `\n\n<SYSTEM_CONTEXT_DO_NOT_REPLY>\nUSER_PROFILE_DATA: ${JSON.stringify(userPrefs)}\n</SYSTEM_CONTEXT_DO_NOT_REPLY>`,
           sessionId: sessionId,
           useMemory: useMemory,
           metadata: { namespace: CURRENT_NAMESPACE.current, source: activeAgentId },
@@ -1210,7 +1187,7 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
         }),
       })
 
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status} `)
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
       if (!response.body) throw new Error("No response body")
 
       const reader = response.body.getReader()
@@ -1291,7 +1268,7 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
       setMessages((prev) => {
         const newMsgs = [...prev]
         newMsgs[newMsgs.length - 1].text =
-          `Errore: Impossibile inviare il messaggio.${error instanceof Error ? error.message : String(error)} `
+          `Errore: Impossibile inviare il messaggio. ${error instanceof Error ? error.message : String(error)}`
         return newMsgs
       })
     } finally {
@@ -1385,14 +1362,14 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
         .replace(/<tr[^>]*>/g, "<tr>")
 
       const finalHtml = `
-          < !DOCTYPE html >
-            <html>
-              <head><meta charset="utf-8"></head>
-              <body style="font-family: sans-serif; color: #0f172a; line-height: 1.6;">
-                ${htmlContent}
-              </body>
-            </html>
-        `
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="utf-8"></head>
+        <body style="font-family: sans-serif; color: #0f172a; line-height: 1.6;">
+          ${htmlContent}
+        </body>
+        </html>
+      `
 
       const blobHtml = new Blob([finalHtml], { type: "text/html" })
       const blobText = new Blob([text], { type: "text/plain" })
@@ -1424,72 +1401,71 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
 
       <style>{`
         :root {
-    --brand - dark: #020617;
-    --brand - primary: #0ea5e9;
-    --font - tech: 'Rajdhani', sans - serif;
-  }
-        body { font - family: var(--font - tech); background - color: #f8fafc; color: #0f172a; overflow: hidden; }
-        .dark body { background - color: var(--brand - dark); color: #f8fafc; }
+            --brand-dark: #020617;
+            --brand-primary: #0ea5e9;
+            --font-tech: 'Rajdhani', sans-serif;
+        }
+        body { font-family: var(--font-tech); background-color: #f8fafc; color: #0f172a; overflow: hidden; }
+        .dark body { background-color: var(--brand-dark); color: #f8fafc; }
         
-        .glass - panel { background: rgba(255, 255, 255, 0.8); backdrop - filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.5); box - shadow: 0 4px 30px rgba(0, 0, 0, 0.05); }
-        .dark.glass - panel { background: rgba(2, 6, 23, 0.85); border: 1px solid rgba(14, 165, 233, 0.15); box - shadow: 0 4px 30px rgba(0, 0, 0, 0.4); }
+        .glass-panel { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.5); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05); }
+        .dark .glass-panel { background: rgba(2, 6, 23, 0.85); border: 1px solid rgba(14, 165, 233, 0.15); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4); }
 
-  @keyframes brain - float { 0 % { transform: translateY(0px); } 50 % { transform: translateY(-6px); } 100 % { transform: translateY(0px); } }
-        .animate - float { animation: brain - float 6s ease -in -out infinite; }
-
-  @keyframes brain - wave - flow { 0 % { background- position: 0 % 50 %; opacity: 0.2; } 50 % { background- position: 100 % 50 %; opacity: 0.5;
-} 100 % { background- position: 0 % 50 %; opacity: 0.2; } }
-        .brainwave - overlay { background: linear - gradient(90deg, transparent, rgba(14, 165, 233, 0.3), transparent, rgba(34, 211, 238, 0.3), transparent); background - size: 200 % 100 %; animation: brain - wave - flow 3s linear infinite; pointer - events: none; }
-
-@keyframes synapse - pulse { 0 % { box- shadow: 0 - 10px 40px rgba(14, 165, 233, 0.1); border - top - color: rgba(14, 165, 233, 0.3); } 50 % { box- shadow: 0 - 20px 60px rgba(14, 165, 233, 0.4); border - top - color: rgba(14, 165, 233, 0.8); } 100 % { box- shadow: 0 - 10px 40px rgba(14, 165, 233, 0.1); border - top - color: rgba(14, 165, 233, 0.3); } }
-        .synapse - active { animation: synapse - pulse 1.5s ease -in -out infinite; position: relative; }
-
-@keyframes neural - grid - move { 0 % { transform: translateY(0); } 100 % { transform: translateY(50px); } }
-        .neural - grid - active {
-  background - image: linear - gradient(0deg, transparent 24 %, rgba(14, 165, 233, 0.05) 25 %, rgba(14, 165, 233, 0.05) 26 %, transparent 27 %, transparent 74 %, rgba(14, 165, 233, 0.05) 75 %, rgba(14, 165, 233, 0.05) 76 %, transparent 77 %, transparent), linear - gradient(90deg, transparent 24 %, rgba(14, 165, 233, 0.05) 25 %, rgba(14, 165, 233, 0.05) 26 %, transparent 27 %, transparent 74 %, rgba(14, 165, 233, 0.05) 75 %, rgba(14, 165, 233, 0.05) 76 %, transparent 77 %, transparent);
-  background - size: 50px 50px;
-  animation: neural - grid - move 3s linear infinite;
-}
-
-@keyframes synapse - beam { 0 % { opacity: 0; transform: translateY(20px) scale(0.8); } 50 % { opacity: 1; transform: translateY(0) scale(1); } 100 % { opacity: 0; transform: translateY(-20px) scale(1.2); } }
-        .synapse - beam::before { content: ''; position: absolute; width: 100 %; height: 100 %; top: 0; left: 0; background: radial - gradient(circle, rgba(14, 165, 233, 0.2) 0 %, transparent 70 %); animation: synapse - beam 2s infinite; pointer - events: none; z - index: -1; }
-
-        .markdown - body table { width: 100 %; border - collapse: separate; border - spacing: 0; margin: 1.5em 0; border - radius: 12px; overflow: hidden; border: 1px solid rgba(148, 163, 184, 0.2); font - size: 0.95em; }
-        .dark.markdown - body table { border - color: rgba(30, 41, 59, 0.8); }
-        .markdown - body th { background - color: #f1f5f9; color: #334155; font - weight: 700; text - align: left; padding: 12px 16px; border - bottom: 2px solid rgba(148, 163, 184, 0.3); }
-        .dark.markdown - body th { background - color: #1e293b; color: #cbd5e1; border - bottom - color: rgba(51, 65, 85, 0.8); }
-        .markdown - body td { padding: 12px 16px; border - bottom: 1px solid rgba(148, 163, 184, 0.1); }
-        .dark.markdown - body td { border - bottom - color: rgba(51, 65, 85, 0.4); }
-        .markdown - body tr: nth - child(even) { background - color: rgba(241, 245, 249, 0.4); }
-        .dark.markdown - body tr: nth - child(even) { background - color: rgba(30, 41, 59, 0.3); }
+        @keyframes brain-float { 0% { transform: translateY(0px); } 50% { transform: translateY(-6px); } 100% { transform: translateY(0px); } }
+        .animate-float { animation: brain-float 6s ease-in-out infinite; }
         
-        .markdown - body p { margin - bottom: 1.25em; line - height: 1.6; }
-        .markdown - body strong { font - weight: 700; color: inherit; }
-        .markdown - body ul { list - style - type: disc; padding - left: 1.5em; margin - bottom: 1.25em; }
-        
-        .btn - electric {
-  background: linear - gradient(135deg, #0ea5e9 0 %, #2563eb 100 %);
-  box - shadow: 0 0 15px rgba(14, 165, 233, 0.5);
-  transition: all 0.3s ease;
-}
-        .btn - electric:hover {
-  box - shadow: 0 0 25px rgba(14, 165, 233, 0.8);
-  transform: translateY(-1px);
-}
-        
-        .custom - scrollbar:: -webkit - scrollbar { width: 4px; }
-        .custom - scrollbar:: -webkit - scrollbar - track { background: transparent; }
-        .custom - scrollbar:: -webkit - scrollbar - thumb { background: rgba(148, 163, 184, 0.2); border - radius: 2px; }
-        .dark.custom - scrollbar:: -webkit - scrollbar - thumb { background: rgba(30, 41, 59, 0.5); }
-        .custom - scrollbar:: -webkit - scrollbar - thumb:hover { background: rgba(14, 165, 233, 0.5); }
-`}</style>
+        @keyframes brain-wave-flow { 0% { background-position: 0% 50%; opacity: 0.2; } 50% { background-position: 100% 50%; opacity: 0.5; } 100% { background-position: 0% 50%; opacity: 0.2; } }
+        .brainwave-overlay { background: linear-gradient(90deg, transparent, rgba(14,165,233,0.3), transparent, rgba(34,211,238,0.3), transparent); background-size: 200% 100%; animation: brain-wave-flow 3s linear infinite; pointer-events: none; }
 
-      <div className={`flex h - screen w - full bg - tech - grid azure - glow - bg ${isDark ? "dark" : ""} `}>
+        @keyframes synapse-pulse { 0% { box-shadow: 0 -10px 40px rgba(14,165,233,0.1); border-top-color: rgba(14,165,233,0.3); } 50% { box-shadow: 0 -20px 60px rgba(14,165,233,0.4); border-top-color: rgba(14,165,233,0.8); } 100% { box-shadow: 0 -10px 40px rgba(14,165,233,0.1); border-top-color: rgba(14,165,233,0.3); } }
+        .synapse-active { animation: synapse-pulse 1.5s ease-in-out infinite; position: relative; }
+
+        @keyframes neural-grid-move { 0% { transform: translateY(0); } 100% { transform: translateY(50px); } }
+        .neural-grid-active { 
+            background-image: linear-gradient(0deg, transparent 24%, rgba(14, 165, 233, 0.05) 25%, rgba(14, 165, 233, 0.05) 26%, transparent 27%, transparent 74%, rgba(14, 165, 233, 0.05) 75%, rgba(14, 165, 233, 0.05) 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, rgba(14, 165, 233, 0.05) 25%, rgba(14, 165, 233, 0.05) 26%, transparent 27%, transparent 74%, rgba(14, 165, 233, 0.05) 75%, rgba(14, 165, 233, 0.05) 76%, transparent 77%, transparent);
+            background-size: 50px 50px;
+            animation: neural-grid-move 3s linear infinite;
+        }
+        
+        @keyframes synapse-beam { 0% { opacity: 0; transform: translateY(20px) scale(0.8); } 50% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-20px) scale(1.2); } }
+        .synapse-beam::before { content: ''; position: absolute; width: 100%; height: 100%; top: 0; left: 0; background: radial-gradient(circle, rgba(14,165,233,0.2) 0%, transparent 70%); animation: synapse-beam 2s infinite; pointer-events: none; z-index: -1; }
+
+        .markdown-body table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 1.5em 0; border-radius: 12px; overflow: hidden; border: 1px solid rgba(148, 163, 184, 0.2); font-size: 0.95em; }
+        .dark .markdown-body table { border-color: rgba(30, 41, 59, 0.8); }
+        .markdown-body th { background-color: #f1f5f9; color: #334155; font-weight: 700; text-align: left; padding: 12px 16px; border-bottom: 2px solid rgba(148, 163, 184, 0.3); }
+        .dark .markdown-body th { background-color: #1e293b; color: #cbd5e1; border-bottom-color: rgba(51, 65, 85, 0.8); }
+        .markdown-body td { padding: 12px 16px; border-bottom: 1px solid rgba(148, 163, 184, 0.1); }
+        .dark .markdown-body td { border-bottom-color: rgba(51, 65, 85, 0.4); }
+        .markdown-body tr:nth-child(even) { background-color: rgba(241, 245, 249, 0.4); }
+        .dark .markdown-body tr:nth-child(even) { background-color: rgba(30, 41, 59, 0.3); }
+        
+        .markdown-body p { margin-bottom: 1.25em; line-height: 1.6; }
+        .markdown-body strong { font-weight: 700; color: inherit; }
+        .markdown-body ul { list-style-type: disc; padding-left: 1.5em; margin-bottom: 1.25em; }
+        
+        .btn-electric {
+           background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+           box-shadow: 0 0 15px rgba(14,165,233,0.5);
+           transition: all 0.3s ease;
+        }
+        .btn-electric:hover {
+           box-shadow: 0 0 25px rgba(14,165,233,0.8);
+           transform: translateY(-1px);
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.2); border-radius: 2px; }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(30, 41, 59, 0.5); }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(14, 165, 233, 0.5); }
+      `}</style>
+
+      <div className={`flex h-screen w-full bg-tech-grid azure-glow-bg ${isDark ? "dark" : ""}`}>
         {/* Sidebar */}
         <div
-          className={`glass - panel flex flex - col transition - all duration - 500 ease - [cubic - bezier(0, 0, 0.2, 1)] z - 40 
+          className={`glass-panel flex flex-col transition-all duration-500 ease-[cubic-bezier(0,0,0.2,1)] z-40 
                         ${sidebarVisible ? "w-80 translate-x-0" : "w-0 -translate-x-full opacity-0"} 
-                        fixed md:relative h - full border - r border - sky - 100 dark: border - sky - 900 / 30`}
+                        fixed md:relative h-full border-r border-sky-100 dark:border-sky-900/30`}
         >
           <div className="p-6 border-b border-sky-100 dark:border-sky-900/30 bg-gradient-to-b from-white/50 to-transparent dark:from-sky-900/20">
             <div className="flex items-center justify-between mb-6">
@@ -1525,21 +1501,21 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
           <div className="flex p-2 gap-1 mx-4 mt-4 bg-slate-100/80 dark:bg-slate-900/50 rounded-xl border border-sky-200/50 dark:border-sky-700/30 shadow-inner">
             <button
               onClick={() => setSidebarMode("chats")}
-              className={`flex - 1 py - 2 text - xs font - bold uppercase tracking - wide rounded - lg transition - all flex items - center justify - center gap - 2 cursor - pointer
+              className={`flex-1 py-2 text-xs font-bold uppercase tracking-wide rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer
                     ${sidebarMode === "chats"
                   ? "bg-white dark:bg-slate-800 text-sky-600 dark:text-sky-400 shadow-sm border border-sky-100 dark:border-sky-600/30"
                   : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-                } `}
+                }`}
             >
               <LayoutGrid size={14} /> Missioni
             </button>
             <button
               onClick={() => setSidebarMode("agents")}
-              className={`flex - 1 py - 2 text - xs font - bold uppercase tracking - wide rounded - lg transition - all flex items - center justify - center gap - 2 cursor - pointer
+              className={`flex-1 py-2 text-xs font-bold uppercase tracking-wide rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer
                     ${sidebarMode === "agents"
                   ? "bg-white dark:bg-slate-800 text-sky-600 dark:text-sky-400 shadow-sm border border-sky-100 dark:border-sky-600/30"
                   : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-                } `}
+                }`}
             >
               <Users size={14} /> AI Team
             </button>
@@ -1592,11 +1568,11 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
                   return (
                     <div
                       key={folder.id}
-                      className={`rounded - xl border transition - all duration - 300 overflow - hidden mb - 1
+                      className={`rounded-xl border transition-all duration-300 overflow-hidden mb-1
                                      ${isDragTarget
                           ? "border-sky-400 bg-sky-50 dark:bg-sky-900/30 shadow-[0_0_15px_rgba(14,165,233,0.3)] scale-[1.02]"
                           : "border-slate-300 dark:border-slate-700 bg-gradient-to-b from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900"
-                        } `}
+                        }`}
                       onDragOver={(e) => handleDragOver(e, folder.id)}
                       onDrop={(e) => handleDrop(e, folder.id)}
                     >
@@ -1624,7 +1600,7 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
                           </button>
                           <ChevronDown
                             size={14}
-                            className={`text - slate - 400 transition - transform ${isExpanded ? "rotate-180" : ""} `}
+                            className={`text-slate-400 transition-transform ${isExpanded ? "rotate-180" : ""}`}
                           />
                         </div>
                       </div>
@@ -1648,11 +1624,11 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
                                   onClick={() => loadChat(id)}
                                   draggable
                                   onDragStart={(e) => handleDragStart(e, id)}
-                                  className={`group p - 2 rounded - lg cursor - pointer transition - all flex items - center justify - between ${isActive ? "bg-sky-100 dark:bg-sky-900/50 border-l-2 border-l-sky-500" : "hover:bg-white/50 dark:hover:bg-white/5"} `}
+                                  className={`group p-2 rounded-lg cursor-pointer transition-all flex items-center justify-between ${isActive ? "bg-sky-100 dark:bg-sky-900/50 border-l-2 border-l-sky-500" : "hover:bg-white/50 dark:hover:bg-white/5"}`}
                                 >
                                   <div className="flex-1 min-w-0">
                                     <p
-                                      className={`text - xs font - semibold truncate ${isActive ? "text-sky-600 dark:text-sky-400" : "text-slate-600 dark:text-slate-400"} `}
+                                      className={`text-xs font-semibold truncate ${isActive ? "text-sky-600 dark:text-sky-400" : "text-slate-600 dark:text-slate-400"}`}
                                     >
                                       {chat.title}
                                     </p>
@@ -1692,11 +1668,11 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
                           onClick={() => loadChat(id)}
                           draggable
                           onDragStart={(e) => handleDragStart(e, id)}
-                          className={`group relative p - 3 rounded - xl cursor - pointer border transition - all duration - 300
+                          className={`group relative p-3 rounded-xl cursor-pointer border transition-all duration-300
                                          ${isActive
                               ? "bg-gradient-to-r from-sky-50 to-white dark:from-sky-900/30 dark:to-slate-900/30 border-sky-200 dark:border-sky-500/50 shadow-sm border-l-4 border-l-sky-500"
                               : "border-transparent hover:bg-white/60 dark:hover:bg-white/5 hover:translate-x-1"
-                            } `}
+                            }`}
                         >
                           {renamingChat === id ? (
                             <div className="flex items-center gap-2">
@@ -1722,7 +1698,7 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
                             <div className="flex justify-between items-center">
                               <div className="flex-1 min-w-0">
                                 <h4
-                                  className={`text - sm font - bold truncate transition - colors ${isActive ? "text-sky-600 dark:text-sky-400" : "text-slate-600 dark:text-slate-400 group-hover:text-sky-600 dark:group-hover:text-sky-300"} `}
+                                  className={`text-sm font-bold truncate transition-colors ${isActive ? "text-sky-600 dark:text-sky-400" : "text-slate-600 dark:text-slate-400 group-hover:text-sky-600 dark:group-hover:text-sky-300"}`}
                                 >
                                   {pinnedChats.has(id) && "📌 "}
                                   {chat.archived && "📦 "}
@@ -1747,7 +1723,7 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
                                     e.stopPropagation()
                                     setActiveMenu(isMenuOpen ? null : id)
                                   }}
-                                  className={`p - 1.5 rounded - md text - slate - 400 hover: text - sky - 500 hover: bg - sky - 100 dark: hover: bg - white / 10 transition - all ${isMenuOpen ? "bg-sky-100 dark:bg-white/10 text-sky-500" : "opacity-0 group-hover:opacity-100"} `}
+                                  className={`p-1.5 rounded-md text-slate-400 hover:text-sky-500 hover:bg-sky-100 dark:hover:bg-white/10 transition-all ${isMenuOpen ? "bg-sky-100 dark:bg-white/10 text-sky-500" : "opacity-0 group-hover:opacity-100"}`}
                                 >
                                   <MoreHorizontal size={16} />
                                 </button>
@@ -1817,11 +1793,11 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
                     <div
                       key={idx}
                       onClick={() => switchAgent(agentItem.id)}
-                      className={`flex items - center justify - between gap - 3 p - 2.5 rounded - xl border transition - all duration - 300 group cursor - pointer hover: shadow - md dark: hover: shadow - sky - 900 / 20 ${activeAgentId === agentItem.id ? "bg-sky-50 dark:bg-sky-900/30 border-sky-200 dark:border-sky-500/50" : "bg-white/40 dark:bg-white/5 border-transparent hover:bg-white/80 dark:hover:bg-white/10"} `}
+                      className={`flex items-center justify-between gap-3 p-2.5 rounded-xl border transition-all duration-300 group cursor-pointer hover:shadow-md dark:hover:shadow-sky-900/20 ${activeAgentId === agentItem.id ? "bg-sky-50 dark:bg-sky-900/30 border-sky-200 dark:border-sky-500/50" : "bg-white/40 dark:bg-white/5 border-transparent hover:bg-white/80 dark:hover:bg-white/10"}`}
                     >
                       <div className="flex items-center gap-3">
                         <div
-                          className={`relative w - 10 h - 10 rounded - full p - 0.5 transition - all duration - 300 ${activeAgentId === agentItem.id ? "bg-gradient-to-tr from-sky-500 to-cyan-400" : "bg-slate-200 dark:bg-slate-700"} `}
+                          className={`relative w-10 h-10 rounded-full p-0.5 transition-all duration-300 ${activeAgentId === agentItem.id ? "bg-gradient-to-tr from-sky-500 to-cyan-400" : "bg-slate-200 dark:bg-slate-700"}`}
                         >
                           <img
                             src={agentData.image || "/placeholder.svg"}
@@ -1831,7 +1807,7 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
                         </div>
                         <div>
                           <h4
-                            className={`text - sm font - bold transition - colors ${activeAgentId === agentItem.id ? "text-sky-600 dark:text-sky-400" : "text-slate-700 dark:text-slate-200"} `}
+                            className={`text-sm font-bold transition-colors ${activeAgentId === agentItem.id ? "text-sky-600 dark:text-sky-400" : "text-slate-700 dark:text-slate-200"}`}
                           >
                             {agentData.name}
                           </h4>
@@ -1861,10 +1837,10 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
                   setUseMemory(!useMemory)
                   localStorage.setItem("tony-ai-use-memory", String(!useMemory))
                 }}
-                className={`w - 10 h - 5 rounded - full relative transition - all duration - 300 ${useMemory ? "bg-sky-500 shadow-[0_0_10px_rgba(14,165,233,0.4)]" : "bg-slate-300 dark:bg-slate-600"} `}
+                className={`w-10 h-5 rounded-full relative transition-all duration-300 ${useMemory ? "bg-sky-500 shadow-[0_0_10px_rgba(14,165,233,0.4)]" : "bg-slate-300 dark:bg-slate-600"}`}
               >
                 <div
-                  className={`absolute top - 0.5 w - 4 h - 4 bg - white rounded - full shadow - md transition - all duration - 300 ${useMemory ? "left-5" : "left-0.5"} `}
+                  className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-md transition-all duration-300 ${useMemory ? "left-5" : "left-0.5"}`}
                 ></div>
               </button>
             </div>
@@ -1878,7 +1854,7 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
           {/* Header */}
           <div className="sticky top-4 z-50 px-4 md:px-8">
             <div
-              className={`w - full max - w - 6xl mx - auto rounded - 2xl p - 1 shadow - 2xl transition - all duration - 500 animate - float overflow - hidden relative ${isDark ? "bg-slate-800/95 border border-sky-500/30 shadow-[0_0_50px_rgba(14,165,233,0.15)]" : "bg-sky-100/90 border border-sky-300 shadow-[0_10px_40px_rgba(14,165,233,0.25)]"} backdrop - blur - xl`}
+              className={`w-full max-w-6xl mx-auto rounded-2xl p-1 shadow-2xl transition-all duration-500 animate-float overflow-hidden relative ${isDark ? "bg-slate-800/95 border border-sky-500/30 shadow-[0_0_50px_rgba(14,165,233,0.15)]" : "bg-sky-100/90 border border-sky-300 shadow-[0_10px_40px_rgba(14,165,233,0.25)]"} backdrop-blur-xl`}
             >
               <div className="absolute inset-0 pointer-events-none opacity-40 brainwave-overlay"></div>
               <div className="relative flex items-center justify-between p-3 md:p-4 rounded-xl z-10">
@@ -1917,7 +1893,7 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
                         </span>
                       </div>
                       <p
-                        className={`text - sm leading - tight max - w - md ${isDark ? "text-slate-300" : "text-slate-700"} font - medium`}
+                        className={`text-sm leading-tight max-w-md ${isDark ? "text-slate-300" : "text-slate-700"} font-medium`}
                       >
                         {currentAgent.role}
                       </p>
@@ -1962,7 +1938,7 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
               {messages.map((msg, idx) => (
                 <div
                   key={idx}
-                  className={`flex gap - 3 md: gap - 4 ${msg.sender === "user" ? "justify-end" : "justify-start"} animate -in fade -in slide -in -from - bottom - 2 duration - 300`}
+                  className={`flex gap-3 md:gap-4 ${msg.sender === "user" ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2 duration-300`}
                 >
                   {msg.sender === "ai" && (
                     <div className="w-9 h-9 md:w-10 md:h-10 rounded-full shadow-lg shadow-sky-500/30 shrink-0 border-2 border-white dark:border-slate-900 overflow-hidden">
@@ -1977,7 +1953,7 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
                     </div>
                   )}
                   <div
-                    className={`group relative max - w - [85 %] md: max - w - 3xl rounded - 2xl px - 4 md: px - 5 py - 3 md: py - 4 shadow - lg transition - all duration - 300 hover: shadow - xl ${msg.sender === "ai" ? "bg-white dark:bg-slate-800/90 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700" : "bg-gradient-to-br from-sky-500 to-sky-600 text-white border border-sky-400"} `}
+                    className={`group relative max-w-[85%] md:max-w-3xl rounded-2xl px-4 md:px-5 py-3 md:py-4 shadow-lg transition-all duration-300 hover:shadow-xl ${msg.sender === "ai" ? "bg-white dark:bg-slate-800/90 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700" : "bg-gradient-to-br from-sky-500 to-sky-600 text-white border border-sky-400"}`}
                   >
                     {msg.files && msg.files.length > 0 && (
                       <div className="flex flex-wrap gap-2 mb-3 pb-3 border-b border-white/20">
@@ -2070,7 +2046,7 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
                   <button
                     onClick={sendMessage}
                     disabled={isLoading || (!inputValue.trim() && selectedFiles.length === 0)}
-                    className={`p - 3 md: p - 3.5 rounded - xl font - bold uppercase tracking - wider transition - all duration - 300 shrink - 0 border - 2 ${isLoading || (!inputValue.trim() && selectedFiles.length === 0) ? "bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 border-transparent cursor-not-allowed" : "bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-600 hover:to-cyan-600 text-white shadow-lg shadow-sky-500/40 hover:shadow-sky-500/60 hover:scale-105 active:scale-95 border-sky-400 cursor-pointer"} `}
+                    className={`p-3 md:p-3.5 rounded-xl font-bold uppercase tracking-wider transition-all duration-300 shrink-0 border-2 ${isLoading || (!inputValue.trim() && selectedFiles.length === 0) ? "bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 border-transparent cursor-not-allowed" : "bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-600 hover:to-cyan-600 text-white shadow-lg shadow-sky-500/40 hover:shadow-sky-500/60 hover:scale-105 active:scale-95 border-sky-400 cursor-pointer"}`}
                   >
                     <Send size={18} fill="currentColor" className={inputValue.trim() || selectedFiles.length > 0 ? "text-white" : "text-white/50"} />
                   </button>
