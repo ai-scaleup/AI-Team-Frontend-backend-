@@ -291,3 +291,18 @@ model ChiaraInboundChatLog {
   @@map("chiara_inbound_chat_logs")
 }
 
+model ChiaraLead {
+  id        Int      @id @default(autoincrement())
+  sessionId String   @unique @map("session_id") @db.VarChar(255)
+  name      String   @db.VarChar(255)
+  email     String   @db.VarChar(255)
+  phone     String   @db.VarChar(50)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([email])
+  @@index([createdAt])
+  @@map("chiara_leads")
+}
+
+
