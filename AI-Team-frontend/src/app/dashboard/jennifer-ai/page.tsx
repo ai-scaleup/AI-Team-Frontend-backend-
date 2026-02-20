@@ -125,7 +125,7 @@ export default function JenniferPage() {
                                             }`}
                                     >
                                         <span className="truncate font-mono opacity-80">
-                                            {sessionId.substring(0, 8)}...
+                                            {sessionId.length > 20 ? sessionId.substring(0, 20) + '...' : sessionId}
                                         </span>
                                         <ChevronRight className={`w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity ${selectedSession === sessionId ? 'opacity-100' : ''}`} />
                                     </button>

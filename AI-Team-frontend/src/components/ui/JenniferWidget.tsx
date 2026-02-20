@@ -81,7 +81,9 @@ export default function JenniferWidget() {
     }
 
     try {
-      const sessionId = localStorage.getItem("jennifer-session") || `jennifer-${Date.now()}`
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0];
+      const sessionId = localStorage.getItem("jennifer-session") || `${dateStr}-jennifer-${Date.now()}`
       localStorage.setItem("jennifer-session", sessionId)
 
       const res = await fetch(N8N_URL, {

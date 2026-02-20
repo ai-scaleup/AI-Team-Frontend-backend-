@@ -9,12 +9,13 @@ import { ConversationModule } from './conversations/conversation.module';
 import { UserPreferenceModule } from './user-preference/user-preference.module';
 import { SaraAiModule } from './sara-ai/sara-ai.module';
 import { JenniferModule } from './jennifer/jennifer.module';
+import { ChiaraModule } from './chiara/chiara.module';
 
 
 
 
 @Module({
-  imports: [PrismaModule, UserModule, ClerkModule, AdminModule, ConversationModule, UserPreferenceModule, SaraAiModule, JenniferModule],
+  imports: [PrismaModule, UserModule, ClerkModule, AdminModule, ConversationModule, UserPreferenceModule, SaraAiModule, JenniferModule, ChiaraModule],
   controllers: [AppController],
   providers: [AppService],
 })
