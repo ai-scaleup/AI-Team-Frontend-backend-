@@ -1380,6 +1380,10 @@ export default function App() {
       files: selectedFiles.map((f) => f.name),
     }
 
+    // Capture input values before clearing state
+    const capturedInput = inputValue
+    const capturedFiles = [...selectedFiles]
+
     // Clear input immediately after creating the message object
     setInputValue("")
     setSelectedFiles([])
@@ -1441,8 +1445,9 @@ export default function App() {
 
       if (user?.id) {
         try {
+          const messageText = userMessage.text.trim() || `[File: ${userMessage.files?.join(', ') || 'attachment'}]`
           await conversationService.addMessage(user.id, currentChatIdForSend, {
-            text: userMessage.text,
+            text: messageText,
             sender: userMessage.sender,
             time: userMessage.time,
           })
@@ -1453,17 +1458,28 @@ export default function App() {
       }
     }
 
-    // Upsert pending file contents to Pinecone on send
+    // Upsert pending file contents to Pinecone via API route
     if (pendingFileContents.length > 0 && CURRENT_NAMESPACE.current) {
       for (const fileData of pendingFileContents) {
         try {
-          await upsertFileToPinecone(
-            fileData.fileName,
-            fileData.content,
-            CURRENT_NAMESPACE.current,
-            currentChatIdForSend || undefined,
-            activeAgentId,
-          )
+          const res = await fetch("/api/pinecone-upsert", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "file",
+              fileName: fileData.fileName,
+              content: fileData.content,
+              namespace: CURRENT_NAMESPACE.current,
+              chatId: currentChatIdForSend || "",
+              agentId: activeAgentId,
+            }),
+          })
+          if (!res.ok) {
+            const errBody = await res.json().catch(() => ({}))
+            console.error("❌ Pinecone file upsert error response:", errBody)
+            throw new Error(`Pinecone file upsert failed: ${res.status} - ${errBody.error || 'Unknown error'}`)
+          }
+          console.log("✅ Mike AI: File upserted to Pinecone:", fileData.fileName)
         } catch (error) {
           console.error("Failed to upsert file to Pinecone:", error)
         }
@@ -1483,7 +1499,7 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chatInput:
-            inputValue + (selectedFiles.length ? ` [Attached: ${selectedFiles.map((f) => f.name).join(", ")}]` : "") +
+            capturedInput + (capturedFiles.length ? ` [Attached: ${capturedFiles.map((f) => f.name).join(", ")}]` : "") +
             `\n\n<SYSTEM_CONTEXT_DO_NOT_REPLY>\nUSER_PROFILE_DATA: ${JSON.stringify(userPrefs)}\n</SYSTEM_CONTEXT_DO_NOT_REPLY>`,
           sessionId: sessionId,
           useMemory: useMemory,
@@ -1556,8 +1572,9 @@ export default function App() {
       // Save AI message to API
       if (user?.id && currentChatIdForSend) {
         try {
+          const aiMessageText = finalAiMessage.text.trim() || 'La risposta è stata completata.'
           await conversationService.addMessage(user.id, currentChatIdForSend, {
-            text: finalAiMessage.text,
+            text: aiMessageText,
             sender: finalAiMessage.sender,
             time: finalAiMessage.time,
           })
@@ -1567,16 +1584,27 @@ export default function App() {
         }
       }
 
-      // Upsert conversation to Pinecone
+      // Upsert conversation to Pinecone via API route
       if (CURRENT_NAMESPACE.current && currentChatIdForSend) {
         try {
-          await upsertConversation(
-            userMessage,
-            finalAiMessage,
-            currentChatIdForSend,
-            activeAgentId,
-            CURRENT_NAMESPACE.current,
-          )
+          const res = await fetch("/api/pinecone-upsert", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "conversation",
+              userText: userMessage.text,
+              aiText: finalAiMessage.text,
+              chatId: currentChatIdForSend,
+              agentId: activeAgentId,
+              namespace: CURRENT_NAMESPACE.current,
+            }),
+          })
+          if (!res.ok) {
+            const errBody = await res.json().catch(() => ({}))
+            console.error("❌ Pinecone conversation upsert error response:", errBody)
+            throw new Error(`Pinecone conversation upsert failed: ${res.status} - ${errBody.error || 'Unknown error'}`)
+          }
+          console.log("✅ Mike AI: Conversation upserted to Pinecone")
         } catch (error) {
           console.error("Failed to upsert conversation:", error)
         }
