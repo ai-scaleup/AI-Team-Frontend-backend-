@@ -37,4 +37,10 @@ export class ChiaraService {
             where: { sessionId },
         });
     }
+
+    async getAllLeads() {
+        return this.prisma.chiaraLead.findMany({
+            orderBy: { createdAt: 'desc' },
+        });
+    }
 }

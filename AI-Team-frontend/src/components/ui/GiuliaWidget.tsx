@@ -404,6 +404,9 @@ export default function GiuliaWidget() {
           font-size: 15px;
           line-height: 1.5;
           font-weight: 400;
+          word-break: normal;
+          overflow-wrap: break-word;
+          hyphens: none;
         }
 
         .giulia-message.ai .giulia-message-content {

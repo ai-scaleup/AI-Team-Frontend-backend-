@@ -22,6 +22,11 @@ export class ChiaraController {
         return this.chiaraService.createLead(data);
     }
 
+    @Get('leads')
+    async getAllLeads() {
+        return this.chiaraService.getAllLeads();
+    }
+
     @Get('leads/:sessionId')
     async getLead(@Param('sessionId') sessionId: string) {
         return this.chiaraService.getLeadBySessionId(sessionId);
