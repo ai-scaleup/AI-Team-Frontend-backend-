@@ -97,7 +97,7 @@ export default function GiuliaWidget() {
         /* ignore */
       }
 
-      let finalText = sanitizeText(extracted.join(" ").trim())
+      let finalText = sanitizeText(extracted.join("").trim())
       if (!finalText) {
         try {
           const parsed = JSON.parse(textData)
@@ -398,15 +398,17 @@ export default function GiuliaWidget() {
         }
 
         .giulia-message-content {
-          max-width: 70%;
+          max-width: 80%;
           padding: 12px 16px;
           border-radius: 14px;
           font-size: 15px;
           line-height: 1.5;
           font-weight: 400;
-          word-break: normal;
+          word-break: keep-all;
           overflow-wrap: break-word;
           hyphens: none;
+          white-space: normal;
+          word-spacing: normal;
         }
 
         .giulia-message.ai .giulia-message-content {

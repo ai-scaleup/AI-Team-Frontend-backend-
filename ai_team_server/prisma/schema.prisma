@@ -25,6 +25,7 @@ enum AgentName {
   SOFIA
   ROBERTA
   SARA_AI
+  JENNIFER_AI
   // --- test agents ---
   TEST_JIM
   TEST_ALEX
@@ -41,6 +42,8 @@ enum AgentName {
   TEST_MAX
   TEST_SOFIA
   TEST_ROBERTA
+  TEST_SARA_AI
+  TEST_JENNIFER_AI
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -305,5 +308,26 @@ model ChiaraLead {
   @@map("chiara_leads")
 }
 
+// ─────────────────────────────────────────────────────────────
+// Standalone Tag Model (no relations)
+// ─────────────────────────────────────────────────────────────
+model TagField {
+  id          String   @id @default(uuid())
+  tagName     String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
 
+// ─────────────────────────────────────────────────────────────
+// Tag Model (no relations)
+// ─────────────────────────────────────────────────────────────
+model Tag {
+  id        String   @id @default(uuid())
+  sessionId String   @db.VarChar(255)
+  tags      String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
+  @@index([sessionId])
+}

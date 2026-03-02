@@ -1,16 +1,17 @@
 "use client"
 
-import type React from "react"
+
 import { useState, useEffect, useRef } from "react"
 import {
     MessageSquare, User, Bot, Loader2, Calendar, ChevronRight, UserCheck, X, Mail, Phone,
-    BarChart3, ChevronLeft, Search, RefreshCw, Sun, Settings, Archive, PanelRightClose, PanelRightOpen, Users
+    BarChart3, ChevronLeft, Search, RefreshCw, Sun, Moon, Settings, Archive, PanelRightClose, PanelRightOpen, Users,
+    Tag, Plus, Trash2, Edit3, Check
 } from "lucide-react"
-import JenniferWidget from "@/components/ui/JenniferWidget"
+
 
 // --- CONFIGURATION ---
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE
-const JENNIFER_AVATAR = "https://www.ai-scaleup.com/wp-content/uploads/2025/11/jennifer-ai.png"
+const JENNIFER_AVATAR = "https://i.ibb.co.com/mVR9YXMD/Whats-App-Image-2026-02-25-at-15-34-49-1.jpg"
 const USER_AVATAR_URL = "https://www.shutterstock.com/image-vector/vector-flat-illustration-grayscale-avatar-600nw-2264922221.jpg"
 
 // --- TYPES ---
@@ -30,6 +31,14 @@ interface ChiaraLead {
     updatedAt: string
 }
 
+interface TagField {
+    id: string
+    tagName: string
+    description?: string
+    createdAt: string
+    updatedAt: string
+}
+
 // --- MOCK USER BUTTON ---
 const MockUserButton = () => (
     <button className="relative w-10 h-10 rounded-full overflow-hidden ring-2 ring-indigo-400/50 hover:ring-indigo-400 transition-all shadow-[0_0_15px_rgba(99,102,241,0.6)] group cursor-pointer">
@@ -43,7 +52,7 @@ export default function JenniferPage() {
     // --- STATE ---
     const [mounted, setMounted] = useState(false)
     const [isDark, setIsDark] = useState(true)
-    const [section, setSection] = useState<"analytics" | "conversations" | "leads">("conversations")
+    const [section, setSection] = useState<"analytics" | "conversations" | "leads" | "tags">("conversations")
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
     const [isDetailsPanelOpen, setIsDetailsPanelOpen] = useState(false)
 
@@ -69,6 +78,24 @@ export default function JenniferPage() {
     const [selectedLeadForChat, setSelectedLeadForChat] = useState<ChiaraLead | null>(null)
     const [leadChatLogs, setLeadChatLogs] = useState<ChatLog[]>([])
     const [loadingLeadChat, setLoadingLeadChat] = useState(false)
+
+    // Tags state
+    const [tagFields, setTagFields] = useState<TagField[]>([])
+    const [loadingTagFields, setLoadingTagFields] = useState(false)
+    const [tagForm, setTagForm] = useState({ tagName: '', description: '' })
+    const [editingTagField, setEditingTagField] = useState<TagField | null>(null)
+    const [editForm, setEditForm] = useState({ tagName: '', description: '' })
+    const [savingTag, setSavingTag] = useState(false)
+    const [deletingTagId, setDeletingTagId] = useState<string | null>(null)
+
+    // Generated tags for conversation
+    const [generatedTags, setGeneratedTags] = useState<string[]>([])
+    const [loadingGenerateTags, setLoadingGenerateTags] = useState(false)
+    const [showTagsPanel, setShowTagsPanel] = useState(false)
+
+    // Leads tags state
+    const [leadsTags, setLeadsTags] = useState<Record<string, string[]>>({})
+    const [loadingLeadsTags, setLoadingLeadsTags] = useState(false)
 
     // Refs
     const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -136,17 +163,135 @@ export default function JenniferPage() {
         if (section === 'leads') {
             fetchAllLeads()
         }
+        if (section === 'tags') {
+            fetchTagFields()
+        }
     }, [section])
 
-    // --- FETCH LOGS ---
+    // --- AUTO-FETCH TAGS FOR ALL LEADS ---
     useEffect(() => {
-        async function fetchLogs() {
+        if (section !== 'leads' || allLeads.length === 0) return
+        const fetchTagsForLeads = async () => {
+            setLoadingLeadsTags(true)
+            const tagsMap: Record<string, string[]> = {}
+            await Promise.all(
+                allLeads.map(async (lead) => {
+                    try {
+                        // First try to get existing tags
+                        const res = await fetch(`${API_BASE}/tags/session/${lead.sessionId}`)
+                        if (res.ok) {
+                            const data = await res.json()
+                            if (data && data.tags && data.tags.length > 0) {
+                                tagsMap[lead.sessionId] = data.tags
+                                return
+                            }
+                        }
+                        // If no existing tags, generate them
+                        const genRes = await fetch(`${API_BASE}/tags/generate`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ sessionId: lead.sessionId }),
+                        })
+                        if (genRes.ok) {
+                            const genData = await genRes.json()
+                            tagsMap[lead.sessionId] = genData.tags || []
+                        } else {
+                            tagsMap[lead.sessionId] = []
+                        }
+                    } catch {
+                        tagsMap[lead.sessionId] = []
+                    }
+                })
+            )
+            setLeadsTags(tagsMap)
+            setLoadingLeadsTags(false)
+        }
+        fetchTagsForLeads()
+    }, [section, allLeads])
+
+    // --- TAG FIELD CRUD ---
+    const fetchTagFields = async () => {
+        setLoadingTagFields(true)
+        try {
+            const res = await fetch(`${API_BASE}/tags/fields`)
+            if (res.ok) {
+                const data = await res.json()
+                setTagFields(data)
+            }
+        } catch (error) {
+            console.error('Error fetching tag fields:', error)
+        } finally {
+            setLoadingTagFields(false)
+        }
+    }
+
+    const createTagField = async () => {
+        if (!tagForm.tagName.trim()) return
+        setSavingTag(true)
+        try {
+            const res = await fetch(`${API_BASE}/tags/fields`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(tagForm),
+            })
+            if (res.ok) {
+                setTagForm({ tagName: '', description: '' })
+                fetchTagFields()
+            }
+        } catch (error) {
+            console.error('Error creating tag field:', error)
+        } finally {
+            setSavingTag(false)
+        }
+    }
+
+    const updateTagField = async (id: string) => {
+        if (!editForm.tagName.trim()) return
+        setSavingTag(true)
+        try {
+            const res = await fetch(`${API_BASE}/tags/fields/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(editForm),
+            })
+            if (res.ok) {
+                setEditingTagField(null)
+                fetchTagFields()
+            }
+        } catch (error) {
+            console.error('Error updating tag field:', error)
+        } finally {
+            setSavingTag(false)
+        }
+    }
+
+    const deleteTagField = async (id: string) => {
+        setDeletingTagId(id)
+        try {
+            const res = await fetch(`${API_BASE}/tags/fields/${id}`, { method: 'DELETE' })
+            if (res.ok) {
+                fetchTagFields()
+            }
+        } catch (error) {
+            console.error('Error deleting tag field:', error)
+        } finally {
+            setDeletingTagId(null)
+        }
+    }
+
+    // --- FETCH LOGS & TAGS ---
+    useEffect(() => {
+        async function fetchLogsAndTags() {
             if (!selectedSession) return
             setLoadingLogs(true)
+            setGeneratedTags([])
+            setShowTagsPanel(false)
+
             try {
-                const res = await fetch(`${API_BASE}/jennifer/chat-logs/${selectedSession}`)
-                if (res.ok) {
-                    const data = await res.json()
+                // Fetch Logs
+                const resLogs = await fetch(`${API_BASE}/jennifer/chat-logs/${selectedSession}`)
+                if (resLogs.ok) {
+                    const data = await resLogs.json()
                     setChatLogs(data)
                 }
             } catch (error) {
@@ -154,8 +299,22 @@ export default function JenniferPage() {
             } finally {
                 setLoadingLogs(false)
             }
+
+            try {
+                // Fetch Tags automatically
+                const resTags = await fetch(`${API_BASE}/tags/session/${selectedSession}`)
+                if (resTags.ok) {
+                    const data = await resTags.json()
+                    if (data && data.tags && data.tags.length > 0) {
+                        setGeneratedTags(data.tags)
+                        setShowTagsPanel(true)
+                    }
+                }
+            } catch (error) {
+                console.error("Error fetching session tags:", error)
+            }
         }
-        fetchLogs()
+        fetchLogsAndTags()
     }, [selectedSession])
 
     // Auto-scroll messages
@@ -196,7 +355,39 @@ export default function JenniferPage() {
 
     // --- ANALYTICS ---
     const totalSessions = sessions.length
-    const totalMessages = chatLogs.length // For selected session, or we can show global count
+    const totalMessages = chatLogs.length
+
+    // --- GENERATE TAGS ---
+    const generateSessionTags = async () => {
+        if (!selectedSession) return
+        setLoadingGenerateTags(true)
+        setShowTagsPanel(true)
+        try {
+            const url = `${API_BASE}/tags/generate`
+            console.log('[GenerateTags] Calling:', url, 'with sessionId:', selectedSession)
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId: selectedSession }),
+            })
+            console.log('[GenerateTags] Response status:', res.status)
+            const data = await res.json()
+            console.log('[GenerateTags] Response data:', JSON.stringify(data))
+            if (res.ok) {
+                const tags = data.tags || []
+                console.log('[GenerateTags] Setting tags:', tags)
+                setGeneratedTags(tags)
+            } else {
+                console.error('[GenerateTags] API error:', data)
+                setGeneratedTags([])
+            }
+        } catch (error) {
+            console.error('[GenerateTags] Fetch error:', error)
+            setGeneratedTags([])
+        } finally {
+            setLoadingGenerateTags(false)
+        }
+    }
 
     // Filter sessions by search
     const filteredSessions = sessions.filter(s =>
@@ -370,11 +561,35 @@ export default function JenniferPage() {
                                     Get Lead
                                 </button>
                             )}
+                            {selectedSession && (
+                                <button
+                                    onClick={generateSessionTags}
+                                    disabled={loadingGenerateTags}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all
+                                        bg-purple-600/20 text-purple-400 border border-purple-500/30 hover:bg-purple-600/30
+                                        ${loadingGenerateTags ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                                >
+                                    {loadingGenerateTags ? (
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    ) : (
+                                        <Tag className="w-3.5 h-3.5" />
+                                    )}
+                                    Generate Tags
+                                </button>
+                            )}
                             {showLead && (
                                 <button onClick={() => setIsDetailsPanelOpen(!isDetailsPanelOpen)} className={`p-2 rounded-lg backdrop-blur-sm border transition-all ${isDetailsPanelOpen ? 'bg-slate-100/50 dark:bg-black/20 border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-white' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-indigo-500 shadow-md'}`}>
                                     {isDetailsPanelOpen ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
                                 </button>
                             )}
+                            {generatedTags.length > 0 && (
+                                <button onClick={() => setShowTagsPanel(!showTagsPanel)} className={`p-2 rounded-lg backdrop-blur-sm border transition-all ${showTagsPanel ? 'bg-slate-100/50 dark:bg-black/20 border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-white' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-purple-500 shadow-md'}`}>
+                                    {showTagsPanel ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
+                                </button>
+                            )}
+                            <button onClick={() => setIsDark(!isDark)} className="p-2 rounded-lg backdrop-blur-sm border bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition text-slate-600 dark:text-slate-300 shadow-md">
+                                {isDark ? <Sun size={18} /> : <Moon size={18} />}
+                            </button>
                         </div>
                     </div>
 
@@ -493,6 +708,52 @@ export default function JenniferPage() {
                         </div>
                     </div>
                 </div>
+
+                {/* Tags Sidebar Column */}
+                <div className={`glass-panel rounded-xl flex flex-col border border-slate-200 dark:border-slate-700/50 transition-all duration-300 ease-in-out overflow-hidden ${showTagsPanel && generatedTags.length > 0 ? 'w-72 opacity-100 mr-0' : 'w-0 opacity-0 -mr-4 border-0'}`}>
+                    <div className="w-72 shrink-0">
+                        <div className="p-4 border-b border-slate-200 dark:border-slate-700/50 flex items-center justify-between bg-purple-900/20">
+                            <h2 className="font-semibold flex items-center gap-2 text-sm text-purple-400">
+                                <Tag className="w-4 h-4" />
+                                Generated Tags
+                            </h2>
+                            <button
+                                onClick={() => setShowTagsPanel(false)}
+                                className="p-1 rounded-md transition-colors hover:bg-white/10 text-gray-400"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <div className="p-4 space-y-3">
+                            {loadingGenerateTags ? (
+                                <div className="flex items-center justify-center py-12">
+                                    <Loader2 className="w-6 h-6 animate-spin text-purple-500" />
+                                </div>
+                            ) : generatedTags.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-12 opacity-60">
+                                    <Tag className="w-10 h-10 mb-3 opacity-30" />
+                                    <p className="text-sm text-center">No tags generated.</p>
+                                </div>
+                            ) : (
+                                <>
+                                    <p className="text-[10px] uppercase tracking-wider font-semibold text-gray-500 mb-2">Matched Tags ({generatedTags.length})</p>
+                                    <div className="space-y-2">
+                                        {generatedTags.map((tag, idx) => (
+                                            <div key={idx} className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center gap-3">
+                                                <span className="w-2.5 h-2.5 rounded-full bg-purple-400 shrink-0"></span>
+                                                <span className="text-sm font-medium text-purple-300">{tag}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="pt-3 mt-3 border-t border-slate-700/30">
+                                        <p className="text-[10px] text-slate-500">Tags are generated by AI based on admin-defined Tag Fields.</p>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
             </div>
         )
     }
@@ -562,6 +823,7 @@ export default function JenniferPage() {
                                             <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Email</th>
                                             <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Phone</th>
                                             <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Session</th>
+                                            <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Tags</th>
                                             <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Date</th>
                                         </tr>
                                     </thead>
@@ -607,6 +869,19 @@ export default function JenniferPage() {
                                                         {lead.sessionId ? (lead.sessionId.length > 18 ? lead.sessionId.substring(0, 18) + '...' : lead.sessionId) : '—'}
                                                     </span>
                                                 </td>
+                                                <td className="px-5 py-4">
+                                                    <div className="flex flex-wrap gap-1 max-w-[250px]">
+                                                        {loadingLeadsTags ? (
+                                                            <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-400" />
+                                                        ) : leadsTags[lead.sessionId] && leadsTags[lead.sessionId].length > 0 ? (
+                                                            leadsTags[lead.sessionId].map((tag, tIdx) => (
+                                                                <span key={tIdx} title={tag} className="w-3 h-3 rounded-full bg-purple-500 border border-purple-400/50 shadow-[0_0_6px_rgba(168,85,247,0.4)] cursor-default" />
+                                                            ))
+                                                        ) : (
+                                                            <span className="text-[10px] text-slate-500">—</span>
+                                                        )}
+                                                    </div>
+                                                </td>
                                                 <td className="px-5 py-4 text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap">
                                                     {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
                                                 </td>
@@ -640,18 +915,21 @@ export default function JenniferPage() {
                                 </button>
                             </div>
 
-                            {/* Lead Info Strip */}
-                            <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700/50 bg-black/10 shrink-0">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-400 to-purple-400 flex items-center justify-center text-white text-sm font-bold shadow-sm">
-                                        {selectedLeadForChat.name ? selectedLeadForChat.name.charAt(0).toUpperCase() : '?'}
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-semibold text-slate-200">{selectedLeadForChat.name || 'Unknown'}</p>
-                                        <p className="text-[11px] text-slate-400">{selectedLeadForChat.email || '—'}</p>
+
+
+                            {/* Tags Strip */}
+                            {leadsTags[selectedLeadForChat.sessionId] && leadsTags[selectedLeadForChat.sessionId].length > 0 && (
+                                <div className="px-4 py-2.5 border-b border-slate-200 dark:border-slate-700/50 bg-purple-900/10 shrink-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <Tag size={12} className="text-purple-400 shrink-0" />
+                                        {leadsTags[selectedLeadForChat.sessionId].map((tag, tIdx) => (
+                                            <span key={tIdx} className="inline-flex items-center px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-400 text-[10px] font-medium border border-purple-500/20">
+                                                {tag}
+                                            </span>
+                                        ))}
                                     </div>
                                 </div>
-                            </div>
+                            )}
 
                             {/* Messages */}
                             <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
@@ -695,6 +973,167 @@ export default function JenniferPage() {
     }
 
     // ============================
+    // RENDER: TAGS
+    // ============================
+    const renderTags = () => (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Tag Fields</h2>
+                    <span className="px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-400 text-xs font-bold border border-purple-500/20">
+                        {tagFields.length} total
+                    </span>
+                </div>
+                <button
+                    onClick={fetchTagFields}
+                    disabled={loadingTagFields}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 ${loadingTagFields ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                >
+                    <RefreshCw size={16} className={loadingTagFields ? 'animate-spin' : ''} />
+                    Refresh
+                </button>
+            </div>
+
+            {/* Create Form */}
+            <div className="glass-panel rounded-xl border border-slate-200 dark:border-slate-700/50 p-5">
+                <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <Plus size={14} /> Create New Tag Field
+                </h3>
+                <div className="flex gap-3 items-end">
+                    <div className="flex-1">
+                        <label className="text-xs text-slate-400 mb-1 block">Tag Name *</label>
+                        <input
+                            className="w-full bg-white dark:bg-black/20 border border-slate-200 dark:border-slate-700/50 focus:border-indigo-500 rounded-lg px-3 py-2.5 text-sm focus:outline-none dark:text-white"
+                            placeholder="e.g. Sales Inquiry"
+                            value={tagForm.tagName}
+                            onChange={(e) => setTagForm({ ...tagForm, tagName: e.target.value })}
+                            onKeyDown={(e) => e.key === 'Enter' && createTagField()}
+                        />
+                    </div>
+                    <div className="flex-1">
+                        <label className="text-xs text-slate-400 mb-1 block">Description (optional)</label>
+                        <input
+                            className="w-full bg-white dark:bg-black/20 border border-slate-200 dark:border-slate-700/50 focus:border-indigo-500 rounded-lg px-3 py-2.5 text-sm focus:outline-none dark:text-white"
+                            placeholder="Brief description of this tag"
+                            value={tagForm.description}
+                            onChange={(e) => setTagForm({ ...tagForm, description: e.target.value })}
+                            onKeyDown={(e) => e.key === 'Enter' && createTagField()}
+                        />
+                    </div>
+                    <button
+                        onClick={createTagField}
+                        disabled={savingTag || !tagForm.tagName.trim()}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 ${savingTag || !tagForm.tagName.trim() ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:scale-105'}`}
+                    >
+                        {savingTag ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                        Add
+                    </button>
+                </div>
+            </div>
+
+            {/* Tag Fields Table */}
+            <div className="glass-panel rounded-xl border border-slate-200 dark:border-slate-700/50 overflow-hidden">
+                {loadingTagFields ? (
+                    <div className="flex items-center justify-center py-16">
+                        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+                    </div>
+                ) : tagFields.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-16 opacity-50">
+                        <Tag className="w-12 h-12 mb-4" />
+                        <p className="text-sm">No tag fields created yet.</p>
+                    </div>
+                ) : (
+                    <table className="w-full text-sm">
+                        <thead>
+                            <tr className="border-b border-slate-200 dark:border-slate-700/50 bg-slate-50/50 dark:bg-black/20">
+                                <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">#</th>
+                                <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Tag Name</th>
+                                <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Description</th>
+                                <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Created</th>
+                                <th className="text-right px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                            {tagFields.map((tf, idx) => (
+                                <tr key={tf.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                                    <td className="px-5 py-4 text-slate-400 font-mono text-xs">{idx + 1}</td>
+                                    <td className="px-5 py-4">
+                                        {editingTagField?.id === tf.id ? (
+                                            <input
+                                                className="bg-white dark:bg-black/30 border border-indigo-500 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none dark:text-white w-full max-w-[200px]"
+                                                value={editForm.tagName}
+                                                onChange={(e) => setEditForm({ ...editForm, tagName: e.target.value })}
+                                                autoFocus
+                                            />
+                                        ) : (
+                                            <span className="font-medium text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                                                <span className="w-2 h-2 rounded-full bg-purple-400"></span>
+                                                {tf.tagName}
+                                            </span>
+                                        )}
+                                    </td>
+                                    <td className="px-5 py-4">
+                                        {editingTagField?.id === tf.id ? (
+                                            <input
+                                                className="bg-white dark:bg-black/30 border border-indigo-500 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none dark:text-white w-full max-w-[250px]"
+                                                value={editForm.description}
+                                                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                                            />
+                                        ) : (
+                                            <span className="text-slate-500 dark:text-slate-400">{tf.description || '—'}</span>
+                                        )}
+                                    </td>
+                                    <td className="px-5 py-4 text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap">
+                                        {new Date(tf.createdAt).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                    </td>
+                                    <td className="px-5 py-4">
+                                        <div className="flex items-center justify-end gap-2">
+                                            {editingTagField?.id === tf.id ? (
+                                                <>
+                                                    <button
+                                                        onClick={() => updateTagField(tf.id)}
+                                                        disabled={savingTag}
+                                                        className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all cursor-pointer"
+                                                    >
+                                                        {savingTag ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setEditingTagField(null)}
+                                                        className="p-2 rounded-lg bg-slate-500/10 text-slate-400 border border-slate-500/20 hover:bg-slate-500/20 transition-all cursor-pointer"
+                                                    >
+                                                        <X size={14} />
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <button
+                                                        onClick={() => { setEditingTagField(tf); setEditForm({ tagName: tf.tagName, description: tf.description || '' }) }}
+                                                        className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 transition-all cursor-pointer"
+                                                    >
+                                                        <Edit3 size={14} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => deleteTagField(tf.id)}
+                                                        disabled={deletingTagId === tf.id}
+                                                        className={`p-2 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-all ${deletingTagId === tf.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                                                    >
+                                                        {deletingTagId === tf.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
+            </div>
+        </div>
+    )
+
+    // ============================
     // MAIN RETURN
     // ============================
     return (
@@ -711,16 +1150,22 @@ export default function JenniferPage() {
 
             <div className={`flex h-screen w-full ${isDark ? "dark" : ""}`}>
                 {/* =================== SIDEBAR =================== */}
-                <div className={`glass-panel flex flex-col transition-all duration-300 ease-in-out z-40 ${isSidebarCollapsed ? "w-20" : "w-56"} fixed md:relative h-full border-r border-indigo-100 dark:border-indigo-900/30 overflow-hidden`}>
+                <div className={`glass-panel flex flex-col transition-all duration-300 ease-in-out z-40 ${isSidebarCollapsed ? "w-20" : "w-64"} fixed md:relative h-full border-r border-indigo-100 dark:border-indigo-900/30 overflow-hidden`}>
                     <div className={`p-4 border-b border-indigo-100 dark:border-indigo-900/30 bg-gradient-to-b from-white/50 to-transparent dark:from-indigo-900/20 flex flex-col ${isSidebarCollapsed ? 'items-center' : ''}`}>
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 rounded-full p-0.5 bg-gradient-to-tr from-indigo-400 to-purple-300 shadow-lg shadow-indigo-400/20">
-                                <img src={JENNIFER_AVATAR} className="w-full h-full rounded-full object-cover" alt="Jennifer AI" />
+                        {/* Jennifer AI Branding */}
+                        <div className={`flex items-center gap-3 mb-4 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+                            <div className="relative w-11 h-11 shrink-0 rounded-full border-[2px] border-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.5)] overflow-hidden bg-slate-950">
+                                <img src={JENNIFER_AVATAR} className="w-full h-full object-cover" alt="Jennifer AI" />
                             </div>
-                            {!isSidebarCollapsed && <span className="font-bold text-xl tracking-wider text-slate-800 dark:text-white">AI TEAM</span>}
-                            {!isSidebarCollapsed && <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="ml-auto p-1.5 rounded-lg hover:bg-white/10"><ChevronLeft size={18} /></button>}
+                            {!isSidebarCollapsed && (
+                                <div className="flex-1 min-w-0">
+                                    <h1 className="text-lg font-black text-white uppercase tracking-widest leading-none truncate">JENNIFER AI</h1>
+                                    <span className="inline-block mt-1 px-2 py-0.5 rounded bg-indigo-500 text-white text-[9px] font-bold tracking-widest shadow-[0_0_10px_rgba(99,102,241,0.5)] uppercase">ONLINE</span>
+                                </div>
+                            )}
+                            {!isSidebarCollapsed && <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400"><ChevronLeft size={18} /></button>}
                         </div>
-                        {isSidebarCollapsed && <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="mb-6 p-1.5 rounded-lg hover:bg-white/10"><ChevronRight size={18} /></button>}
+                        {isSidebarCollapsed && <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="mb-4 p-1.5 rounded-lg hover:bg-white/10 text-slate-400"><ChevronRight size={18} /></button>}
 
                         {/* Nav Items */}
                         <div className="space-y-1">
@@ -733,43 +1178,31 @@ export default function JenniferPage() {
                             <button onClick={() => setSection('leads')} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all ${section === 'leads' ? 'bg-indigo-500/10 text-indigo-500 border border-indigo-500/20' : 'text-slate-500 hover:bg-white/5'} ${isSidebarCollapsed ? 'justify-center' : ''}`}>
                                 <Users size={20} /> {!isSidebarCollapsed && "Leads"}
                             </button>
+                            <button onClick={() => setSection('tags')} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all ${section === 'tags' ? 'bg-indigo-500/10 text-indigo-500 border border-indigo-500/20' : 'text-slate-500 hover:bg-white/5'} ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+                                <Tag size={20} /> {!isSidebarCollapsed && "Tags"}
+                            </button>
                         </div>
+                    </div>
+
+                    {/* Bottom controls */}
+                    <div className={`mt-auto p-4 border-t border-indigo-100 dark:border-indigo-900/30 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'gap-3'}`}>
+                        {!isSidebarCollapsed && <MockUserButton />}
                     </div>
                 </div>
 
                 {/* =================== MAIN CONTENT =================== */}
                 <div className="flex-1 flex flex-col relative h-full overflow-hidden bg-slate-50/50 dark:bg-transparent">
-                    {/* Header */}
-                    <div className="sticky top-4 z-50 px-4 md:px-8">
-                        <div className="w-full max-w-full mx-auto rounded-2xl p-1 shadow-2xl bg-slate-800/95 border border-indigo-500/30 backdrop-blur-xl">
-                            <div className="relative flex items-center justify-between p-3 md:p-4 rounded-xl z-10">
-                                <div className="flex items-center gap-4">
-                                    <div className="relative w-16 h-16 shrink-0 rounded-full border-[3px] border-indigo-400 shadow-[0_0_25px_rgba(99,102,241,0.6)] overflow-hidden bg-slate-950">
-                                        <img src={JENNIFER_AVATAR} className="w-full h-full object-cover" alt="Jennifer AI" />
-                                    </div>
-                                    <div>
-                                        <h1 className="text-2xl font-black text-white uppercase tracking-widest leading-none">JENNIFER AI</h1>
-                                        <span className="px-2 py-0.5 rounded bg-indigo-500 text-white text-[10px] font-bold tracking-widest shadow-[0_0_10px_rgba(99,102,241,0.5)] uppercase">ONLINE</span>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                    <button onClick={() => setIsDark(!isDark)} className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 transition text-slate-300"><Sun size={20} /></button>
-                                    <MockUserButton />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                     {/* Content Area */}
                     <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 custom-scrollbar">
                         {section === 'analytics' && renderAnalytics()}
                         {section === 'conversations' && renderConversations()}
                         {section === 'leads' && renderLeads()}
+                        {section === 'tags' && renderTags()}
                     </div>
                 </div>
             </div>
 
-            <JenniferWidget />
+
         </>
     )
 }

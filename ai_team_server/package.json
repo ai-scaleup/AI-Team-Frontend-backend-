@@ -37,6 +37,7 @@
     "class-validator": "^0.14.2",
     "dotenv": "^17.2.3",
     "nestjs-zod": "^4.3.1",
+    "openai": "^6.25.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "svix": "^1.69.0",

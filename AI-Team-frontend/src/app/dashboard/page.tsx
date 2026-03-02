@@ -172,6 +172,13 @@ const agents: UiAgent[] = [
     href: "/dashboard/roberta-ai",
   },
   {
+    key: "JENNIFER_AI",
+    name: "Jennifer AI",
+    role: "AI Assistant",
+    image: "https://i.ibb.co.com/mVR9YXMD/Whats-App-Image-2026-02-25-at-15-34-49-1.jpg",
+    href: "/dashboard/jennifer-ai",
+  },
+  {
     key: "TEST_MIKE",
     name: "Test Mike AI",
     role: "Test Direttore Marketing",
