@@ -1,12 +1,7 @@
 import type { NextConfig } from "next";
 
-// next.config.js (or next.config.mjs / next.config.ts)
-const nextConfig = {
+const nextConfig: NextConfig = {
   images: {
-    // EITHER simple domain allow-list:
-    // domains: ['www.ai-scaleup.com', 'ai-scaleup.com'],
-
-    // OR (recommended) remotePatterns with protocol + path:
     remotePatterns: [
       {
         protocol: 'https',
@@ -31,6 +26,9 @@ const nextConfig = {
     ],
     formats: ['image/avif', 'image/webp'],
   },
+  // Exclude heavy packages from serverless function bundles
+  // This prevents exceeding Vercel's 50MB function size limit
+  serverExternalPackages: ['openai', 'pdfjs-dist', 'xlsx'],
 };
 
-module.exports = nextConfig;
+export default nextConfig;
