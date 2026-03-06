@@ -18,6 +18,8 @@ export enum AgentName {
   SOFIA = "SOFIA",
   ROBERTA = "ROBERTA",
   SARA_AI = "SARA_AI",
+  JENNIFER_AI = "JENNIFER_AI",
+  CHIARA_AI = "CHIARA_AI",
 
   // --- test agents ---
   TEST_JIM = "TEST_JIM",
@@ -35,6 +37,9 @@ export enum AgentName {
   TEST_MAX = "TEST_MAX",
   TEST_SOFIA = "TEST_SOFIA",
   TEST_ROBERTA = "TEST_ROBERTA",
+  TEST_SARA_AI = "TEST_SARA_AI",
+  TEST_JENNIFER_AI = "TEST_JENNIFER_AI",
+  TEST_CHIARA_AI = "TEST_CHIARA_AI",
 }
 
 /** Utility: allow Date or ISO string */

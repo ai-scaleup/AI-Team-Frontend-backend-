@@ -21,6 +21,21 @@ export class ChiaraService {
         });
     }
 
+    async getAllSessions() {
+        const sessions = await this.prisma.chiaraInboundChatLog.groupBy({
+            by: ['sessionId'],
+            _max: { createdAt: true },
+            _count: { id: true },
+            orderBy: { _max: { createdAt: 'desc' } },
+        });
+
+        return sessions.map((s) => ({
+            sessionId: s.sessionId,
+            lastMessageAt: s._max.createdAt,
+            messageCount: s._count.id,
+        }));
+    }
+
     // ChiaraLead methods
     async createLead(data: Prisma.ChiaraLeadCreateInput) {
         // Since sessionId is unique, we might want to upsert or check existence, 

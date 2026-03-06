@@ -12,6 +12,11 @@ export class ChiaraController {
         return this.chiaraService.createChatLog(data);
     }
 
+    @Get('chat-logs/sessions')
+    async getAllSessions() {
+        return this.chiaraService.getAllSessions();
+    }
+
     @Get('chat-logs/:sessionId')
     async getChatLogs(@Param('sessionId') sessionId: string) {
         return this.chiaraService.getChatLogsBySessionId(sessionId);
