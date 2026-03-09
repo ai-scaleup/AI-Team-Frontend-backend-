@@ -179,6 +179,13 @@ const agents: UiAgent[] = [
     href: "/dashboard/jennifer-ai",
   },
   {
+    key: "CHIARA_AI",
+    name: "Chiara AI",
+    role: "AI Receptionist",
+    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Lara-AI-1.png",
+    href: "/dashboard/chiara-ai",
+  },
+  {
     key: "TEST_MIKE",
     name: "Test Mike AI",
     role: "Test Direttore Marketing",
