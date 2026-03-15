@@ -665,6 +665,10 @@ export default function App() {
   // --- Load Preferences ---
   useEffect(() => {
     if (user?.id) {
+      // Set namespace immediately from user.id (Clerk oauthId) so Pinecone is always ready
+      CURRENT_NAMESPACE.current = user.id
+      console.log("✅ Mike AI: Using user.id for Pinecone namespace:", user.id)
+
       userPreferenceService.getOrCreate(user.id, "JIM").then((prefs) => {
         if (prefs) {
           setUserPrefs(prefs)
@@ -993,6 +997,17 @@ export default function App() {
 
     const loadConversations = async () => {
       try {
+        // Ensure user exists in DB (handles cases where Clerk webhook didn't fire)
+        const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ''
+        const email = user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress
+        if (email) {
+          await fetch(`${API_BASE}/users/sync`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ oauthId: user.id, email, username: user.username ?? undefined }),
+          })
+        }
+
         // First, migrate any localStorage chats (runs only once)
         await migrateLocalStorageChats(user.id)
 
@@ -1458,27 +1473,17 @@ export default function App() {
       }
     }
 
-    // Upsert pending file contents to Pinecone via API route
+    // Upsert pending file contents to Pinecone directly
     if (pendingFileContents.length > 0 && CURRENT_NAMESPACE.current) {
       for (const fileData of pendingFileContents) {
         try {
-          const res = await fetch("/api/pinecone-upsert", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              type: "file",
-              fileName: fileData.fileName,
-              content: fileData.content,
-              namespace: CURRENT_NAMESPACE.current,
-              chatId: currentChatIdForSend || "",
-              agentId: activeAgentId,
-            }),
-          })
-          if (!res.ok) {
-            const errBody = await res.json().catch(() => ({}))
-            console.error("❌ Pinecone file upsert error response:", errBody)
-            throw new Error(`Pinecone file upsert failed: ${res.status} - ${errBody.error || 'Unknown error'}`)
-          }
+          await upsertFileToPinecone(
+            fileData.fileName,
+            fileData.content,
+            CURRENT_NAMESPACE.current,
+            currentChatIdForSend || "",
+            activeAgentId,
+          )
           console.log("✅ Mike AI: File upserted to Pinecone:", fileData.fileName)
         } catch (error) {
           console.error("Failed to upsert file to Pinecone:", error)
@@ -1584,27 +1589,17 @@ export default function App() {
         }
       }
 
-      // Upsert conversation to Pinecone via API route
+      // Upsert conversation to Pinecone directly
       if (CURRENT_NAMESPACE.current && currentChatIdForSend) {
         try {
-          const res = await fetch("/api/pinecone-upsert", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              type: "conversation",
-              userText: userMessage.text,
-              aiText: finalAiMessage.text,
-              chatId: currentChatIdForSend,
-              agentId: activeAgentId,
-              namespace: CURRENT_NAMESPACE.current,
-            }),
-          })
-          if (!res.ok) {
-            const errBody = await res.json().catch(() => ({}))
-            console.error("❌ Pinecone conversation upsert error response:", errBody)
-            throw new Error(`Pinecone conversation upsert failed: ${res.status} - ${errBody.error || 'Unknown error'}`)
-          }
-          console.log("✅ Mike AI: Conversation upserted to Pinecone")
+          await upsertConversation(
+            userMessage,
+            finalAiMessage,
+            currentChatIdForSend,
+            activeAgentId,
+            CURRENT_NAMESPACE.current,
+          )
+          console.log("✅ Mike AI: Conversation upserted to Pinecone namespace:", CURRENT_NAMESPACE.current)
         } catch (error) {
           console.error("Failed to upsert conversation:", error)
         }

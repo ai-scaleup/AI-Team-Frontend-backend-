@@ -76,4 +76,13 @@ export class UserService {
       where: { id: user.id },
     });
   }
+
+  // Sync user from Clerk: create if not exists, update email/username if exists
+  async syncUser(oauthId: string, email: string, username?: string): Promise<User> {
+    return this.prisma.user.upsert({
+      where: { oauthId },
+      create: { oauthId, email, username },
+      update: { email, username },
+    });
+  }
 }

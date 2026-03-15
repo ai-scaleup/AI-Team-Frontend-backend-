@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { z } from 'zod';
 import { UserService } from '../services/user.service';
 import {
   CreateUserDto,
@@ -62,7 +63,19 @@ export class UserController {
     return this.userService.deleteUser(id);
   }
 
-
+  // Sync user from Clerk (upsert): creates user if not exists, updates if exists
+  @Post('sync')
+  @HttpCode(HttpStatus.OK)
+  sync(
+    @Body(new ZodValidationPipe(z.object({
+      oauthId: z.string().min(1),
+      email: z.string().email(),
+      username: z.string().optional(),
+    })))
+    body: { oauthId: string; email: string; username?: string },
+  ) {
+    return this.userService.syncUser(body.oauthId, body.email, body.username);
+  }
 }
 
 
