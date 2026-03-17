@@ -1820,13 +1820,6 @@ export default function App() {
               )}
               <div className="glass-panel rounded-2xl shadow-2xl border-2 border-sky-200 dark:border-sky-700/50 overflow-hidden">
                 <div className="flex items-end gap-3 p-3 md:p-4">
-                  <button
-                    onClick={handleAttachment}
-                    className="p-3 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-sky-500 dark:hover:bg-sky-500 hover:text-white text-slate-600 dark:text-slate-300 transition-all duration-300 hover:scale-110 active:scale-95 shrink-0 cursor-pointer"
-                  >
-                    <Paperclip size={20} />
-                  </button>
-                  <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileChange} />
                   <textarea
                     ref={textareaRef}
                     value={inputValue}

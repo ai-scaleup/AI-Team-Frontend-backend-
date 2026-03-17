@@ -396,7 +396,7 @@ export default function App() {
   const CURRENT_NAMESPACE = useRef("")
   const prevMessageCountRef = useRef(0)
 
-  const N8N_ENDPOINT = process.env.NEXT_PUBLIC_ALEX_AI_N8N_ENDPOINT || "https://n8n-c2lq.onrender.com/webhook/65c03f65-d13c-43c7-967d-708dcceef965/chat?action=sendMessage"
+  const N8N_ENDPOINT = "/api/n8n-proxy?agent=alex-ai"
 
   // --- INITIALIZATION ---
   useEffect(() => {
@@ -1130,7 +1130,7 @@ export default function App() {
     }
 
     const userMessage: Message = {
-      text: inputValue,
+      text: inputValue.trim() || (selectedFiles.length > 0 ? `[File: ${selectedFiles.map((f) => f.name).join(", ")}]` : ""),
       sender: "user",
       time: new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }),
       files: selectedFiles.map((f) => f.name),
@@ -1229,23 +1229,25 @@ export default function App() {
 
       if (!currentChatIdForSend) throw new Error("currentChatIdForSend is null")
 
+      const requestBody = JSON.stringify({
+        chatInput:
+          inputValue +
+          (selectedFiles.length ? ` [Attached: ${selectedFiles.map((f) => f.name).join(", ")}]` : "") +
+          fileContext +
+          `\n\nUSER_PROFILE_DATA: ${JSON.stringify(userPrefs)}`,
+        sessionId: sessionId,
+        useMemory: useMemory,
+        metadata: {
+          namespace: CURRENT_NAMESPACE.current,
+          source: activeAgentId,
+        },
+        chatId: currentChatIdForSend,
+      })
+
       const response = await fetch(N8N_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chatInput:
-            inputValue +
-            (selectedFiles.length ? ` [Attached: ${selectedFiles.map((f) => f.name).join(", ")}]` : "") +
-            fileContext +
-            `\n\nUSER_PROFILE_DATA: ${JSON.stringify(userPrefs)}`,
-          sessionId: sessionId,
-          useMemory: useMemory,
-          metadata: {
-            namespace: CURRENT_NAMESPACE.current,
-            source: activeAgentId,
-          },
-          chatId: currentChatIdForSend,
-        }),
+        body: requestBody,
       })
 
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
@@ -1257,40 +1259,46 @@ export default function App() {
       let rawText = ""
       let isFirstChunk = true
 
-      while (true) {
-        const { value, done } = await reader.read()
-        if (done) break
+      try {
+        while (true) {
+          const { value, done } = await reader.read()
+          if (done) break
 
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split(/\r?\n/)
-        buffer = lines.pop() || ""
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split(/\r?\n/)
+          buffer = lines.pop() || ""
 
-        for (const line of lines) {
-          const trimmed = line.replace(/^data:\s?/, "").trim()
-          if (!trimmed) continue
+          for (const line of lines) {
+            const trimmed = line.replace(/^data:\s?/, "").trim()
+            if (!trimmed) continue
 
-          try {
-            const obj = JSON.parse(trimmed)
-            if (obj.type === "item" && typeof obj.content === "string") {
-              if (isFirstChunk) {
-                rawText = obj.content
-                isFirstChunk = false
-              } else {
-                rawText += obj.content
+            try {
+              const obj = JSON.parse(trimmed)
+              if (obj.type === "item" && typeof obj.content === "string") {
+                if (isFirstChunk) {
+                  rawText = obj.content
+                  isFirstChunk = false
+                } else {
+                  rawText += obj.content
+                }
+
+                setMessages((prev) => {
+                  const newMsgs = [...prev]
+                  newMsgs[newMsgs.length - 1].text = rawText
+                  return newMsgs
+                })
+              } else if (obj.type === "done") {
+                break
               }
-
-              setMessages((prev) => {
-                const newMsgs = [...prev]
-                newMsgs[newMsgs.length - 1].text = rawText
-                return newMsgs
-              })
-            } else if (obj.type === "done") {
-              break
+            } catch (e) {
+              console.error("Failed to parse JSON chunk:", e, "Line:", trimmed)
             }
-          } catch (e) {
-            console.error("Failed to parse JSON chunk:", e, "Line:", trimmed)
           }
         }
+      } catch (streamError) {
+        // If we already received partial content, use it rather than failing completely
+        if (!rawText) throw streamError
+        console.warn("Alex AI: stream interrupted, using partial response", streamError)
       }
 
       const finalAiMessage: Message = {
@@ -2177,14 +2185,6 @@ export default function App() {
 
               <div className="glass-panel rounded-2xl shadow-2xl border-2 border-sky-200 dark:border-sky-700/50 overflow-hidden">
                 <div className="flex items-end gap-3 p-3 md:p-4">
-                  <button
-                    onClick={handleAttachment}
-                    className="p-3 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-sky-500 dark:hover:bg-sky-500 hover:text-white text-slate-600 dark:text-slate-300 transition-all duration-300 hover:scale-110 active:scale-95 shrink-0 cursor-pointer"
-                  >
-                    <Paperclip size={20} />
-                  </button>
-
-                  <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileChange} />
 
                   <textarea
                     ref={textareaRef}

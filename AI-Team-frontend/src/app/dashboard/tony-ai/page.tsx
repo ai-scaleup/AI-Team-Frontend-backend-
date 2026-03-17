@@ -1068,19 +1068,23 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
 
     setIsLoading(true)
 
+    // Capture input values before clearing state
+    const capturedInput = inputValue
+    const capturedFiles = [...selectedFiles]
+
     let fileContext = ""
-    if (selectedFiles.length > 0) {
-      for (const file of selectedFiles) {
+    if (capturedFiles.length > 0) {
+      for (const file of capturedFiles) {
         const content = await extractFileContent(file)
         fileContext += `\n\n[File Content: ${file.name}]\n${content}\n[End File Content]`
       }
     }
 
     const userMessage: Message = {
-      text: inputValue,
+      text: capturedInput,
       sender: "user",
       time: new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }),
-      files: selectedFiles.map((f) => f.name),
+      files: capturedFiles.map((f) => f.name),
     }
 
     // Clear input immediately after creating the message object
@@ -1136,7 +1140,7 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
         ...chats[currentChatIdForSend],
         messages: currentMessages,
         lastUpdated: new Date().toISOString(),
-        title: chats[currentChatIdForSend]?.title || inputValue.slice(0, 30) || "Nuova Missione",
+        title: chats[currentChatIdForSend]?.title || capturedInput.slice(0, 30) || "Nuova Missione",
       }
       const updatedChatsState = { ...chats, [currentChatIdForSend]: updatedChatSession }
       setChats(updatedChatsState)
@@ -1144,8 +1148,9 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
 
       if (user?.id) {
         try {
+          const messageText = userMessage.text.trim() || `[File: ${userMessage.files?.join(', ') || 'attachment'}]`
           await conversationService.addMessage(user.id, currentChatIdForSend, {
-            text: userMessage.text,
+            text: messageText,
             sender: userMessage.sender,
             time: userMessage.time,
           })
@@ -1177,7 +1182,7 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chatInput:
-            inputValue + (selectedFiles.length ? ` [Attached: ${selectedFiles.map((f) => f.name).join(", ")}]` : "") +
+            capturedInput + (capturedFiles.length ? ` [Attached: ${capturedFiles.map((f) => f.name).join(", ")}]` : "") +
             fileContext +
             `\n\n<SYSTEM_CONTEXT_DO_NOT_REPLY>\nUSER_PROFILE_DATA: ${JSON.stringify(userPrefs)}\n</SYSTEM_CONTEXT_DO_NOT_REPLY>`,
           sessionId: sessionId,
@@ -2021,13 +2026,6 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
               )}
               <div className="glass-panel rounded-2xl shadow-2xl border-2 border-sky-200 dark:border-sky-700/50 overflow-hidden">
                 <div className="flex items-end gap-3 p-3 md:p-4">
-                  <button
-                    onClick={handleAttachment}
-                    className="p-3 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-sky-500 dark:hover:bg-sky-500 hover:text-white text-slate-600 dark:text-slate-300 transition-all duration-300 hover:scale-110 active:scale-95 shrink-0 cursor-pointer"
-                  >
-                    <Paperclip size={20} />
-                  </button>
-                  <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileChange} />
                   <textarea
                     ref={textareaRef}
                     value={inputValue}
