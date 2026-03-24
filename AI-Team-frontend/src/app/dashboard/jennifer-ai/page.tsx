@@ -127,7 +127,7 @@ export default function JenniferPage() {
             const res = await fetch(`${API_BASE}/jennifer/sessions`)
             if (res.ok) {
                 const data = await res.json()
-                setSessions(data)
+                setSessions([...data].sort((a: string, b: string) => b.localeCompare(a)))
                 setLastPollTime(new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
             }
         } catch (error) {

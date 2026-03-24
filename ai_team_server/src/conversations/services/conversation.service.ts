@@ -179,7 +179,7 @@ export class ConversationService {
                     ...conversationData,
                     lastUpdated: new Date(),
                 },
-                include: { messages: true },
+                include: { messages: { orderBy: { createdAt: 'asc' } } },
             });
 
             return conversation;
@@ -200,7 +200,7 @@ export class ConversationService {
 
             return this.prisma.conversation.findMany({
                 where: { userId: user.id },
-                include: { messages: true },
+                include: { messages: { orderBy: { createdAt: 'asc' } } },
                 orderBy: { lastUpdated: 'desc' },
             });
         } catch (error) {
@@ -221,7 +221,7 @@ export class ConversationService {
 
             const conversations = await this.prisma.conversation.findMany({
                 where: { userId: user.id, agentId },
-                include: { messages: true },
+                include: { messages: { orderBy: { createdAt: 'asc' } } },
                 orderBy: { lastUpdated: 'desc' },
             });
 
@@ -249,7 +249,7 @@ export class ConversationService {
 
             const conversation = await this.prisma.conversation.findFirst({
                 where: { id: conversationId, userId: user.id },
-                include: { messages: true },
+                include: { messages: { orderBy: { createdAt: 'asc' } } },
             });
 
             if (!conversation) {
@@ -285,7 +285,7 @@ export class ConversationService {
                     ...data,
                     lastUpdated: new Date(),
                 },
-                include: { messages: true },
+                include: { messages: { orderBy: { createdAt: 'asc' } } },
             });
         } catch (error) {
             if (error instanceof NotFoundException ||
@@ -413,7 +413,7 @@ export class ConversationService {
             return this.prisma.conversation.update({
                 where: { id: conversationId },
                 data: { archived, lastUpdated: new Date() },
-                include: { messages: true },
+                include: { messages: { orderBy: { createdAt: 'asc' } } },
             });
         } catch (error) {
             if (error instanceof NotFoundException) throw error;

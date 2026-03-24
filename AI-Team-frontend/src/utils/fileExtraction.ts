@@ -12,20 +12,10 @@ export async function extractFileContent(file: File): Promise<string> {
     try {
         // PDF
         if (fileType === "application/pdf" || fileName.endsWith(".pdf")) {
-            const pdfjsLib = await import("pdfjs-dist")
-            if (typeof window !== "undefined") {
-                pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
-            }
-
+            const { extractText, getDocumentProxy } = await import("unpdf")
             const arrayBuffer = await file.arrayBuffer()
-            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
-            let text = ""
-            for (let i = 1; i <= pdf.numPages; i++) {
-                const page = await pdf.getPage(i)
-                const content = await page.getTextContent()
-                const pageText = content.items.map((item: any) => item.str).join(" ")
-                text += `[Page ${i}]\n${pageText}\n`
-            }
+            const pdf = await getDocumentProxy(new Uint8Array(arrayBuffer))
+            const { text } = await extractText(pdf, { mergePages: true })
             return text.trim()
         }
 

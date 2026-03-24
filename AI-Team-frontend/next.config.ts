@@ -28,7 +28,7 @@ const nextConfig: NextConfig = {
   },
   // Exclude heavy packages from serverless function bundles
   // This prevents exceeding Vercel's 50MB function size limit
-  serverExternalPackages: ['openai', 'pdfjs-dist', 'xlsx'],
+  serverExternalPackages: ['openai', 'xlsx'],
 };
 
 export default nextConfig;
