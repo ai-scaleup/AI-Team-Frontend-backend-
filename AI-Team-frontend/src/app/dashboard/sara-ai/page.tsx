@@ -20,8 +20,7 @@ import {
     ChevronRight, Users, LayoutGrid, ChevronLeft, BrainCircuit, FolderPlus, Folder,
     FolderOpen, ChevronDown, MoreHorizontal, Share, Archive, X, RotateCcw, FileText,
     ExternalLink, Menu, Home, BarChart3, Smartphone, Search, Filter, Download,
-    ArrowDownRight, RefreshCw, Book, Tag, Settings, ArrowLeft, PanelRight,
-    PanelRightClose, PanelRightOpen, QrCode
+    ArrowDownRight, RefreshCw, Book, Tag, ArrowLeft, QrCode
 } from "lucide-react"
 import { saraAiService } from "@/services/saraAiService"
 import type { ChatSession as SaraSession, ChatMessage as SaraMessage, StatsResponse } from "@/types/sara-ai"
@@ -452,7 +451,7 @@ export default function App() {
     const isDashboardMode = currentAgent.isDashboardOnly === true
     const [saraSection, setSaraSection] = useState<"analytics" | "conversations" | "settings" | "qrcode">("analytics")
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
-    const [isDetailsPanelOpen, setIsDetailsPanelOpen] = useState(true)
+
     const [messages, setMessages] = useState<Message[]>([])
     const [inputValue, setInputValue] = useState("")
     const [isLoading, setIsLoading] = useState(false)
@@ -480,6 +479,7 @@ export default function App() {
     const [isQrLoading, setIsQrLoading] = useState(false)
     const [qrStatus, setQrStatus] = useState<'connected' | 'disconnected'>('disconnected')
     const qrIntervalRef = useRef<NodeJS.Timeout | null>(null)
+    const [isConversationLoading, setIsConversationLoading] = useState(false)
 
     // Real analytics from API
     const [apiStats, setApiStats] = useState<StatsResponse | null>(null)
@@ -681,7 +681,16 @@ export default function App() {
     const currentData = getAnalyticsData(timeRange);
     const [selectedWaSessionId, setSelectedWaSessionId] = useState<string>("")
     const [lastPollTime, setLastPollTime] = useState<string>("Never")
+    const [conversationRefreshKey, setConversationRefreshKey] = useState(0)
+    const selectedWaSessionIdRef = useRef<string>("")
+    const lastSelectedSessionActiveRef = useRef<string>("")
 
+    // Keep ref in sync with state to avoid stale closures in polling interval
+    useEffect(() => {
+        selectedWaSessionIdRef.current = selectedWaSessionId;
+        // Reset lastActive tracking when session changes so next poll correctly detects updates
+        lastSelectedSessionActiveRef.current = "";
+    }, [selectedWaSessionId])
 
     // ROBUST LOOKUP: Match by ID as a string to avoid type mismatches
     const activeWaSession = whatsappSessions.find(s => String(s.id) === String(selectedWaSessionId)) || whatsappSessions[0] || null
@@ -827,12 +836,27 @@ export default function App() {
             try {
                 const parsed = JSON.parse(savedWaSessions);
                 if (Array.isArray(parsed)) {
-                    const cleaned = parsed.map(s => ({
-                        ...s,
-                        messages: (s.messages || []).filter((m: any) => !JSON.stringify(m).includes('{{'))
-                    }));
+                    // Normalize any old "phone|| phone" IDs stored in cache
+                    const seen = new Set<string>();
+                    const cleaned = parsed
+                        .map(s => {
+                            const cleanId = String(s.id || s.phoneNumber || '').split('||')[0].trim();
+                            return {
+                                ...s,
+                                id: cleanId,
+                                phoneNumber: cleanId,
+                                messages: (s.messages || []).filter((m: any) => !JSON.stringify(m).includes('{{'))
+                            };
+                        })
+                        .filter(s => {
+                            if (!s.id || seen.has(s.id)) return false;
+                            seen.add(s.id);
+                            return true;
+                        });
                     setWhatsappSessions(cleaned);
-                    if (savedSelection) setSelectedWaSessionId(savedSelection);
+                    if (savedSelection) {
+                        setSelectedWaSessionId(savedSelection.split('||')[0].trim());
+                    }
                 }
             } catch (e) {
                 console.error("Failed to parse saved WhatsApp sessions", e)
@@ -889,10 +913,13 @@ export default function App() {
 
                 setWhatsappSessions(prev => {
                     const mergedMap = new Map();
-                    // 1. Maintain context from current sidebar
+                    // 1. Maintain context from current sidebar — normalize any old "phone|| phone" IDs
                     prev.forEach(s => {
-                        const safeId = String(s.id || s.session_id || s.phoneNumber).trim();
-                        if (safeId && safeId !== "undefined") mergedMap.set(safeId, s);
+                        const rawId = String(s.id || s.session_id || s.phoneNumber).trim();
+                        const safeId = rawId.split('||')[0].trim(); // strip duplicate suffix
+                        if (safeId && safeId !== "undefined") {
+                            mergedMap.set(safeId, { ...s, id: safeId, phoneNumber: safeId });
+                        }
                     });
 
                     // 2. Process incoming sessions from API
@@ -933,10 +960,24 @@ export default function App() {
                 });
 
                 setSelectedWaSessionId(prev => {
-                    const next = prev || (sessions[0]?.phoneNumber ? String(sessions[0].phoneNumber).trim() : "");
+                    const cleanPrev = prev ? prev.split('||')[0].trim() : "";
+                    const next = cleanPrev || (sessions[0]?.phoneNumber ? String(sessions[0].phoneNumber).trim() : "");
                     if (next) localStorage.setItem("sara-ai-selected-id", next);
                     return next;
                 });
+
+                // Detect new messages in the currently selected session and trigger conversation reload
+                const currentSelectedId = selectedWaSessionIdRef.current;
+                if (currentSelectedId) {
+                    const selectedIncoming = sessions.find((s: SaraSession) => String(s.phoneNumber).trim() === currentSelectedId);
+                    if (selectedIncoming?.lastMessageAt) {
+                        const newLastActive = String(selectedIncoming.lastMessageAt);
+                        if (newLastActive !== lastSelectedSessionActiveRef.current) {
+                            lastSelectedSessionActiveRef.current = newLastActive;
+                            setConversationRefreshKey(k => k + 1);
+                        }
+                    }
+                }
             }
             if (isManual) setIsLoading(false);
         } catch (err) {
@@ -982,13 +1023,16 @@ export default function App() {
         const loadConversation = async () => {
             if (!selectedWaSessionId || !mounted || activeAgentId !== 'sara-ai') return;
 
+            setIsConversationLoading(true);
             try {
                 const conversationData = await saraAiService.getConversation(selectedWaSessionId);
 
                 // Map API messages to WhatsAppSession messages format
+                // Treat any sender that is NOT clearly a human as AI
+                const AI_SENDERS = new Set(['ai', 'bot', 'assistant', 'sara', 'sara_ai', 'system', 'metis']);
                 const mappedMessages = conversationData.messages.map((msg: SaraMessage) => ({
                     text: msg.text,
-                    sender: (msg.sender === 'ai' || msg.sender === 'bot' ? 'ai' : 'user') as 'ai' | 'user',
+                    sender: (AI_SENDERS.has((msg.sender || '').toLowerCase()) ? 'ai' : 'user') as 'ai' | 'user',
                     time: new Date(msg.createdAt).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
                 }));
 
@@ -1003,11 +1047,13 @@ export default function App() {
                 });
             } catch (err) {
                 console.error("Failed to load conversation:", err);
+            } finally {
+                setIsConversationLoading(false);
             }
         };
 
         loadConversation();
-    }, [selectedWaSessionId, mounted, activeAgentId]);
+    }, [selectedWaSessionId, mounted, activeAgentId, conversationRefreshKey]);
 
 
 
@@ -1463,7 +1509,6 @@ export default function App() {
         </div>
     )
     const renderConversations = () => {
-        const showDetails = isDetailsPanelOpen && isSidebarCollapsed;
         return (
             <div className="flex h-[calc(100vh-140px)] gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-hidden">
                 {/* List Column */}
@@ -1518,22 +1563,62 @@ export default function App() {
 
                 {/* Chat Column */}
                 <div className="flex-1 glass-panel rounded-xl flex flex-col overflow-hidden border border-slate-200 dark:border-slate-700/50 relative min-w-[300px]">
-                    {isSidebarCollapsed && (
-                        <div className="absolute top-4 right-4 z-10">
-                            <button onClick={() => setIsDetailsPanelOpen(!isDetailsPanelOpen)} className={`p-2 rounded-lg backdrop-blur-sm border transition-all ${isDetailsPanelOpen ? 'bg-slate-100/50 dark:bg-black/20 border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-white' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-sky-500 shadow-md'}`}>
-                                {isDetailsPanelOpen ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
-                            </button>
+                    {/* Chat Header */}
+                    <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700/50 flex items-center justify-between shrink-0">
+                        <div className="flex items-center gap-2">
+                            {activeWaSession ? (
+                                <>
+                                    <Smartphone size={16} className="text-emerald-400" />
+                                    <span className="font-bold text-sm text-slate-700 dark:text-slate-200 truncate">{activeWaSession.phoneNumber}</span>
+                                    <span className="text-[10px] text-slate-400">
+                                        {activeWaSession.messages?.length || 0} messaggi
+                                    </span>
+                                </>
+                            ) : (
+                                <span className="text-sm text-slate-400">Nessuna chat selezionata</span>
+                            )}
                         </div>
-                    )}
+                    </div>
                     <div key={activeWaSession?.id} className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-slate-50/50 dark:bg-black/20">
-                        {activeWaSession?.messages?.map((msg, idx) => (
-                            <div key={idx} className={`flex gap-3 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                {msg.sender === 'ai' && <img src={currentAgent.image} className="w-8 h-8 rounded-full shadow-sm object-cover" />}
-                                <div className={`max-w-[85%] p-4 rounded-2xl text-sm shadow-sm ${msg.sender === 'ai' ? 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200' : 'bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white'}`}>
-                                    <div>{msg.text}</div>
+                        {/* No session selected */}
+                        {!selectedWaSessionId && (
+                            <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
+                                <MessageSquare size={40} className="text-slate-300 dark:text-slate-600" />
+                                <p className="text-sm text-slate-400 dark:text-slate-500">Seleziona una conversazione dalla lista</p>
+                            </div>
+                        )}
+                        {/* Loading conversation */}
+                        {selectedWaSessionId && isConversationLoading && (
+                            <div className="flex flex-col items-center justify-center h-full gap-3">
+                                <RefreshCw size={28} className="animate-spin text-sky-400" />
+                                <p className="text-xs text-slate-400">Caricamento conversazione...</p>
+                            </div>
+                        )}
+                        {/* Empty conversation */}
+                        {selectedWaSessionId && !isConversationLoading && (!activeWaSession?.messages || activeWaSession.messages.length === 0) && (
+                            <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
+                                <MessageSquare size={40} className="text-slate-300 dark:text-slate-600" />
+                                <p className="text-sm text-slate-400 dark:text-slate-500">Nessun messaggio trovato per questa sessione</p>
+                            </div>
+                        )}
+                        {/* Messages */}
+                        {!isConversationLoading && activeWaSession?.messages?.map((msg, idx) => (
+                            <div key={idx} className={`flex items-end gap-2 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                {msg.sender === 'ai' && (
+                                    <img src={currentAgent.image} className="w-8 h-8 rounded-full shadow-sm object-cover shrink-0" />
+                                )}
+                                <div className={`max-w-[75%] px-4 py-3 rounded-2xl text-sm shadow-sm ${
+                                    msg.sender === 'ai'
+                                        ? 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-bl-sm'
+                                        : 'bg-sky-500 text-white rounded-br-sm'
+                                }`}>
+                                    <div className="leading-relaxed">{msg.text}</div>
+                                    <div className={`text-[10px] mt-1 ${msg.sender === 'ai' ? 'opacity-40' : 'opacity-70'} text-right`}>{msg.time}</div>
                                 </div>
                                 {msg.sender === 'user' && (
-                                    <img src="https://www.shutterstock.com/image-vector/vector-flat-illustration-grayscale-avatar-600nw-2264922221.jpg" className="w-8 h-8 rounded-full shadow-sm object-cover" />
+                                    <div className="w-8 h-8 rounded-full bg-slate-500 dark:bg-slate-600 flex items-center justify-center shrink-0 shadow-sm">
+                                        <User size={16} className="text-white" />
+                                    </div>
                                 )}
                             </div>
                         ))}
@@ -1544,23 +1629,6 @@ export default function App() {
 
 
 
-                {/* Details Column */}
-                <div className={`glass-panel rounded-xl flex flex-col border border-slate-200 dark:border-slate-700/50 transition-all duration-300 ease-in-out overflow-hidden ${showDetails ? 'w-72 opacity-100 mr-0' : 'w-0 opacity-0 -mr-4 border-0'}`}>
-                    <div className="w-72 shrink-0">
-                        <div className="p-4 border-b border-slate-200 dark:border-slate-700/50 flex items-center gap-2"><Settings size={16} className="text-slate-500" /> <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Dettagli</span></div>
-                        <div className="p-4 space-y-6">
-                            <div className="relative"><Search size={14} className="absolute left-3 top-2.5 text-slate-400" /><input className="w-full bg-slate-100 dark:bg-black/20 border border-transparent focus:border-sky-500 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none dark:text-white" placeholder="Search" /></div>
-                            <div>
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Azioni</label>
-                                <div className="flex gap-2"><button className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-white/5 text-slate-500"><Check size={16} /></button><button className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-white/5 text-slate-500"><Archive size={16} /></button><button className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-white/5 text-slate-500"><Trash2 size={16} /></button></div>
-                            </div>
-                            <div>
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Note</label>
-                                <textarea className="w-full h-32 bg-slate-100 dark:bg-black/20 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-sm focus:outline-none focus:border-sky-500 dark:text-white resize-none" placeholder="Lascia una nota..." value={activeWaSession?.notes || noteValue} onChange={(e) => setNoteValue(e.target.value)} />
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
         )
     }

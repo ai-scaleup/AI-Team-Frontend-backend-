@@ -1,13 +1,5 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
-import { Client } from 'pg';
-
-// Database connection string for the external metis_whatsapp database
-// Using 'METIS_DATABASE_URL' from .env
-const DATABASE_URL = process.env.METIS_DATABASE_URL;
-
-if (!DATABASE_URL) {
-    throw new Error('METIS_DATABASE_URL is not defined in environment variables');
-}
+import { Pool } from 'pg';
 
 export interface ChatSession {
     phoneNumber: string;
@@ -24,44 +16,35 @@ export interface ChatMessage {
 
 @Injectable()
 export class SaraAiService implements OnModuleDestroy {
-    private client: Client | null = null;
+    private pool: Pool;
 
-    private async getClient(): Promise<Client> {
-        if (!this.client) {
-            this.client = new Client({
-                connectionString: DATABASE_URL,
-                ssl: { rejectUnauthorized: false }
-            });
-            await this.client.connect();
-        }
-        return this.client;
+    constructor() {
+        const url = process.env.DATABASE_URL;
+        if (!url) throw new Error('DATABASE_URL is not defined in environment variables');
+        this.pool = new Pool({ connectionString: url });
     }
 
     async onModuleDestroy() {
-        if (this.client) {
-            await this.client.end();
-            this.client = null;
-        }
+        await this.pool.end();
     }
 
     /**
      * Get all unique chat sessions with message counts
      */
     async getAllSessions(): Promise<{ sessions: ChatSession[]; totalSessions: number }> {
-        const client = await this.getClient();
-
+        // Normalize session_id: some rows store "phone|| phone" — extract just the phone part
         const query = `
-            SELECT 
-                session_id as "phoneNumber",
+            SELECT
+                TRIM(SPLIT_PART(session_id, '||', 1)) as "phoneNumber",
                 COUNT(*) as "messageCount",
                 MAX(created_at) as "lastMessageAt"
-            FROM chat_logs
-            WHERE session_id IS NOT NULL AND session_id != ''
-            GROUP BY session_id
+            FROM metis_chat_logs
+            WHERE session_id IS NOT NULL AND TRIM(session_id) != ''
+            GROUP BY TRIM(SPLIT_PART(session_id, '||', 1))
             ORDER BY MAX(created_at) DESC
         `;
 
-        const result = await client.query(query);
+        const result = await this.pool.query(query);
 
         const sessions: ChatSession[] = result.rows.map(row => ({
             phoneNumber: row.phoneNumber,
@@ -79,20 +62,20 @@ export class SaraAiService implements OnModuleDestroy {
      * Get all messages for a specific phone number
      */
     async getConversation(phoneNumber: string): Promise<{ phoneNumber: string; messages: ChatMessage[]; totalMessages: number }> {
-        const client = await this.getClient();
-
+        // Match both "phone" and "phone|| phone" variants stored in the DB
         const query = `
-            SELECT 
-                id,
-                sender,
-                message_text as "text",
-                created_at as "createdAt"
-            FROM chat_logs
-            WHERE session_id = $1
+            SELECT id, sender, message_text as "text", created_at as "createdAt"
+            FROM (
+                SELECT id, sender, message_text, created_at
+                FROM metis_chat_logs
+                WHERE TRIM(SPLIT_PART(session_id, '||', 1)) = $1
+                ORDER BY created_at DESC
+                LIMIT 100
+            ) sub
             ORDER BY created_at ASC
         `;
 
-        const result = await client.query(query, [phoneNumber]);
+        const result = await this.pool.query(query, [phoneNumber.trim()]);
 
         const messages: ChatMessage[] = result.rows.map(row => ({
             id: row.id,
@@ -112,18 +95,16 @@ export class SaraAiService implements OnModuleDestroy {
      * Get statistics about the database
      */
     async getStats(): Promise<{ totalMessages: number; totalSessions: number; oldestMessage: Date | null; newestMessage: Date | null }> {
-        const client = await this.getClient();
-
         const query = `
-            SELECT 
+            SELECT
                 COUNT(*) as "totalMessages",
                 COUNT(DISTINCT session_id) as "totalSessions",
                 MIN(created_at) as "oldestMessage",
                 MAX(created_at) as "newestMessage"
-            FROM chat_logs
+            FROM metis_chat_logs
         `;
 
-        const result = await client.query(query);
+        const result = await this.pool.query(query);
         const row = result.rows[0];
 
         return {

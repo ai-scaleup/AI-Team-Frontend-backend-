@@ -19,7 +19,6 @@ import {
   Users,
   LayoutGrid,
   ChevronLeft,
-  BrainCircuit,
   FolderPlus,
   Folder,
   FolderOpen,
@@ -40,7 +39,7 @@ import { useUser } from "@clerk/nextjs"
 import { UserPreferences, UserPreference, AgentName } from "@/types/preferences"
 import { userPreferenceService } from "@/services/preferenceService"
 import { conversationService } from "@/services/conversationService"
-import { Conversation, Message as ApiMessage, CreateConversationDto } from "@/types/conversation"
+
 import { extractFileContent } from "@/utils/fileExtraction"
 
 // --- TYPES ---
