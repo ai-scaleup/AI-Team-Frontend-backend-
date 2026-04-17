@@ -1,6 +1,5 @@
 "use client"
 export const dynamic = "force-dynamic"
-export const runtime = "edge"
 
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
