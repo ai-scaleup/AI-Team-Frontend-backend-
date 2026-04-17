@@ -4,7 +4,7 @@ import { z } from 'zod';
 export const createUserSchema = z.object({
   email: z
     .string()
-    .nonempty({ message: 'Email is required.' })
+    .min(1, { message: 'Email is required.' })
     .email({ message: 'A valid email address is required.' })
     .trim(),
   oauthId: z
