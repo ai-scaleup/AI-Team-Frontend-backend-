@@ -1,6 +1,8 @@
 import GiuliaWidget from '@/components/ui/GiuliaWidget';
 import type { Metadata } from 'next';
 
+export const dynamic = 'force-dynamic';
+
 
 export const metadata: Metadata = {
   title: 'Dashboard – AI Team',
