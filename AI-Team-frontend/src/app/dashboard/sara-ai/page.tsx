@@ -1033,7 +1033,15 @@ export default function App() {
                 const mappedMessages = conversationData.messages.map((msg: SaraMessage) => ({
                     text: msg.text,
                     sender: (AI_SENDERS.has((msg.sender || '').toLowerCase()) ? 'ai' : 'user') as 'ai' | 'user',
-                    time: new Date(msg.createdAt).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+                    time: (() => {
+                        const msgDate = new Date(msg.createdAt);
+                        const today = new Date();
+                        const isToday = msgDate.toDateString() === today.toDateString();
+                        if (isToday) {
+                            return msgDate.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+                        }
+                        return msgDate.toLocaleString('it-IT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+                    })(),
                 }));
 
                 // Update the session with full messages
@@ -1548,7 +1556,7 @@ export default function App() {
                                     <span className="font-bold text-slate-700 dark:text-slate-200 text-xs truncate">{session.phoneNumber}</span>
                                     <div className="flex justify-between items-center">
                                         <span className="text-[9px] text-slate-400 whitespace-nowrap">
-                                            {new Date(session.lastActive).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                            {new Date(session.lastActive).toLocaleString('it-IT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                                         </span>
                                         <div className="flex items-center gap-1">{session.platform === 'web' ? <ExternalLink size={8} className="text-sky-400" /> : <Smartphone size={8} className="text-emerald-400" />}</div>
                                     </div>
