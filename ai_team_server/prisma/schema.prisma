@@ -1,6 +1,9 @@
 // prisma/schema.prisma
+
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+  moduleFormat = "cjs"
 }
 
 datasource db {
@@ -121,12 +124,12 @@ enum MarketComparison {
 }
 
 model User {
-  id            String           @id @default(uuid())
-  email         String           @unique
-  oauthId       String           @unique
+  id            String                @id @default(uuid())
+  email         String                @unique
+  oauthId       String                @unique
   username      String?
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
   // Per-agent assignments with timing & expiry
   agents        AssignedAgent[]
   // Per-group assignments with timing & expiry
@@ -135,6 +138,8 @@ model User {
   conversations Conversation[]
   // User preferences (one-to-many: per agent)
   preferences   UserPreference[]
+  // Token usage per agent
+  tokenUsage    UserAgentTokenUsage[]
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -343,4 +348,24 @@ model Tag {
   updatedAt DateTime @updatedAt
 
   @@index([sessionId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Token Usage Tracking (per User per Agent)
+// ─────────────────────────────────────────────────────────────
+model UserAgentTokenUsage {
+  id           String    @id @default(uuid())
+  oauthId      String
+  agentName    AgentName
+  inputTokens  Int       @default(0)
+  outputTokens Int       @default(0)
+  totalTokens  Int       @default(0)
+  tokenLimit   Int       @default(100000)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation(fields: [oauthId], references: [oauthId], onDelete: Cascade)
+
+  @@unique([oauthId, agentName], map: "uniq_token_usage_per_user_agent")
+  @@index([oauthId])
+  @@index([agentName])
 }

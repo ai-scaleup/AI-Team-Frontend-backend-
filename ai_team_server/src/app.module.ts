@@ -11,9 +11,10 @@ import { SaraAiModule } from './sara-ai/sara-ai.module';
 import { JenniferModule } from './jennifer/jennifer.module';
 import { ChiaraModule } from './chiara/chiara.module';
 import { TagsModule } from './tags/tags.module';
+import { TokenUsageModule } from './token-usage/token-usage.module';
 
 @Module({
-  imports: [PrismaModule, UserModule, ClerkModule, AdminModule, ConversationModule, UserPreferenceModule, SaraAiModule, JenniferModule, ChiaraModule, TagsModule],
+  imports: [PrismaModule, UserModule, ClerkModule, AdminModule, ConversationModule, UserPreferenceModule, SaraAiModule, JenniferModule, ChiaraModule, TagsModule, TokenUsageModule],
   controllers: [AppController],
   providers: [AppService],
 })

@@ -9,6 +9,8 @@ import {
   ParseUUIDPipe,
   HttpCode,
   HttpStatus,
+  Logger,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { z } from 'zod';
 import { UserService } from '../services/user.service';
@@ -22,6 +24,8 @@ import { ZodValidationPipe } from 'src/pipes/zod.validation.pipe';
 
 @Controller('users')
 export class UserController {
+  private readonly logger = new Logger(UserController.name);
+
   constructor(private readonly userService: UserService) {}
 
   // Create a new user
@@ -36,8 +40,13 @@ export class UserController {
 
   // Get all users
   @Get()
-  findAll() {
-    return this.userService.findAllUsers();
+  async findAll() {
+    try {
+      return await this.userService.findAllUsers();
+    } catch (err: any) {
+      this.logger.error('findAllUsers failed', err?.message, err?.stack);
+      throw new InternalServerErrorException(err?.message ?? 'Failed to fetch users');
+    }
   }
 
   // Get a single user by ID

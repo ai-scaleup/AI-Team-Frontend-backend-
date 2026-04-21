@@ -1116,4 +1116,53 @@ export class AdminService {
       name: r.username ?? null,
     }));
   }
+
+  async listAllUsers(): Promise<User[]> {
+    return this.prisma.user.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async getUserTokenStats(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, username: true, createdAt: true },
+    });
+    if (!user) throw new NotFoundException(`User "${userId}" not found`);
+
+    const conversations = await this.prisma.conversation.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        agentId: true,
+        title: true,
+        lastUpdated: true,
+        _count: { select: { messages: true } },
+      },
+      orderBy: { lastUpdated: 'desc' },
+    });
+
+    const totalConversations = conversations.length;
+    const totalMessages = conversations.reduce((s, c) => s + c._count.messages, 0);
+
+    // Group by agentId
+    const agentMap = new Map<string, { agentId: string; conversations: number; messages: number }>();
+    for (const c of conversations) {
+      const entry = agentMap.get(c.agentId) ?? { agentId: c.agentId, conversations: 0, messages: 0 };
+      entry.conversations += 1;
+      entry.messages += c._count.messages;
+      agentMap.set(c.agentId, entry);
+    }
+    const byAgent = Array.from(agentMap.values()).sort((a, b) => b.messages - a.messages);
+
+    const lastActivity = conversations[0]?.lastUpdated ?? null;
+
+    return {
+      user,
+      totalConversations,
+      totalMessages,
+      byAgent,
+      lastActivity,
+    };
+  }
 }

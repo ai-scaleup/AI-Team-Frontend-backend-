@@ -1,7 +1,8 @@
 import {
     StatsResponse,
     SessionsResponse,
-    ConversationResponse
+    ConversationResponse,
+    AnalyticsResponse
 } from '@/types/sara-ai';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '';
@@ -35,6 +36,22 @@ export const saraAiService = {
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.message || 'Failed to fetch sessions');
+        }
+        return response.json();
+    },
+
+    /**
+     * GET /sara-ai/analytics?days=N
+     * Fetches per-day message and conversation counts directly from the DB
+     */
+    async getAnalytics(days: number = 30): Promise<AnalyticsResponse> {
+        const response = await fetch(`${API_BASE}/sara-ai/analytics?days=${days}`, {
+            headers: { 'Accept': 'application/json' },
+            cache: 'no-store'
+        });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Failed to fetch analytics');
         }
         return response.json();
     },

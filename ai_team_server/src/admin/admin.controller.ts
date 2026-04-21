@@ -705,4 +705,16 @@ export class AdminController {
   async listAllEmails(): Promise<{ email: string; name: string | null }[]> {
     return this.admin.listAllEmails();
   }
+
+  /** List all registered users (admin panel) */
+  @Get('users')
+  async listAllUsers() {
+    return this.admin.listAllUsers();
+  }
+
+  /** Get token/usage stats for a single user */
+  @Get('users/:id/token-stats')
+  async getUserTokenStats(@Param('id') id: string) {
+    return this.admin.getUserTokenStats(id);
+  }
 }

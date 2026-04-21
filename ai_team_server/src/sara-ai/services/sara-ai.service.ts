@@ -92,6 +92,42 @@ export class SaraAiService implements OnModuleDestroy {
     }
 
     /**
+     * Get daily analytics aggregated from metis_chat_logs
+     * Returns per-day message counts and unique conversation counts for the last N days
+     */
+    async getAnalytics(days: number = 30): Promise<{
+        daily: { date: string; messages: number; conversations: number }[];
+    }> {
+        const query = `
+            SELECT
+                DATE(created_at AT TIME ZONE 'UTC') as date,
+                COUNT(*) as messages,
+                COUNT(DISTINCT TRIM(SPLIT_PART(session_id, '||', 1))) as conversations
+            FROM metis_chat_logs
+            WHERE
+                created_at >= NOW() - INTERVAL '${days} days'
+                AND sender = 'user'
+                AND message_text NOT LIKE '%{{%'
+                AND session_id IS NOT NULL
+                AND TRIM(session_id) != ''
+            GROUP BY DATE(created_at AT TIME ZONE 'UTC')
+            ORDER BY date ASC
+        `;
+
+        const result = await this.pool.query(query);
+
+        const daily = result.rows.map(row => ({
+            date: row.date instanceof Date
+                ? row.date.toISOString().split('T')[0]
+                : String(row.date),
+            messages: parseInt(row.messages, 10),
+            conversations: parseInt(row.conversations, 10),
+        }));
+
+        return { daily };
+    }
+
+    /**
      * Get statistics about the database
      */
     async getStats(): Promise<{ totalMessages: number; totalSessions: number; oldestMessage: Date | null; newestMessage: Date | null }> {

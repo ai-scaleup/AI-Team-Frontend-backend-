@@ -1,4 +1,4 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { SaraAiService } from '../services/sara-ai.service';
 
 @Controller('sara-ai')
@@ -21,6 +21,16 @@ export class SaraAiController {
     @Get('chats/:phoneNumber')
     async getConversation(@Param('phoneNumber') phoneNumber: string) {
         return this.saraAiService.getConversation(phoneNumber);
+    }
+
+    /**
+     * GET /sara-ai/analytics?days=30
+     * Get daily aggregated analytics from metis_chat_logs
+     */
+    @Get('analytics')
+    async getAnalytics(@Query('days') days?: string) {
+        const numDays = days ? parseInt(days, 10) : 30;
+        return this.saraAiService.getAnalytics(numDays);
     }
 
     /**

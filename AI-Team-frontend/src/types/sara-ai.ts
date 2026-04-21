@@ -36,6 +36,16 @@ export interface ConversationResponse {
     totalMessages: number;
 }
 
+export interface DailyAnalyticsBucket {
+    date: string;       // "YYYY-MM-DD"
+    messages: number;
+    conversations: number;
+}
+
+export interface AnalyticsResponse {
+    daily: DailyAnalyticsBucket[];
+}
+
 // ════════════════════════════════════════
 // ERROR OBJECT
 // ════════════════════════════════════════

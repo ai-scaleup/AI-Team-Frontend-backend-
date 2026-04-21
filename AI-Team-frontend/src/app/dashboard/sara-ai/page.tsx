@@ -23,7 +23,7 @@ import {
     ArrowDownRight, RefreshCw, Book, Tag, ArrowLeft, QrCode
 } from "lucide-react"
 import { saraAiService } from "@/services/saraAiService"
-import type { ChatSession as SaraSession, ChatMessage as SaraMessage, StatsResponse } from "@/types/sara-ai"
+import type { ChatSession as SaraSession, ChatMessage as SaraMessage, StatsResponse, DailyAnalyticsBucket } from "@/types/sara-ai"
 
 
 
@@ -483,6 +483,7 @@ export default function App() {
 
     // Real analytics from API
     const [apiStats, setApiStats] = useState<StatsResponse | null>(null)
+    const [analyticsData, setAnalyticsData] = useState<DailyAnalyticsBucket[]>([])
 
     const generateQRCode = async () => {
         console.log("Generating QR Code...")
@@ -560,106 +561,28 @@ export default function App() {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-
-
-
-
-
-
-
-        const msgBuckets = new Array(30).fill(0);
-        const uniqueConvosPerDay = Array.from({ length: 30 }, () => new Set());
-
-
-
-
-
-
-
-
-        // Process real WhatsApp sessions from your n8n history
-        whatsappSessions.forEach(session => {
-            (session.messages || []).forEach(msg => {
-                // We only count incoming customer messages for analytics
-                if (msg.sender !== 'user' || msg.text.includes('{{')) return;
-
-
-
-
-
-
-
-
-                let msgDate = new Date(msg.time);
-
-
-
-
-                // Stability fallback: If message timestamp is broken, use session's activity date
-                if (isNaN(msgDate.getTime())) {
-                    msgDate = new Date(session.lastActive);
-                }
-
-
-
-
-                if (isNaN(msgDate.getTime())) return;
-                msgDate.setHours(0, 0, 0, 0);
-
-
-
-
-
-
-
-
-                const diffTime = today.getTime() - msgDate.getTime();
-                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-
-
-
-
-
-
-
-                // Increment the bucket if it falls within the 30-day window
-                if (diffDays >= 0 && diffDays < 30) {
-                    msgBuckets[diffDays]++;
-                    uniqueConvosPerDay[diffDays].add(session.id);
-                }
-            });
-        });
-
-
-
-
-
-
-
-
-        // Define length based on selection
         const days = range === '30d' ? 30 : range === '7d' ? 7 : range === 'yesterday' ? 2 : 1;
 
+        // Build a dense array of the last N dates (oldest → newest)
+        const dateKeys: string[] = [];
+        for (let i = days - 1; i >= 0; i--) {
+            const d = new Date(today);
+            d.setDate(d.getDate() - i);
+            dateKeys.push(d.toISOString().split('T')[0]);
+        }
 
+        // Index the API data by date string
+        const byDate = new Map<string, DailyAnalyticsBucket>();
+        analyticsData.forEach(b => byDate.set(b.date, b));
 
-
-        // Reverse slices to flow from Past (Left) to Present (Right) on the chart
-        const chartMsgs = msgBuckets.slice(0, days).reverse();
-        const chartConvos = Array.from({ length: days }, (_, i) => uniqueConvosPerDay[i].size).reverse();
-
-
-
-
-
-
-
+        const chartMessages = dateKeys.map(k => byDate.get(k)?.messages ?? 0);
+        const chartConvos   = dateKeys.map(k => byDate.get(k)?.conversations ?? 0);
 
         return {
-            messages: chartMsgs.reduce((a, b) => a + b, 0),
-            conversations: new Set(uniqueConvosPerDay.slice(0, days).flatMap(s => Array.from(s))).size,
-            chartMessages: chartMsgs,
-            chartConvos: chartConvos
+            messages: chartMessages.reduce((a, b) => a + b, 0),
+            conversations: chartConvos.reduce((a, b) => a + b, 0),
+            chartMessages,
+            chartConvos,
         };
     };
 
@@ -1014,6 +937,25 @@ export default function App() {
             fetchStats();
             // Refresh stats every 30 seconds
             const interval = setInterval(fetchStats, 30000);
+            return () => clearInterval(interval);
+        }
+    }, [activeAgentId, mounted]);
+
+    // Fetch analytics data from the DB (always 30 days so we can slice client-side)
+    useEffect(() => {
+        const fetchAnalytics = async () => {
+            if (!mounted || activeAgentId !== 'sara-ai') return;
+            try {
+                const result = await saraAiService.getAnalytics(30);
+                setAnalyticsData(result.daily);
+            } catch (err) {
+                console.error('Failed to fetch analytics:', err);
+            }
+        };
+
+        if (activeAgentId === 'sara-ai' && mounted) {
+            fetchAnalytics();
+            const interval = setInterval(fetchAnalytics, 60000);
             return () => clearInterval(interval);
         }
     }, [activeAgentId, mounted]);
