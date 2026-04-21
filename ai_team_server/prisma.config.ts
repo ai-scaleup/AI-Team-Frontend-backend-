@@ -22,9 +22,9 @@ if (needsDirectUrl && !process.env.DIRECT_URL) {
 
 export default defineConfig({
   schema: path.join('prisma', 'schema.prisma'),
-  // DIRECT_URL bypasses the transaction-mode pooler (port 6543, pgbouncer=true)
-  // which doesn't support DDL operations like CREATE/ALTER TABLE.
+  // DIRECT_URL bypasses the transaction-mode pooler for DDL (migrate/push).
+  // For generate and runtime, DATABASE_URL (pooled) is sufficient.
   datasource: {
-    url: env('DIRECT_URL'),
+    url: needsDirectUrl ? env('DIRECT_URL') : env('DATABASE_URL'),
   },
 })
