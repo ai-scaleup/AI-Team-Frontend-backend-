@@ -4,7 +4,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
-import { AgentName } from '@prisma/client';
+import { AgentName } from 'src/generated/prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 

@@ -17,7 +17,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
-import { AgentName } from '@prisma/client';
+import { AgentName } from 'src/generated/prisma/client';
 
 /** ---------- Helpers ---------- */
 const toNumber = ({ value }: { value: any }) => {

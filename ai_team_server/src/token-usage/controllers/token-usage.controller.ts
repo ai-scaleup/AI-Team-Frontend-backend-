@@ -1,5 +1,5 @@
 import { Controller, Get, Patch, Param, Body } from '@nestjs/common';
-import { AgentName } from '@prisma/client';
+import { AgentName } from 'src/generated/prisma/client';
 import { TokenUsageService } from '../services/token-usage.service';
 
 @Controller('token-usage')

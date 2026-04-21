@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { UserPreference, AgentName } from '@prisma/client';
+import { UserPreference, AgentName } from 'src/generated/prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateUserPreferenceDto, UpdateUserPreferenceDto } from '../schemas/user-preference.schema';
 

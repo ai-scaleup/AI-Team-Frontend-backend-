@@ -1,7 +1,7 @@
 
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ChiaraService } from './chiara.service';
-import { Prisma } from '@prisma/client';
+import { Prisma } from 'src/generated/prisma/client';
 
 @Controller('chiara')
 export class ChiaraController {

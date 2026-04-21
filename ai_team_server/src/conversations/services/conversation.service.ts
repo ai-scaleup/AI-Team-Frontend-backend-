@@ -6,7 +6,7 @@ import {
     ConflictException,
     ServiceUnavailableException,
 } from '@nestjs/common';
-import { Conversation, Message, Prisma } from '@prisma/client';
+import { Conversation, Message, Prisma } from 'src/generated/prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
     CreateConversationDto,

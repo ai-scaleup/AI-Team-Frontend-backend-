@@ -13,7 +13,7 @@ import {
   AgentGroup,
   User,
   AgentName,
-} from '@prisma/client';
+} from 'src/generated/prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 

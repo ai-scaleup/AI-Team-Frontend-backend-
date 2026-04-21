@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AgentName } from '@prisma/client';
+import { AgentName } from 'src/generated/prisma/client';
 
 // All valid agent names from the Prisma enum
 const agentNames = [

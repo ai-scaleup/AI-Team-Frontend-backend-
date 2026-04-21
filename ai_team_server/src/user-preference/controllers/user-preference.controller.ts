@@ -10,7 +10,7 @@ import {
     HttpStatus,
     Query,
 } from '@nestjs/common';
-import { AgentName } from '@prisma/client';
+import { AgentName } from 'src/generated/prisma/client';
 import { UserPreferenceService } from '../services/user-preference.service';
 import {
     CreateUserPreferenceDto,

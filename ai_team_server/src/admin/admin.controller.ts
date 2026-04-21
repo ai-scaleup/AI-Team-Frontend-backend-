@@ -32,7 +32,7 @@ import {
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { AdminService } from './admin.service';
-import { AgentName } from '@prisma/client';
+import { AgentName } from 'src/generated/prisma/client';
 
 /* ------------------------- helpers for transforms ------------------------- */
 const toNumber = ({ value }: { value: any }) => {
