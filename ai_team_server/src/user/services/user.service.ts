@@ -86,4 +86,20 @@ export class UserService {
       update: { email, username },
     });
   }
+
+  // ALERTS 
+  async getAlerts(oauthId: string) {
+    const user = await this.findUserByOauthId(oauthId);
+    return this.prisma.userAlert.findMany({
+      where: { userId: user.id, read: false },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  async dismissAlert(alertId: string) {
+    return this.prisma.userAlert.update({
+      where: { id: alertId },
+      data: { read: true }
+    });
+  }
 }

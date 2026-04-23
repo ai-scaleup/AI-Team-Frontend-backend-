@@ -1,8 +1,8 @@
 // prisma/schema.prisma
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
   moduleFormat = "cjs"
 }
 
@@ -140,6 +140,14 @@ model User {
   preferences   UserPreference[]
   // Token usage per agent
   tokenUsage    UserAgentTokenUsage[]
+  // Memberships
+  memberships   AssignedMembership[]
+  // Daily Usage Tracking
+  dailyUsage    DailyTokenUsage[]
+  // Token Quota Stops
+  stopLogs      TokenLimitStopLog[]
+  // UI Alerts
+  alerts        UserAlert[]
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -188,11 +196,20 @@ model AssignedAgent {
   expiresAt    DateTime?
   durationDays Int?
   isActive     Boolean   @default(true)
+
+  // Tokens Limits
+  monthlyTokenLimit Int? 
+  
+  threshold50Notified  Boolean            @default(false)
+  threshold80Notified  Boolean            @default(false)
+  threshold90Notified  Boolean            @default(false)
+  threshold100Notified Boolean            @default(false)
+
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, agentName, isActive], map: "uniq_active_agent_per_user")
+  // Allowed multiples just in case, or we keep unique
   @@index([userId, isActive])
   @@index([expiresAt])
 }
@@ -230,12 +247,19 @@ model AssignedGroup {
   expiresAt    DateTime?
   durationDays Int?
   isActive     Boolean    @default(true)
+
+  monthlyTokenLimit Int? 
+  
+  threshold50Notified  Boolean            @default(false)
+  threshold80Notified  Boolean            @default(false)
+  threshold90Notified  Boolean            @default(false)
+  threshold100Notified Boolean            @default(false)
+
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   group        AgentGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, groupId, isActive], map: "uniq_active_group_per_user")
   @@index([userId, isActive])
   @@index([groupId])
   @@index([expiresAt])
@@ -369,3 +393,88 @@ model UserAgentTokenUsage {
   @@index([oauthId])
   @@index([agentName])
 }
+
+// ─────────────────────────────────────────────────────────────
+// Memberships & Dynamic Limits
+// ─────────────────────────────────────────────────────────────
+
+model MembershipTemplate {
+  id                String    @id @default(uuid())
+  name              String    @unique
+  durationDays      Int
+  monthlyTokenLimit Int
+  
+  // What is included stringified for simple arrays
+  includedAgents    AgentName[]
+  includedGroupIds  String[] // references AgentGroup ids
+  
+  assignments       AssignedMembership[]
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model AssignedMembership {
+  id                   String             @id @default(uuid())
+  userId               String
+  membershipTemplateId String
+  startsAt             DateTime           @default(now())
+  expiresAt            DateTime?
+  isActive             Boolean            @default(true)
+  
+  threshold50Notified  Boolean            @default(false)
+  threshold80Notified  Boolean            @default(false)
+  threshold90Notified  Boolean            @default(false)
+  threshold100Notified Boolean            @default(false)
+
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template             MembershipTemplate @relation(fields: [membershipTemplateId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isActive])
+}
+
+model DailyTokenUsage {
+  id           String    @id @default(uuid())
+  oauthId      String
+  agentName    AgentName
+  date         DateTime  @db.Date
+  inputTokens  Int       @default(0)
+  outputTokens Int       @default(0)
+  totalTokens  Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation(fields: [oauthId], references: [oauthId], onDelete: Cascade)
+
+  @@unique([oauthId, agentName, date], map: "uniq_daily_token_usage")
+  @@index([oauthId])
+  @@index([date])
+}
+
+model TokenLimitStopLog {
+  id               String    @id @default(uuid())
+  oauthId          String
+  agentName        AgentName
+  reason           String
+  attemptedTokens  Int       @default(0)
+  createdAt        DateTime  @default(now())
+  user             User      @relation(fields: [oauthId], references: [oauthId], onDelete: Cascade)
+
+  @@index([oauthId])
+  @@index([createdAt])
+}
+
+model UserAlert {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String   // e.g. "TOKEN_THRESHOLD_80"
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+}
+

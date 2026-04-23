@@ -195,6 +195,10 @@ export type UserWhereInput = {
   conversations?: Prisma.ConversationListRelationFilter
   preferences?: Prisma.UserPreferenceListRelationFilter
   tokenUsage?: Prisma.UserAgentTokenUsageListRelationFilter
+  memberships?: Prisma.AssignedMembershipListRelationFilter
+  dailyUsage?: Prisma.DailyTokenUsageListRelationFilter
+  stopLogs?: Prisma.TokenLimitStopLogListRelationFilter
+  alerts?: Prisma.UserAlertListRelationFilter
 }
 
 export type UserOrderByWithRelationInput = {
@@ -209,6 +213,10 @@ export type UserOrderByWithRelationInput = {
   conversations?: Prisma.ConversationOrderByRelationAggregateInput
   preferences?: Prisma.UserPreferenceOrderByRelationAggregateInput
   tokenUsage?: Prisma.UserAgentTokenUsageOrderByRelationAggregateInput
+  memberships?: Prisma.AssignedMembershipOrderByRelationAggregateInput
+  dailyUsage?: Prisma.DailyTokenUsageOrderByRelationAggregateInput
+  stopLogs?: Prisma.TokenLimitStopLogOrderByRelationAggregateInput
+  alerts?: Prisma.UserAlertOrderByRelationAggregateInput
 }
 
 export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -226,6 +234,10 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   conversations?: Prisma.ConversationListRelationFilter
   preferences?: Prisma.UserPreferenceListRelationFilter
   tokenUsage?: Prisma.UserAgentTokenUsageListRelationFilter
+  memberships?: Prisma.AssignedMembershipListRelationFilter
+  dailyUsage?: Prisma.DailyTokenUsageListRelationFilter
+  stopLogs?: Prisma.TokenLimitStopLogListRelationFilter
+  alerts?: Prisma.UserAlertListRelationFilter
 }, "id" | "email" | "oauthId">
 
 export type UserOrderByWithAggregationInput = {
@@ -264,6 +276,10 @@ export type UserCreateInput = {
   conversations?: Prisma.ConversationCreateNestedManyWithoutUserInput
   preferences?: Prisma.UserPreferenceCreateNestedManyWithoutUserInput
   tokenUsage?: Prisma.UserAgentTokenUsageCreateNestedManyWithoutUserInput
+  memberships?: Prisma.AssignedMembershipCreateNestedManyWithoutUserInput
+  dailyUsage?: Prisma.DailyTokenUsageCreateNestedManyWithoutUserInput
+  stopLogs?: Prisma.TokenLimitStopLogCreateNestedManyWithoutUserInput
+  alerts?: Prisma.UserAlertCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateInput = {
@@ -278,6 +294,10 @@ export type UserUncheckedCreateInput = {
   conversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutUserInput
   preferences?: Prisma.UserPreferenceUncheckedCreateNestedManyWithoutUserInput
   tokenUsage?: Prisma.UserAgentTokenUsageUncheckedCreateNestedManyWithoutUserInput
+  memberships?: Prisma.AssignedMembershipUncheckedCreateNestedManyWithoutUserInput
+  dailyUsage?: Prisma.DailyTokenUsageUncheckedCreateNestedManyWithoutUserInput
+  stopLogs?: Prisma.TokenLimitStopLogUncheckedCreateNestedManyWithoutUserInput
+  alerts?: Prisma.UserAlertUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserUpdateInput = {
@@ -292,6 +312,10 @@ export type UserUpdateInput = {
   conversations?: Prisma.ConversationUpdateManyWithoutUserNestedInput
   preferences?: Prisma.UserPreferenceUpdateManyWithoutUserNestedInput
   tokenUsage?: Prisma.UserAgentTokenUsageUpdateManyWithoutUserNestedInput
+  memberships?: Prisma.AssignedMembershipUpdateManyWithoutUserNestedInput
+  dailyUsage?: Prisma.DailyTokenUsageUpdateManyWithoutUserNestedInput
+  stopLogs?: Prisma.TokenLimitStopLogUpdateManyWithoutUserNestedInput
+  alerts?: Prisma.UserAlertUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateInput = {
@@ -306,6 +330,10 @@ export type UserUncheckedUpdateInput = {
   conversations?: Prisma.ConversationUncheckedUpdateManyWithoutUserNestedInput
   preferences?: Prisma.UserPreferenceUncheckedUpdateManyWithoutUserNestedInput
   tokenUsage?: Prisma.UserAgentTokenUsageUncheckedUpdateManyWithoutUserNestedInput
+  memberships?: Prisma.AssignedMembershipUncheckedUpdateManyWithoutUserNestedInput
+  dailyUsage?: Prisma.DailyTokenUsageUncheckedUpdateManyWithoutUserNestedInput
+  stopLogs?: Prisma.TokenLimitStopLogUncheckedUpdateManyWithoutUserNestedInput
+  alerts?: Prisma.UserAlertUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateManyInput = {
@@ -449,6 +477,62 @@ export type UserUpdateOneRequiredWithoutTokenUsageNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutTokenUsageInput, Prisma.UserUpdateWithoutTokenUsageInput>, Prisma.UserUncheckedUpdateWithoutTokenUsageInput>
 }
 
+export type UserCreateNestedOneWithoutMembershipsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutMembershipsInput, Prisma.UserUncheckedCreateWithoutMembershipsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutMembershipsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutMembershipsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutMembershipsInput, Prisma.UserUncheckedCreateWithoutMembershipsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutMembershipsInput
+  upsert?: Prisma.UserUpsertWithoutMembershipsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutMembershipsInput, Prisma.UserUpdateWithoutMembershipsInput>, Prisma.UserUncheckedUpdateWithoutMembershipsInput>
+}
+
+export type UserCreateNestedOneWithoutDailyUsageInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutDailyUsageInput, Prisma.UserUncheckedCreateWithoutDailyUsageInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutDailyUsageInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutDailyUsageNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutDailyUsageInput, Prisma.UserUncheckedCreateWithoutDailyUsageInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutDailyUsageInput
+  upsert?: Prisma.UserUpsertWithoutDailyUsageInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutDailyUsageInput, Prisma.UserUpdateWithoutDailyUsageInput>, Prisma.UserUncheckedUpdateWithoutDailyUsageInput>
+}
+
+export type UserCreateNestedOneWithoutStopLogsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutStopLogsInput, Prisma.UserUncheckedCreateWithoutStopLogsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutStopLogsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutStopLogsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutStopLogsInput, Prisma.UserUncheckedCreateWithoutStopLogsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutStopLogsInput
+  upsert?: Prisma.UserUpsertWithoutStopLogsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutStopLogsInput, Prisma.UserUpdateWithoutStopLogsInput>, Prisma.UserUncheckedUpdateWithoutStopLogsInput>
+}
+
+export type UserCreateNestedOneWithoutAlertsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutAlertsInput, Prisma.UserUncheckedCreateWithoutAlertsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutAlertsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutAlertsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutAlertsInput, Prisma.UserUncheckedCreateWithoutAlertsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutAlertsInput
+  upsert?: Prisma.UserUpsertWithoutAlertsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutAlertsInput, Prisma.UserUpdateWithoutAlertsInput>, Prisma.UserUncheckedUpdateWithoutAlertsInput>
+}
+
 export type UserCreateWithoutPreferencesInput = {
   id?: string
   email: string
@@ -460,6 +544,10 @@ export type UserCreateWithoutPreferencesInput = {
   groups?: Prisma.AssignedGroupCreateNestedManyWithoutUserInput
   conversations?: Prisma.ConversationCreateNestedManyWithoutUserInput
   tokenUsage?: Prisma.UserAgentTokenUsageCreateNestedManyWithoutUserInput
+  memberships?: Prisma.AssignedMembershipCreateNestedManyWithoutUserInput
+  dailyUsage?: Prisma.DailyTokenUsageCreateNestedManyWithoutUserInput
+  stopLogs?: Prisma.TokenLimitStopLogCreateNestedManyWithoutUserInput
+  alerts?: Prisma.UserAlertCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutPreferencesInput = {
@@ -473,6 +561,10 @@ export type UserUncheckedCreateWithoutPreferencesInput = {
   groups?: Prisma.AssignedGroupUncheckedCreateNestedManyWithoutUserInput
   conversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutUserInput
   tokenUsage?: Prisma.UserAgentTokenUsageUncheckedCreateNestedManyWithoutUserInput
+  memberships?: Prisma.AssignedMembershipUncheckedCreateNestedManyWithoutUserInput
+  dailyUsage?: Prisma.DailyTokenUsageUncheckedCreateNestedManyWithoutUserInput
+  stopLogs?: Prisma.TokenLimitStopLogUncheckedCreateNestedManyWithoutUserInput
+  alerts?: Prisma.UserAlertUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutPreferencesInput = {
@@ -502,6 +594,10 @@ export type UserUpdateWithoutPreferencesInput = {
   groups?: Prisma.AssignedGroupUpdateManyWithoutUserNestedInput
   conversations?: Prisma.ConversationUpdateManyWithoutUserNestedInput
   tokenUsage?: Prisma.UserAgentTokenUsageUpdateManyWithoutUserNestedInput
+  memberships?: Prisma.AssignedMembershipUpdateManyWithoutUserNestedInput
+  dailyUsage?: Prisma.DailyTokenUsageUpdateManyWithoutUserNestedInput
+  stopLogs?: Prisma.TokenLimitStopLogUpdateManyWithoutUserNestedInput
+  alerts?: Prisma.UserAlertUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutPreferencesInput = {
@@ -515,6 +611,10 @@ export type UserUncheckedUpdateWithoutPreferencesInput = {
   groups?: Prisma.AssignedGroupUncheckedUpdateManyWithoutUserNestedInput
   conversations?: Prisma.ConversationUncheckedUpdateManyWithoutUserNestedInput
   tokenUsage?: Prisma.UserAgentTokenUsageUncheckedUpdateManyWithoutUserNestedInput
+  memberships?: Prisma.AssignedMembershipUncheckedUpdateManyWithoutUserNestedInput
+  dailyUsage?: Prisma.DailyTokenUsageUncheckedUpdateManyWithoutUserNestedInput
+  stopLogs?: Prisma.TokenLimitStopLogUncheckedUpdateManyWithoutUserNestedInput
+  alerts?: Prisma.UserAlertUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutAgentsInput = {
@@ -528,6 +628,10 @@ export type UserCreateWithoutAgentsInput = {
   conversations?: Prisma.ConversationCreateNestedManyWithoutUserInput
   preferences?: Prisma.UserPreferenceCreateNestedManyWithoutUserInput
   tokenUsage?: Prisma.UserAgentTokenUsageCreateNestedManyWithoutUserInput
+  memberships?: Prisma.AssignedMembershipCreateNestedManyWithoutUserInput
+  dailyUsage?: Prisma.DailyTokenUsageCreateNestedManyWithoutUserInput
+  stopLogs?: Prisma.TokenLimitStopLogCreateNestedManyWithoutUserInput
+  alerts?: Prisma.UserAlertCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutAgentsInput = {
@@ -541,6 +645,10 @@ export type UserUncheckedCreateWithoutAgentsInput = {
   conversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutUserInput
   preferences?: Prisma.UserPreferenceUncheckedCreateNestedManyWithoutUserInput
   tokenUsage?: Prisma.UserAgentTokenUsageUncheckedCreateNestedManyWithoutUserInput
+  memberships?: Prisma.AssignedMembershipUncheckedCreateNestedManyWithoutUserInput
+  dailyUsage?: Prisma.DailyTokenUsageUncheckedCreateNestedManyWithoutUserInput
+  stopLogs?: Prisma.TokenLimitStopLogUncheckedCreateNestedManyWithoutUserInput
+  alerts?: Prisma.UserAlertUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutAgentsInput = {
@@ -570,6 +678,10 @@ export type UserUpdateWithoutAgentsInput = {
   conversations?: Prisma.ConversationUpdateManyWithoutUserNestedInput
   preferences?: Prisma.UserPreferenceUpdateManyWithoutUserNestedInput
   tokenUsage?: Prisma.UserAgentTokenUsageUpdateManyWithoutUserNestedInput
+  memberships?: Prisma.AssignedMembershipUpdateManyWithoutUserNestedInput
+  dailyUsage?: Prisma.DailyTokenUsageUpdateManyWithoutUserNestedInput
+  stopLogs?: Prisma.TokenLimitStopLogUpdateManyWithoutUserNestedInput
+  alerts?: Prisma.UserAlertUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutAgentsInput = {
@@ -583,6 +695,10 @@ export type UserUncheckedUpdateWithoutAgentsInput = {
   conversations?: Prisma.ConversationUncheckedUpdateManyWithoutUserNestedInput
   preferences?: Prisma.UserPreferenceUncheckedUpdateManyWithoutUserNestedInput
   tokenUsage?: Prisma.UserAgentTokenUsageUncheckedUpdateManyWithoutUserNestedInput
+  memberships?: Prisma.AssignedMembershipUncheckedUpdateManyWithoutUserNestedInput
+  dailyUsage?: Prisma.DailyTokenUsageUncheckedUpdateManyWithoutUserNestedInput
+  stopLogs?: Prisma.TokenLimitStopLogUncheckedUpdateManyWithoutUserNestedInput
+  alerts?: Prisma.UserAlertUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutGroupsInput = {
@@ -596,6 +712,10 @@ export type UserCreateWithoutGroupsInput = {
   conversations?: Prisma.ConversationCreateNestedManyWithoutUserInput
   preferences?: Prisma.UserPreferenceCreateNestedManyWithoutUserInput
   tokenUsage?: Prisma.UserAgentTokenUsageCreateNestedManyWithoutUserInput
+  memberships?: Prisma.AssignedMembershipCreateNestedManyWithoutUserInput
+  dailyUsage?: Prisma.DailyTokenUsageCreateNestedManyWithoutUserInput
+  stopLogs?: Prisma.TokenLimitStopLogCreateNestedManyWithoutUserInput
+  alerts?: Prisma.UserAlertCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutGroupsInput = {
@@ -609,6 +729,10 @@ export type UserUncheckedCreateWithoutGroupsInput = {
   conversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutUserInput
   preferences?: Prisma.UserPreferenceUncheckedCreateNestedManyWithoutUserInput
   tokenUsage?: Prisma.UserAgentTokenUsageUncheckedCreateNestedManyWithoutUserInput
+  memberships?: Prisma.AssignedMembershipUncheckedCreateNestedManyWithoutUserInput
+  dailyUsage?: Prisma.DailyTokenUsageUncheckedCreateNestedManyWithoutUserInput
+  stopLogs?: Prisma.TokenLimitStopLogUncheckedCreateNestedManyWithoutUserInput
+  alerts?: Prisma.UserAlertUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutGroupsInput = {
@@ -638,6 +762,10 @@ export type UserUpdateWithoutGroupsInput = {
   conversations?: Prisma.ConversationUpdateManyWithoutUserNestedInput
   preferences?: Prisma.UserPreferenceUpdateManyWithoutUserNestedInput
   tokenUsage?: Prisma.UserAgentTokenUsageUpdateManyWithoutUserNestedInput
+  memberships?: Prisma.AssignedMembershipUpdateManyWithoutUserNestedInput
+  dailyUsage?: Prisma.DailyTokenUsageUpdateManyWithoutUserNestedInput
+  stopLogs?: Prisma.TokenLimitStopLogUpdateManyWithoutUserNestedInput
+  alerts?: Prisma.UserAlertUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutGroupsInput = {
@@ -651,6 +779,10 @@ export type UserUncheckedUpdateWithoutGroupsInput = {
   conversations?: Prisma.ConversationUncheckedUpdateManyWithoutUserNestedInput
   preferences?: Prisma.UserPreferenceUncheckedUpdateManyWithoutUserNestedInput
   tokenUsage?: Prisma.UserAgentTokenUsageUncheckedUpdateManyWithoutUserNestedInput
+  memberships?: Prisma.AssignedMembershipUncheckedUpdateManyWithoutUserNestedInput
+  dailyUsage?: Prisma.DailyTokenUsageUncheckedUpdateManyWithoutUserNestedInput
+  stopLogs?: Prisma.TokenLimitStopLogUncheckedUpdateManyWithoutUserNestedInput
+  alerts?: Prisma.UserAlertUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutConversationsInput = {
@@ -664,6 +796,10 @@ export type UserCreateWithoutConversationsInput = {
   groups?: Prisma.AssignedGroupCreateNestedManyWithoutUserInput
   preferences?: Prisma.UserPreferenceCreateNestedManyWithoutUserInput
   tokenUsage?: Prisma.UserAgentTokenUsageCreateNestedManyWithoutUserInput
+  memberships?: Prisma.AssignedMembershipCreateNestedManyWithoutUserInput
+  dailyUsage?: Prisma.DailyTokenUsageCreateNestedManyWithoutUserInput
+  stopLogs?: Prisma.TokenLimitStopLogCreateNestedManyWithoutUserInput
+  alerts?: Prisma.UserAlertCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutConversationsInput = {
@@ -677,6 +813,10 @@ export type UserUncheckedCreateWithoutConversationsInput = {
   groups?: Prisma.AssignedGroupUncheckedCreateNestedManyWithoutUserInput
   preferences?: Prisma.UserPreferenceUncheckedCreateNestedManyWithoutUserInput
   tokenUsage?: Prisma.UserAgentTokenUsageUncheckedCreateNestedManyWithoutUserInput
+  memberships?: Prisma.AssignedMembershipUncheckedCreateNestedManyWithoutUserInput
+  dailyUsage?: Prisma.DailyTokenUsageUncheckedCreateNestedManyWithoutUserInput
+  stopLogs?: Prisma.TokenLimitStopLogUncheckedCreateNestedManyWithoutUserInput
+  alerts?: Prisma.UserAlertUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutConversationsInput = {
@@ -706,6 +846,10 @@ export type UserUpdateWithoutConversationsInput = {
   groups?: Prisma.AssignedGroupUpdateManyWithoutUserNestedInput
   preferences?: Prisma.UserPreferenceUpdateManyWithoutUserNestedInput
   tokenUsage?: Prisma.UserAgentTokenUsageUpdateManyWithoutUserNestedInput
+  memberships?: Prisma.AssignedMembershipUpdateManyWithoutUserNestedInput
+  dailyUsage?: Prisma.DailyTokenUsageUpdateManyWithoutUserNestedInput
+  stopLogs?: Prisma.TokenLimitStopLogUpdateManyWithoutUserNestedInput
+  alerts?: Prisma.UserAlertUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutConversationsInput = {
@@ -719,6 +863,10 @@ export type UserUncheckedUpdateWithoutConversationsInput = {
   groups?: Prisma.AssignedGroupUncheckedUpdateManyWithoutUserNestedInput
   preferences?: Prisma.UserPreferenceUncheckedUpdateManyWithoutUserNestedInput
   tokenUsage?: Prisma.UserAgentTokenUsageUncheckedUpdateManyWithoutUserNestedInput
+  memberships?: Prisma.AssignedMembershipUncheckedUpdateManyWithoutUserNestedInput
+  dailyUsage?: Prisma.DailyTokenUsageUncheckedUpdateManyWithoutUserNestedInput
+  stopLogs?: Prisma.TokenLimitStopLogUncheckedUpdateManyWithoutUserNestedInput
+  alerts?: Prisma.UserAlertUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutTokenUsageInput = {
@@ -732,6 +880,10 @@ export type UserCreateWithoutTokenUsageInput = {
   groups?: Prisma.AssignedGroupCreateNestedManyWithoutUserInput
   conversations?: Prisma.ConversationCreateNestedManyWithoutUserInput
   preferences?: Prisma.UserPreferenceCreateNestedManyWithoutUserInput
+  memberships?: Prisma.AssignedMembershipCreateNestedManyWithoutUserInput
+  dailyUsage?: Prisma.DailyTokenUsageCreateNestedManyWithoutUserInput
+  stopLogs?: Prisma.TokenLimitStopLogCreateNestedManyWithoutUserInput
+  alerts?: Prisma.UserAlertCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutTokenUsageInput = {
@@ -745,6 +897,10 @@ export type UserUncheckedCreateWithoutTokenUsageInput = {
   groups?: Prisma.AssignedGroupUncheckedCreateNestedManyWithoutUserInput
   conversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutUserInput
   preferences?: Prisma.UserPreferenceUncheckedCreateNestedManyWithoutUserInput
+  memberships?: Prisma.AssignedMembershipUncheckedCreateNestedManyWithoutUserInput
+  dailyUsage?: Prisma.DailyTokenUsageUncheckedCreateNestedManyWithoutUserInput
+  stopLogs?: Prisma.TokenLimitStopLogUncheckedCreateNestedManyWithoutUserInput
+  alerts?: Prisma.UserAlertUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutTokenUsageInput = {
@@ -774,6 +930,10 @@ export type UserUpdateWithoutTokenUsageInput = {
   groups?: Prisma.AssignedGroupUpdateManyWithoutUserNestedInput
   conversations?: Prisma.ConversationUpdateManyWithoutUserNestedInput
   preferences?: Prisma.UserPreferenceUpdateManyWithoutUserNestedInput
+  memberships?: Prisma.AssignedMembershipUpdateManyWithoutUserNestedInput
+  dailyUsage?: Prisma.DailyTokenUsageUpdateManyWithoutUserNestedInput
+  stopLogs?: Prisma.TokenLimitStopLogUpdateManyWithoutUserNestedInput
+  alerts?: Prisma.UserAlertUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutTokenUsageInput = {
@@ -787,6 +947,346 @@ export type UserUncheckedUpdateWithoutTokenUsageInput = {
   groups?: Prisma.AssignedGroupUncheckedUpdateManyWithoutUserNestedInput
   conversations?: Prisma.ConversationUncheckedUpdateManyWithoutUserNestedInput
   preferences?: Prisma.UserPreferenceUncheckedUpdateManyWithoutUserNestedInput
+  memberships?: Prisma.AssignedMembershipUncheckedUpdateManyWithoutUserNestedInput
+  dailyUsage?: Prisma.DailyTokenUsageUncheckedUpdateManyWithoutUserNestedInput
+  stopLogs?: Prisma.TokenLimitStopLogUncheckedUpdateManyWithoutUserNestedInput
+  alerts?: Prisma.UserAlertUncheckedUpdateManyWithoutUserNestedInput
+}
+
+export type UserCreateWithoutMembershipsInput = {
+  id?: string
+  email: string
+  oauthId: string
+  username?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  agents?: Prisma.AssignedAgentCreateNestedManyWithoutUserInput
+  groups?: Prisma.AssignedGroupCreateNestedManyWithoutUserInput
+  conversations?: Prisma.ConversationCreateNestedManyWithoutUserInput
+  preferences?: Prisma.UserPreferenceCreateNestedManyWithoutUserInput
+  tokenUsage?: Prisma.UserAgentTokenUsageCreateNestedManyWithoutUserInput
+  dailyUsage?: Prisma.DailyTokenUsageCreateNestedManyWithoutUserInput
+  stopLogs?: Prisma.TokenLimitStopLogCreateNestedManyWithoutUserInput
+  alerts?: Prisma.UserAlertCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutMembershipsInput = {
+  id?: string
+  email: string
+  oauthId: string
+  username?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  agents?: Prisma.AssignedAgentUncheckedCreateNestedManyWithoutUserInput
+  groups?: Prisma.AssignedGroupUncheckedCreateNestedManyWithoutUserInput
+  conversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutUserInput
+  preferences?: Prisma.UserPreferenceUncheckedCreateNestedManyWithoutUserInput
+  tokenUsage?: Prisma.UserAgentTokenUsageUncheckedCreateNestedManyWithoutUserInput
+  dailyUsage?: Prisma.DailyTokenUsageUncheckedCreateNestedManyWithoutUserInput
+  stopLogs?: Prisma.TokenLimitStopLogUncheckedCreateNestedManyWithoutUserInput
+  alerts?: Prisma.UserAlertUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutMembershipsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutMembershipsInput, Prisma.UserUncheckedCreateWithoutMembershipsInput>
+}
+
+export type UserUpsertWithoutMembershipsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutMembershipsInput, Prisma.UserUncheckedUpdateWithoutMembershipsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutMembershipsInput, Prisma.UserUncheckedCreateWithoutMembershipsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutMembershipsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutMembershipsInput, Prisma.UserUncheckedUpdateWithoutMembershipsInput>
+}
+
+export type UserUpdateWithoutMembershipsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  oauthId?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  agents?: Prisma.AssignedAgentUpdateManyWithoutUserNestedInput
+  groups?: Prisma.AssignedGroupUpdateManyWithoutUserNestedInput
+  conversations?: Prisma.ConversationUpdateManyWithoutUserNestedInput
+  preferences?: Prisma.UserPreferenceUpdateManyWithoutUserNestedInput
+  tokenUsage?: Prisma.UserAgentTokenUsageUpdateManyWithoutUserNestedInput
+  dailyUsage?: Prisma.DailyTokenUsageUpdateManyWithoutUserNestedInput
+  stopLogs?: Prisma.TokenLimitStopLogUpdateManyWithoutUserNestedInput
+  alerts?: Prisma.UserAlertUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutMembershipsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  oauthId?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  agents?: Prisma.AssignedAgentUncheckedUpdateManyWithoutUserNestedInput
+  groups?: Prisma.AssignedGroupUncheckedUpdateManyWithoutUserNestedInput
+  conversations?: Prisma.ConversationUncheckedUpdateManyWithoutUserNestedInput
+  preferences?: Prisma.UserPreferenceUncheckedUpdateManyWithoutUserNestedInput
+  tokenUsage?: Prisma.UserAgentTokenUsageUncheckedUpdateManyWithoutUserNestedInput
+  dailyUsage?: Prisma.DailyTokenUsageUncheckedUpdateManyWithoutUserNestedInput
+  stopLogs?: Prisma.TokenLimitStopLogUncheckedUpdateManyWithoutUserNestedInput
+  alerts?: Prisma.UserAlertUncheckedUpdateManyWithoutUserNestedInput
+}
+
+export type UserCreateWithoutDailyUsageInput = {
+  id?: string
+  email: string
+  oauthId: string
+  username?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  agents?: Prisma.AssignedAgentCreateNestedManyWithoutUserInput
+  groups?: Prisma.AssignedGroupCreateNestedManyWithoutUserInput
+  conversations?: Prisma.ConversationCreateNestedManyWithoutUserInput
+  preferences?: Prisma.UserPreferenceCreateNestedManyWithoutUserInput
+  tokenUsage?: Prisma.UserAgentTokenUsageCreateNestedManyWithoutUserInput
+  memberships?: Prisma.AssignedMembershipCreateNestedManyWithoutUserInput
+  stopLogs?: Prisma.TokenLimitStopLogCreateNestedManyWithoutUserInput
+  alerts?: Prisma.UserAlertCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutDailyUsageInput = {
+  id?: string
+  email: string
+  oauthId: string
+  username?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  agents?: Prisma.AssignedAgentUncheckedCreateNestedManyWithoutUserInput
+  groups?: Prisma.AssignedGroupUncheckedCreateNestedManyWithoutUserInput
+  conversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutUserInput
+  preferences?: Prisma.UserPreferenceUncheckedCreateNestedManyWithoutUserInput
+  tokenUsage?: Prisma.UserAgentTokenUsageUncheckedCreateNestedManyWithoutUserInput
+  memberships?: Prisma.AssignedMembershipUncheckedCreateNestedManyWithoutUserInput
+  stopLogs?: Prisma.TokenLimitStopLogUncheckedCreateNestedManyWithoutUserInput
+  alerts?: Prisma.UserAlertUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutDailyUsageInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutDailyUsageInput, Prisma.UserUncheckedCreateWithoutDailyUsageInput>
+}
+
+export type UserUpsertWithoutDailyUsageInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutDailyUsageInput, Prisma.UserUncheckedUpdateWithoutDailyUsageInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutDailyUsageInput, Prisma.UserUncheckedCreateWithoutDailyUsageInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutDailyUsageInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutDailyUsageInput, Prisma.UserUncheckedUpdateWithoutDailyUsageInput>
+}
+
+export type UserUpdateWithoutDailyUsageInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  oauthId?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  agents?: Prisma.AssignedAgentUpdateManyWithoutUserNestedInput
+  groups?: Prisma.AssignedGroupUpdateManyWithoutUserNestedInput
+  conversations?: Prisma.ConversationUpdateManyWithoutUserNestedInput
+  preferences?: Prisma.UserPreferenceUpdateManyWithoutUserNestedInput
+  tokenUsage?: Prisma.UserAgentTokenUsageUpdateManyWithoutUserNestedInput
+  memberships?: Prisma.AssignedMembershipUpdateManyWithoutUserNestedInput
+  stopLogs?: Prisma.TokenLimitStopLogUpdateManyWithoutUserNestedInput
+  alerts?: Prisma.UserAlertUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutDailyUsageInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  oauthId?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  agents?: Prisma.AssignedAgentUncheckedUpdateManyWithoutUserNestedInput
+  groups?: Prisma.AssignedGroupUncheckedUpdateManyWithoutUserNestedInput
+  conversations?: Prisma.ConversationUncheckedUpdateManyWithoutUserNestedInput
+  preferences?: Prisma.UserPreferenceUncheckedUpdateManyWithoutUserNestedInput
+  tokenUsage?: Prisma.UserAgentTokenUsageUncheckedUpdateManyWithoutUserNestedInput
+  memberships?: Prisma.AssignedMembershipUncheckedUpdateManyWithoutUserNestedInput
+  stopLogs?: Prisma.TokenLimitStopLogUncheckedUpdateManyWithoutUserNestedInput
+  alerts?: Prisma.UserAlertUncheckedUpdateManyWithoutUserNestedInput
+}
+
+export type UserCreateWithoutStopLogsInput = {
+  id?: string
+  email: string
+  oauthId: string
+  username?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  agents?: Prisma.AssignedAgentCreateNestedManyWithoutUserInput
+  groups?: Prisma.AssignedGroupCreateNestedManyWithoutUserInput
+  conversations?: Prisma.ConversationCreateNestedManyWithoutUserInput
+  preferences?: Prisma.UserPreferenceCreateNestedManyWithoutUserInput
+  tokenUsage?: Prisma.UserAgentTokenUsageCreateNestedManyWithoutUserInput
+  memberships?: Prisma.AssignedMembershipCreateNestedManyWithoutUserInput
+  dailyUsage?: Prisma.DailyTokenUsageCreateNestedManyWithoutUserInput
+  alerts?: Prisma.UserAlertCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutStopLogsInput = {
+  id?: string
+  email: string
+  oauthId: string
+  username?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  agents?: Prisma.AssignedAgentUncheckedCreateNestedManyWithoutUserInput
+  groups?: Prisma.AssignedGroupUncheckedCreateNestedManyWithoutUserInput
+  conversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutUserInput
+  preferences?: Prisma.UserPreferenceUncheckedCreateNestedManyWithoutUserInput
+  tokenUsage?: Prisma.UserAgentTokenUsageUncheckedCreateNestedManyWithoutUserInput
+  memberships?: Prisma.AssignedMembershipUncheckedCreateNestedManyWithoutUserInput
+  dailyUsage?: Prisma.DailyTokenUsageUncheckedCreateNestedManyWithoutUserInput
+  alerts?: Prisma.UserAlertUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutStopLogsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutStopLogsInput, Prisma.UserUncheckedCreateWithoutStopLogsInput>
+}
+
+export type UserUpsertWithoutStopLogsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutStopLogsInput, Prisma.UserUncheckedUpdateWithoutStopLogsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutStopLogsInput, Prisma.UserUncheckedCreateWithoutStopLogsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutStopLogsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutStopLogsInput, Prisma.UserUncheckedUpdateWithoutStopLogsInput>
+}
+
+export type UserUpdateWithoutStopLogsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  oauthId?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  agents?: Prisma.AssignedAgentUpdateManyWithoutUserNestedInput
+  groups?: Prisma.AssignedGroupUpdateManyWithoutUserNestedInput
+  conversations?: Prisma.ConversationUpdateManyWithoutUserNestedInput
+  preferences?: Prisma.UserPreferenceUpdateManyWithoutUserNestedInput
+  tokenUsage?: Prisma.UserAgentTokenUsageUpdateManyWithoutUserNestedInput
+  memberships?: Prisma.AssignedMembershipUpdateManyWithoutUserNestedInput
+  dailyUsage?: Prisma.DailyTokenUsageUpdateManyWithoutUserNestedInput
+  alerts?: Prisma.UserAlertUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutStopLogsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  oauthId?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  agents?: Prisma.AssignedAgentUncheckedUpdateManyWithoutUserNestedInput
+  groups?: Prisma.AssignedGroupUncheckedUpdateManyWithoutUserNestedInput
+  conversations?: Prisma.ConversationUncheckedUpdateManyWithoutUserNestedInput
+  preferences?: Prisma.UserPreferenceUncheckedUpdateManyWithoutUserNestedInput
+  tokenUsage?: Prisma.UserAgentTokenUsageUncheckedUpdateManyWithoutUserNestedInput
+  memberships?: Prisma.AssignedMembershipUncheckedUpdateManyWithoutUserNestedInput
+  dailyUsage?: Prisma.DailyTokenUsageUncheckedUpdateManyWithoutUserNestedInput
+  alerts?: Prisma.UserAlertUncheckedUpdateManyWithoutUserNestedInput
+}
+
+export type UserCreateWithoutAlertsInput = {
+  id?: string
+  email: string
+  oauthId: string
+  username?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  agents?: Prisma.AssignedAgentCreateNestedManyWithoutUserInput
+  groups?: Prisma.AssignedGroupCreateNestedManyWithoutUserInput
+  conversations?: Prisma.ConversationCreateNestedManyWithoutUserInput
+  preferences?: Prisma.UserPreferenceCreateNestedManyWithoutUserInput
+  tokenUsage?: Prisma.UserAgentTokenUsageCreateNestedManyWithoutUserInput
+  memberships?: Prisma.AssignedMembershipCreateNestedManyWithoutUserInput
+  dailyUsage?: Prisma.DailyTokenUsageCreateNestedManyWithoutUserInput
+  stopLogs?: Prisma.TokenLimitStopLogCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutAlertsInput = {
+  id?: string
+  email: string
+  oauthId: string
+  username?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  agents?: Prisma.AssignedAgentUncheckedCreateNestedManyWithoutUserInput
+  groups?: Prisma.AssignedGroupUncheckedCreateNestedManyWithoutUserInput
+  conversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutUserInput
+  preferences?: Prisma.UserPreferenceUncheckedCreateNestedManyWithoutUserInput
+  tokenUsage?: Prisma.UserAgentTokenUsageUncheckedCreateNestedManyWithoutUserInput
+  memberships?: Prisma.AssignedMembershipUncheckedCreateNestedManyWithoutUserInput
+  dailyUsage?: Prisma.DailyTokenUsageUncheckedCreateNestedManyWithoutUserInput
+  stopLogs?: Prisma.TokenLimitStopLogUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutAlertsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutAlertsInput, Prisma.UserUncheckedCreateWithoutAlertsInput>
+}
+
+export type UserUpsertWithoutAlertsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutAlertsInput, Prisma.UserUncheckedUpdateWithoutAlertsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutAlertsInput, Prisma.UserUncheckedCreateWithoutAlertsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutAlertsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutAlertsInput, Prisma.UserUncheckedUpdateWithoutAlertsInput>
+}
+
+export type UserUpdateWithoutAlertsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  oauthId?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  agents?: Prisma.AssignedAgentUpdateManyWithoutUserNestedInput
+  groups?: Prisma.AssignedGroupUpdateManyWithoutUserNestedInput
+  conversations?: Prisma.ConversationUpdateManyWithoutUserNestedInput
+  preferences?: Prisma.UserPreferenceUpdateManyWithoutUserNestedInput
+  tokenUsage?: Prisma.UserAgentTokenUsageUpdateManyWithoutUserNestedInput
+  memberships?: Prisma.AssignedMembershipUpdateManyWithoutUserNestedInput
+  dailyUsage?: Prisma.DailyTokenUsageUpdateManyWithoutUserNestedInput
+  stopLogs?: Prisma.TokenLimitStopLogUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutAlertsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  oauthId?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  agents?: Prisma.AssignedAgentUncheckedUpdateManyWithoutUserNestedInput
+  groups?: Prisma.AssignedGroupUncheckedUpdateManyWithoutUserNestedInput
+  conversations?: Prisma.ConversationUncheckedUpdateManyWithoutUserNestedInput
+  preferences?: Prisma.UserPreferenceUncheckedUpdateManyWithoutUserNestedInput
+  tokenUsage?: Prisma.UserAgentTokenUsageUncheckedUpdateManyWithoutUserNestedInput
+  memberships?: Prisma.AssignedMembershipUncheckedUpdateManyWithoutUserNestedInput
+  dailyUsage?: Prisma.DailyTokenUsageUncheckedUpdateManyWithoutUserNestedInput
+  stopLogs?: Prisma.TokenLimitStopLogUncheckedUpdateManyWithoutUserNestedInput
 }
 
 
@@ -800,6 +1300,10 @@ export type UserCountOutputType = {
   conversations: number
   preferences: number
   tokenUsage: number
+  memberships: number
+  dailyUsage: number
+  stopLogs: number
+  alerts: number
 }
 
 export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -808,6 +1312,10 @@ export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   conversations?: boolean | UserCountOutputTypeCountConversationsArgs
   preferences?: boolean | UserCountOutputTypeCountPreferencesArgs
   tokenUsage?: boolean | UserCountOutputTypeCountTokenUsageArgs
+  memberships?: boolean | UserCountOutputTypeCountMembershipsArgs
+  dailyUsage?: boolean | UserCountOutputTypeCountDailyUsageArgs
+  stopLogs?: boolean | UserCountOutputTypeCountStopLogsArgs
+  alerts?: boolean | UserCountOutputTypeCountAlertsArgs
 }
 
 /**
@@ -855,6 +1363,34 @@ export type UserCountOutputTypeCountTokenUsageArgs<ExtArgs extends runtime.Types
   where?: Prisma.UserAgentTokenUsageWhereInput
 }
 
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountMembershipsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.AssignedMembershipWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountDailyUsageArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.DailyTokenUsageWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountStopLogsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.TokenLimitStopLogWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountAlertsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.UserAlertWhereInput
+}
+
 
 export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -868,6 +1404,10 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   conversations?: boolean | Prisma.User$conversationsArgs<ExtArgs>
   preferences?: boolean | Prisma.User$preferencesArgs<ExtArgs>
   tokenUsage?: boolean | Prisma.User$tokenUsageArgs<ExtArgs>
+  memberships?: boolean | Prisma.User$membershipsArgs<ExtArgs>
+  dailyUsage?: boolean | Prisma.User$dailyUsageArgs<ExtArgs>
+  stopLogs?: boolean | Prisma.User$stopLogsArgs<ExtArgs>
+  alerts?: boolean | Prisma.User$alertsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["user"]>
 
@@ -905,6 +1445,10 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   conversations?: boolean | Prisma.User$conversationsArgs<ExtArgs>
   preferences?: boolean | Prisma.User$preferencesArgs<ExtArgs>
   tokenUsage?: boolean | Prisma.User$tokenUsageArgs<ExtArgs>
+  memberships?: boolean | Prisma.User$membershipsArgs<ExtArgs>
+  dailyUsage?: boolean | Prisma.User$dailyUsageArgs<ExtArgs>
+  stopLogs?: boolean | Prisma.User$stopLogsArgs<ExtArgs>
+  alerts?: boolean | Prisma.User$alertsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type UserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -918,6 +1462,10 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     conversations: Prisma.$ConversationPayload<ExtArgs>[]
     preferences: Prisma.$UserPreferencePayload<ExtArgs>[]
     tokenUsage: Prisma.$UserAgentTokenUsagePayload<ExtArgs>[]
+    memberships: Prisma.$AssignedMembershipPayload<ExtArgs>[]
+    dailyUsage: Prisma.$DailyTokenUsagePayload<ExtArgs>[]
+    stopLogs: Prisma.$TokenLimitStopLogPayload<ExtArgs>[]
+    alerts: Prisma.$UserAlertPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1325,6 +1873,10 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   conversations<T extends Prisma.User$conversationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$conversationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ConversationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   preferences<T extends Prisma.User$preferencesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$preferencesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UserPreferencePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   tokenUsage<T extends Prisma.User$tokenUsageArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$tokenUsageArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UserAgentTokenUsagePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  memberships<T extends Prisma.User$membershipsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$membershipsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AssignedMembershipPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  dailyUsage<T extends Prisma.User$dailyUsageArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$dailyUsageArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$DailyTokenUsagePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  stopLogs<T extends Prisma.User$stopLogsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$stopLogsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$TokenLimitStopLogPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  alerts<T extends Prisma.User$alertsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$alertsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UserAlertPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1870,6 +2422,102 @@ export type User$tokenUsageArgs<ExtArgs extends runtime.Types.Extensions.Interna
   take?: number
   skip?: number
   distinct?: Prisma.UserAgentTokenUsageScalarFieldEnum | Prisma.UserAgentTokenUsageScalarFieldEnum[]
+}
+
+/**
+ * User.memberships
+ */
+export type User$membershipsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the AssignedMembership
+   */
+  select?: Prisma.AssignedMembershipSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the AssignedMembership
+   */
+  omit?: Prisma.AssignedMembershipOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AssignedMembershipInclude<ExtArgs> | null
+  where?: Prisma.AssignedMembershipWhereInput
+  orderBy?: Prisma.AssignedMembershipOrderByWithRelationInput | Prisma.AssignedMembershipOrderByWithRelationInput[]
+  cursor?: Prisma.AssignedMembershipWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.AssignedMembershipScalarFieldEnum | Prisma.AssignedMembershipScalarFieldEnum[]
+}
+
+/**
+ * User.dailyUsage
+ */
+export type User$dailyUsageArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the DailyTokenUsage
+   */
+  select?: Prisma.DailyTokenUsageSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the DailyTokenUsage
+   */
+  omit?: Prisma.DailyTokenUsageOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.DailyTokenUsageInclude<ExtArgs> | null
+  where?: Prisma.DailyTokenUsageWhereInput
+  orderBy?: Prisma.DailyTokenUsageOrderByWithRelationInput | Prisma.DailyTokenUsageOrderByWithRelationInput[]
+  cursor?: Prisma.DailyTokenUsageWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.DailyTokenUsageScalarFieldEnum | Prisma.DailyTokenUsageScalarFieldEnum[]
+}
+
+/**
+ * User.stopLogs
+ */
+export type User$stopLogsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the TokenLimitStopLog
+   */
+  select?: Prisma.TokenLimitStopLogSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the TokenLimitStopLog
+   */
+  omit?: Prisma.TokenLimitStopLogOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.TokenLimitStopLogInclude<ExtArgs> | null
+  where?: Prisma.TokenLimitStopLogWhereInput
+  orderBy?: Prisma.TokenLimitStopLogOrderByWithRelationInput | Prisma.TokenLimitStopLogOrderByWithRelationInput[]
+  cursor?: Prisma.TokenLimitStopLogWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.TokenLimitStopLogScalarFieldEnum | Prisma.TokenLimitStopLogScalarFieldEnum[]
+}
+
+/**
+ * User.alerts
+ */
+export type User$alertsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the UserAlert
+   */
+  select?: Prisma.UserAlertSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the UserAlert
+   */
+  omit?: Prisma.UserAlertOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.UserAlertInclude<ExtArgs> | null
+  where?: Prisma.UserAlertWhereInput
+  orderBy?: Prisma.UserAlertOrderByWithRelationInput | Prisma.UserAlertOrderByWithRelationInput[]
+  cursor?: Prisma.UserAlertWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.UserAlertScalarFieldEnum | Prisma.UserAlertScalarFieldEnum[]
 }
 
 /**

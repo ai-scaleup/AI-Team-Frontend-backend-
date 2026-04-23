@@ -65,7 +65,12 @@ export const ModelName = {
   ChiaraLead: 'ChiaraLead',
   TagField: 'TagField',
   Tag: 'Tag',
-  UserAgentTokenUsage: 'UserAgentTokenUsage'
+  UserAgentTokenUsage: 'UserAgentTokenUsage',
+  MembershipTemplate: 'MembershipTemplate',
+  AssignedMembership: 'AssignedMembership',
+  DailyTokenUsage: 'DailyTokenUsage',
+  TokenLimitStopLog: 'TokenLimitStopLog',
+  UserAlert: 'UserAlert'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -130,6 +135,11 @@ export const AssignedAgentScalarFieldEnum = {
   expiresAt: 'expiresAt',
   durationDays: 'durationDays',
   isActive: 'isActive',
+  monthlyTokenLimit: 'monthlyTokenLimit',
+  threshold50Notified: 'threshold50Notified',
+  threshold80Notified: 'threshold80Notified',
+  threshold90Notified: 'threshold90Notified',
+  threshold100Notified: 'threshold100Notified',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -168,6 +178,11 @@ export const AssignedGroupScalarFieldEnum = {
   expiresAt: 'expiresAt',
   durationDays: 'durationDays',
   isActive: 'isActive',
+  monthlyTokenLimit: 'monthlyTokenLimit',
+  threshold50Notified: 'threshold50Notified',
+  threshold80Notified: 'threshold80Notified',
+  threshold90Notified: 'threshold90Notified',
+  threshold100Notified: 'threshold100Notified',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -284,6 +299,77 @@ export const UserAgentTokenUsageScalarFieldEnum = {
 } as const
 
 export type UserAgentTokenUsageScalarFieldEnum = (typeof UserAgentTokenUsageScalarFieldEnum)[keyof typeof UserAgentTokenUsageScalarFieldEnum]
+
+
+export const MembershipTemplateScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  durationDays: 'durationDays',
+  monthlyTokenLimit: 'monthlyTokenLimit',
+  includedAgents: 'includedAgents',
+  includedGroupIds: 'includedGroupIds',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type MembershipTemplateScalarFieldEnum = (typeof MembershipTemplateScalarFieldEnum)[keyof typeof MembershipTemplateScalarFieldEnum]
+
+
+export const AssignedMembershipScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  membershipTemplateId: 'membershipTemplateId',
+  startsAt: 'startsAt',
+  expiresAt: 'expiresAt',
+  isActive: 'isActive',
+  threshold50Notified: 'threshold50Notified',
+  threshold80Notified: 'threshold80Notified',
+  threshold90Notified: 'threshold90Notified',
+  threshold100Notified: 'threshold100Notified',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AssignedMembershipScalarFieldEnum = (typeof AssignedMembershipScalarFieldEnum)[keyof typeof AssignedMembershipScalarFieldEnum]
+
+
+export const DailyTokenUsageScalarFieldEnum = {
+  id: 'id',
+  oauthId: 'oauthId',
+  agentName: 'agentName',
+  date: 'date',
+  inputTokens: 'inputTokens',
+  outputTokens: 'outputTokens',
+  totalTokens: 'totalTokens',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type DailyTokenUsageScalarFieldEnum = (typeof DailyTokenUsageScalarFieldEnum)[keyof typeof DailyTokenUsageScalarFieldEnum]
+
+
+export const TokenLimitStopLogScalarFieldEnum = {
+  id: 'id',
+  oauthId: 'oauthId',
+  agentName: 'agentName',
+  reason: 'reason',
+  attemptedTokens: 'attemptedTokens',
+  createdAt: 'createdAt'
+} as const
+
+export type TokenLimitStopLogScalarFieldEnum = (typeof TokenLimitStopLogScalarFieldEnum)[keyof typeof TokenLimitStopLogScalarFieldEnum]
+
+
+export const UserAlertScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  type: 'type',
+  message: 'message',
+  read: 'read',
+  createdAt: 'createdAt'
+} as const
+
+export type UserAlertScalarFieldEnum = (typeof UserAlertScalarFieldEnum)[keyof typeof UserAlertScalarFieldEnum]
 
 
 export const SortOrder = {

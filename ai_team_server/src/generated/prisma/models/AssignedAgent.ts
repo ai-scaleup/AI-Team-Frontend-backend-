@@ -28,10 +28,12 @@ export type AggregateAssignedAgent = {
 
 export type AssignedAgentAvgAggregateOutputType = {
   durationDays: number | null
+  monthlyTokenLimit: number | null
 }
 
 export type AssignedAgentSumAggregateOutputType = {
   durationDays: number | null
+  monthlyTokenLimit: number | null
 }
 
 export type AssignedAgentMinAggregateOutputType = {
@@ -42,6 +44,11 @@ export type AssignedAgentMinAggregateOutputType = {
   expiresAt: Date | null
   durationDays: number | null
   isActive: boolean | null
+  monthlyTokenLimit: number | null
+  threshold50Notified: boolean | null
+  threshold80Notified: boolean | null
+  threshold90Notified: boolean | null
+  threshold100Notified: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -54,6 +61,11 @@ export type AssignedAgentMaxAggregateOutputType = {
   expiresAt: Date | null
   durationDays: number | null
   isActive: boolean | null
+  monthlyTokenLimit: number | null
+  threshold50Notified: boolean | null
+  threshold80Notified: boolean | null
+  threshold90Notified: boolean | null
+  threshold100Notified: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -66,6 +78,11 @@ export type AssignedAgentCountAggregateOutputType = {
   expiresAt: number
   durationDays: number
   isActive: number
+  monthlyTokenLimit: number
+  threshold50Notified: number
+  threshold80Notified: number
+  threshold90Notified: number
+  threshold100Notified: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -74,10 +91,12 @@ export type AssignedAgentCountAggregateOutputType = {
 
 export type AssignedAgentAvgAggregateInputType = {
   durationDays?: true
+  monthlyTokenLimit?: true
 }
 
 export type AssignedAgentSumAggregateInputType = {
   durationDays?: true
+  monthlyTokenLimit?: true
 }
 
 export type AssignedAgentMinAggregateInputType = {
@@ -88,6 +107,11 @@ export type AssignedAgentMinAggregateInputType = {
   expiresAt?: true
   durationDays?: true
   isActive?: true
+  monthlyTokenLimit?: true
+  threshold50Notified?: true
+  threshold80Notified?: true
+  threshold90Notified?: true
+  threshold100Notified?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -100,6 +124,11 @@ export type AssignedAgentMaxAggregateInputType = {
   expiresAt?: true
   durationDays?: true
   isActive?: true
+  monthlyTokenLimit?: true
+  threshold50Notified?: true
+  threshold80Notified?: true
+  threshold90Notified?: true
+  threshold100Notified?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -112,6 +141,11 @@ export type AssignedAgentCountAggregateInputType = {
   expiresAt?: true
   durationDays?: true
   isActive?: true
+  monthlyTokenLimit?: true
+  threshold50Notified?: true
+  threshold80Notified?: true
+  threshold90Notified?: true
+  threshold100Notified?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -211,6 +245,11 @@ export type AssignedAgentGroupByOutputType = {
   expiresAt: Date | null
   durationDays: number | null
   isActive: boolean
+  monthlyTokenLimit: number | null
+  threshold50Notified: boolean
+  threshold80Notified: boolean
+  threshold90Notified: boolean
+  threshold100Notified: boolean
   createdAt: Date
   updatedAt: Date
   _count: AssignedAgentCountAggregateOutputType | null
@@ -246,6 +285,11 @@ export type AssignedAgentWhereInput = {
   expiresAt?: Prisma.DateTimeNullableFilter<"AssignedAgent"> | Date | string | null
   durationDays?: Prisma.IntNullableFilter<"AssignedAgent"> | number | null
   isActive?: Prisma.BoolFilter<"AssignedAgent"> | boolean
+  monthlyTokenLimit?: Prisma.IntNullableFilter<"AssignedAgent"> | number | null
+  threshold50Notified?: Prisma.BoolFilter<"AssignedAgent"> | boolean
+  threshold80Notified?: Prisma.BoolFilter<"AssignedAgent"> | boolean
+  threshold90Notified?: Prisma.BoolFilter<"AssignedAgent"> | boolean
+  threshold100Notified?: Prisma.BoolFilter<"AssignedAgent"> | boolean
   createdAt?: Prisma.DateTimeFilter<"AssignedAgent"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AssignedAgent"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -259,6 +303,11 @@ export type AssignedAgentOrderByWithRelationInput = {
   expiresAt?: Prisma.SortOrderInput | Prisma.SortOrder
   durationDays?: Prisma.SortOrderInput | Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  monthlyTokenLimit?: Prisma.SortOrderInput | Prisma.SortOrder
+  threshold50Notified?: Prisma.SortOrder
+  threshold80Notified?: Prisma.SortOrder
+  threshold90Notified?: Prisma.SortOrder
+  threshold100Notified?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
@@ -266,7 +315,6 @@ export type AssignedAgentOrderByWithRelationInput = {
 
 export type AssignedAgentWhereUniqueInput = Prisma.AtLeast<{
   id?: string
-  userId_agentName_isActive?: Prisma.AssignedAgentUserIdAgentNameIsActiveCompoundUniqueInput
   AND?: Prisma.AssignedAgentWhereInput | Prisma.AssignedAgentWhereInput[]
   OR?: Prisma.AssignedAgentWhereInput[]
   NOT?: Prisma.AssignedAgentWhereInput | Prisma.AssignedAgentWhereInput[]
@@ -276,10 +324,15 @@ export type AssignedAgentWhereUniqueInput = Prisma.AtLeast<{
   expiresAt?: Prisma.DateTimeNullableFilter<"AssignedAgent"> | Date | string | null
   durationDays?: Prisma.IntNullableFilter<"AssignedAgent"> | number | null
   isActive?: Prisma.BoolFilter<"AssignedAgent"> | boolean
+  monthlyTokenLimit?: Prisma.IntNullableFilter<"AssignedAgent"> | number | null
+  threshold50Notified?: Prisma.BoolFilter<"AssignedAgent"> | boolean
+  threshold80Notified?: Prisma.BoolFilter<"AssignedAgent"> | boolean
+  threshold90Notified?: Prisma.BoolFilter<"AssignedAgent"> | boolean
+  threshold100Notified?: Prisma.BoolFilter<"AssignedAgent"> | boolean
   createdAt?: Prisma.DateTimeFilter<"AssignedAgent"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AssignedAgent"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
-}, "id" | "userId_agentName_isActive">
+}, "id">
 
 export type AssignedAgentOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
@@ -289,6 +342,11 @@ export type AssignedAgentOrderByWithAggregationInput = {
   expiresAt?: Prisma.SortOrderInput | Prisma.SortOrder
   durationDays?: Prisma.SortOrderInput | Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  monthlyTokenLimit?: Prisma.SortOrderInput | Prisma.SortOrder
+  threshold50Notified?: Prisma.SortOrder
+  threshold80Notified?: Prisma.SortOrder
+  threshold90Notified?: Prisma.SortOrder
+  threshold100Notified?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.AssignedAgentCountOrderByAggregateInput
@@ -309,6 +367,11 @@ export type AssignedAgentScalarWhereWithAggregatesInput = {
   expiresAt?: Prisma.DateTimeNullableWithAggregatesFilter<"AssignedAgent"> | Date | string | null
   durationDays?: Prisma.IntNullableWithAggregatesFilter<"AssignedAgent"> | number | null
   isActive?: Prisma.BoolWithAggregatesFilter<"AssignedAgent"> | boolean
+  monthlyTokenLimit?: Prisma.IntNullableWithAggregatesFilter<"AssignedAgent"> | number | null
+  threshold50Notified?: Prisma.BoolWithAggregatesFilter<"AssignedAgent"> | boolean
+  threshold80Notified?: Prisma.BoolWithAggregatesFilter<"AssignedAgent"> | boolean
+  threshold90Notified?: Prisma.BoolWithAggregatesFilter<"AssignedAgent"> | boolean
+  threshold100Notified?: Prisma.BoolWithAggregatesFilter<"AssignedAgent"> | boolean
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"AssignedAgent"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"AssignedAgent"> | Date | string
 }
@@ -320,6 +383,11 @@ export type AssignedAgentCreateInput = {
   expiresAt?: Date | string | null
   durationDays?: number | null
   isActive?: boolean
+  monthlyTokenLimit?: number | null
+  threshold50Notified?: boolean
+  threshold80Notified?: boolean
+  threshold90Notified?: boolean
+  threshold100Notified?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutAgentsInput
@@ -333,6 +401,11 @@ export type AssignedAgentUncheckedCreateInput = {
   expiresAt?: Date | string | null
   durationDays?: number | null
   isActive?: boolean
+  monthlyTokenLimit?: number | null
+  threshold50Notified?: boolean
+  threshold80Notified?: boolean
+  threshold90Notified?: boolean
+  threshold100Notified?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -344,6 +417,11 @@ export type AssignedAgentUpdateInput = {
   expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   durationDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  monthlyTokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  threshold50Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  threshold80Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  threshold90Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  threshold100Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutAgentsNestedInput
@@ -357,6 +435,11 @@ export type AssignedAgentUncheckedUpdateInput = {
   expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   durationDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  monthlyTokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  threshold50Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  threshold80Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  threshold90Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  threshold100Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -369,6 +452,11 @@ export type AssignedAgentCreateManyInput = {
   expiresAt?: Date | string | null
   durationDays?: number | null
   isActive?: boolean
+  monthlyTokenLimit?: number | null
+  threshold50Notified?: boolean
+  threshold80Notified?: boolean
+  threshold90Notified?: boolean
+  threshold100Notified?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -380,6 +468,11 @@ export type AssignedAgentUpdateManyMutationInput = {
   expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   durationDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  monthlyTokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  threshold50Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  threshold80Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  threshold90Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  threshold100Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -392,6 +485,11 @@ export type AssignedAgentUncheckedUpdateManyInput = {
   expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   durationDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  monthlyTokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  threshold50Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  threshold80Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  threshold90Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  threshold100Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -406,12 +504,6 @@ export type AssignedAgentOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
 }
 
-export type AssignedAgentUserIdAgentNameIsActiveCompoundUniqueInput = {
-  userId: string
-  agentName: $Enums.AgentName
-  isActive: boolean
-}
-
 export type AssignedAgentCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
@@ -420,12 +512,18 @@ export type AssignedAgentCountOrderByAggregateInput = {
   expiresAt?: Prisma.SortOrder
   durationDays?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  monthlyTokenLimit?: Prisma.SortOrder
+  threshold50Notified?: Prisma.SortOrder
+  threshold80Notified?: Prisma.SortOrder
+  threshold90Notified?: Prisma.SortOrder
+  threshold100Notified?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
 
 export type AssignedAgentAvgOrderByAggregateInput = {
   durationDays?: Prisma.SortOrder
+  monthlyTokenLimit?: Prisma.SortOrder
 }
 
 export type AssignedAgentMaxOrderByAggregateInput = {
@@ -436,6 +534,11 @@ export type AssignedAgentMaxOrderByAggregateInput = {
   expiresAt?: Prisma.SortOrder
   durationDays?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  monthlyTokenLimit?: Prisma.SortOrder
+  threshold50Notified?: Prisma.SortOrder
+  threshold80Notified?: Prisma.SortOrder
+  threshold90Notified?: Prisma.SortOrder
+  threshold100Notified?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -448,12 +551,18 @@ export type AssignedAgentMinOrderByAggregateInput = {
   expiresAt?: Prisma.SortOrder
   durationDays?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  monthlyTokenLimit?: Prisma.SortOrder
+  threshold50Notified?: Prisma.SortOrder
+  threshold80Notified?: Prisma.SortOrder
+  threshold90Notified?: Prisma.SortOrder
+  threshold100Notified?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
 
 export type AssignedAgentSumOrderByAggregateInput = {
   durationDays?: Prisma.SortOrder
+  monthlyTokenLimit?: Prisma.SortOrder
 }
 
 export type AssignedAgentCreateNestedManyWithoutUserInput = {
@@ -517,6 +626,11 @@ export type AssignedAgentCreateWithoutUserInput = {
   expiresAt?: Date | string | null
   durationDays?: number | null
   isActive?: boolean
+  monthlyTokenLimit?: number | null
+  threshold50Notified?: boolean
+  threshold80Notified?: boolean
+  threshold90Notified?: boolean
+  threshold100Notified?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -528,6 +642,11 @@ export type AssignedAgentUncheckedCreateWithoutUserInput = {
   expiresAt?: Date | string | null
   durationDays?: number | null
   isActive?: boolean
+  monthlyTokenLimit?: number | null
+  threshold50Notified?: boolean
+  threshold80Notified?: boolean
+  threshold90Notified?: boolean
+  threshold100Notified?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -569,6 +688,11 @@ export type AssignedAgentScalarWhereInput = {
   expiresAt?: Prisma.DateTimeNullableFilter<"AssignedAgent"> | Date | string | null
   durationDays?: Prisma.IntNullableFilter<"AssignedAgent"> | number | null
   isActive?: Prisma.BoolFilter<"AssignedAgent"> | boolean
+  monthlyTokenLimit?: Prisma.IntNullableFilter<"AssignedAgent"> | number | null
+  threshold50Notified?: Prisma.BoolFilter<"AssignedAgent"> | boolean
+  threshold80Notified?: Prisma.BoolFilter<"AssignedAgent"> | boolean
+  threshold90Notified?: Prisma.BoolFilter<"AssignedAgent"> | boolean
+  threshold100Notified?: Prisma.BoolFilter<"AssignedAgent"> | boolean
   createdAt?: Prisma.DateTimeFilter<"AssignedAgent"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AssignedAgent"> | Date | string
 }
@@ -580,6 +704,11 @@ export type AssignedAgentCreateManyUserInput = {
   expiresAt?: Date | string | null
   durationDays?: number | null
   isActive?: boolean
+  monthlyTokenLimit?: number | null
+  threshold50Notified?: boolean
+  threshold80Notified?: boolean
+  threshold90Notified?: boolean
+  threshold100Notified?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -591,6 +720,11 @@ export type AssignedAgentUpdateWithoutUserInput = {
   expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   durationDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  monthlyTokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  threshold50Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  threshold80Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  threshold90Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  threshold100Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -602,6 +736,11 @@ export type AssignedAgentUncheckedUpdateWithoutUserInput = {
   expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   durationDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  monthlyTokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  threshold50Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  threshold80Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  threshold90Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  threshold100Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -613,6 +752,11 @@ export type AssignedAgentUncheckedUpdateManyWithoutUserInput = {
   expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   durationDays?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  monthlyTokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  threshold50Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  threshold80Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  threshold90Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  threshold100Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -627,6 +771,11 @@ export type AssignedAgentSelect<ExtArgs extends runtime.Types.Extensions.Interna
   expiresAt?: boolean
   durationDays?: boolean
   isActive?: boolean
+  monthlyTokenLimit?: boolean
+  threshold50Notified?: boolean
+  threshold80Notified?: boolean
+  threshold90Notified?: boolean
+  threshold100Notified?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -640,6 +789,11 @@ export type AssignedAgentSelectCreateManyAndReturn<ExtArgs extends runtime.Types
   expiresAt?: boolean
   durationDays?: boolean
   isActive?: boolean
+  monthlyTokenLimit?: boolean
+  threshold50Notified?: boolean
+  threshold80Notified?: boolean
+  threshold90Notified?: boolean
+  threshold100Notified?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -653,6 +807,11 @@ export type AssignedAgentSelectUpdateManyAndReturn<ExtArgs extends runtime.Types
   expiresAt?: boolean
   durationDays?: boolean
   isActive?: boolean
+  monthlyTokenLimit?: boolean
+  threshold50Notified?: boolean
+  threshold80Notified?: boolean
+  threshold90Notified?: boolean
+  threshold100Notified?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -666,11 +825,16 @@ export type AssignedAgentSelectScalar = {
   expiresAt?: boolean
   durationDays?: boolean
   isActive?: boolean
+  monthlyTokenLimit?: boolean
+  threshold50Notified?: boolean
+  threshold80Notified?: boolean
+  threshold90Notified?: boolean
+  threshold100Notified?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type AssignedAgentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "agentName" | "startsAt" | "expiresAt" | "durationDays" | "isActive" | "createdAt" | "updatedAt", ExtArgs["result"]["assignedAgent"]>
+export type AssignedAgentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "agentName" | "startsAt" | "expiresAt" | "durationDays" | "isActive" | "monthlyTokenLimit" | "threshold50Notified" | "threshold80Notified" | "threshold90Notified" | "threshold100Notified" | "createdAt" | "updatedAt", ExtArgs["result"]["assignedAgent"]>
 export type AssignedAgentInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }
@@ -694,6 +858,11 @@ export type $AssignedAgentPayload<ExtArgs extends runtime.Types.Extensions.Inter
     expiresAt: Date | null
     durationDays: number | null
     isActive: boolean
+    monthlyTokenLimit: number | null
+    threshold50Notified: boolean
+    threshold80Notified: boolean
+    threshold90Notified: boolean
+    threshold100Notified: boolean
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["assignedAgent"]>
@@ -1127,6 +1296,11 @@ export interface AssignedAgentFieldRefs {
   readonly expiresAt: Prisma.FieldRef<"AssignedAgent", 'DateTime'>
   readonly durationDays: Prisma.FieldRef<"AssignedAgent", 'Int'>
   readonly isActive: Prisma.FieldRef<"AssignedAgent", 'Boolean'>
+  readonly monthlyTokenLimit: Prisma.FieldRef<"AssignedAgent", 'Int'>
+  readonly threshold50Notified: Prisma.FieldRef<"AssignedAgent", 'Boolean'>
+  readonly threshold80Notified: Prisma.FieldRef<"AssignedAgent", 'Boolean'>
+  readonly threshold90Notified: Prisma.FieldRef<"AssignedAgent", 'Boolean'>
+  readonly threshold100Notified: Prisma.FieldRef<"AssignedAgent", 'Boolean'>
   readonly createdAt: Prisma.FieldRef<"AssignedAgent", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"AssignedAgent", 'DateTime'>
 }

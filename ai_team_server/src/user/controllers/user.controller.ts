@@ -85,7 +85,14 @@ export class UserController {
   ) {
     return this.userService.syncUser(body.oauthId, body.email, body.username);
   }
+
+  @Get(':oauthId/alerts')
+  getAlerts(@Param('oauthId') oauthId: string) {
+    return this.userService.getAlerts(oauthId);
+  }
+
+  @Patch('alerts/:alertId/dismiss')
+  dismissAlert(@Param('alertId') alertId: string) {
+    return this.userService.dismissAlert(alertId);
+  }
 }
-
-
-
