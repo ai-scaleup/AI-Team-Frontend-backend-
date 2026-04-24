@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  ComposedChart, Bar
 } from "recharts";
 import {
   UserPlus, Calendar, CreditCard, Activity, TrendingUp, Search,
@@ -15,7 +16,9 @@ import {
 const ALL_AGENTS = [
   "SARA_AI", "JENNIFER_AI", "CHIARA_AI", "JIM", "ALEX", "MIKE", "TONY",
   "LARA", "VALENTINA", "DANIELE", "SIMONE", "NIKO", "ALADINO", "LAURA", "DAN",
-];
+]
+
+//ddd
 
 const MOCK_TEAMS = [
   { name: "Marketing Powerhouse", agents: ["SARA_AI", "JENNIFER_AI", "JIM"] },
@@ -49,6 +52,20 @@ const generateDailyUsage = () => {
   return days;
 };
 const MOCK_DAILY_USAGE = generateDailyUsage();
+
+// Aggregate daily data into 4 weeks
+const MOCK_WEEKLY_USAGE = [0, 1, 2, 3].map((w) => {
+  const slice = MOCK_DAILY_USAGE.slice(w * 7, w * 7 + 7);
+  return {
+    week: `Week ${w + 1}`,
+    SARA_AI:     slice.reduce((s, d) => s + d.SARA_AI,     0),
+    JENNIFER_AI: slice.reduce((s, d) => s + d.JENNIFER_AI, 0),
+    CHIARA_AI:   slice.reduce((s, d) => s + d.CHIARA_AI,   0),
+    JIM:         slice.reduce((s, d) => s + d.JIM,         0),
+    ALEX:        slice.reduce((s, d) => s + d.ALEX,        0),
+    MIKE:        slice.reduce((s, d) => s + d.MIKE,        0),
+  };
+});
 
 const AGENT_COLORS: Record<string, string> = {
   SARA_AI: "#38bdf8",
@@ -422,7 +439,82 @@ export default function AssignAndMetricsPage() {
         </div>
       </div>
 
-      {/* ──────── ROW 3: Top Users Per Agent ──────── */}
+      {/* ──────── ROW 3: Weekly Stacked Area Chart ──────── */}
+      <div className="rounded-2xl border border-white/10 bg-[#0F172A] p-6 mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-5">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Activity size={20} className="text-indigo-400" />
+            {currency === "tokens"
+              ? "Token Usage by Weeks (All Agents)"
+              : `Cost by Weeks — ${currency === "USD" ? "$ USD" : "€ EUR"} (All Agents)`}
+          </h2>
+          <div className="flex items-center gap-4 flex-wrap">
+            <CurrencyToggle currency={currency} onChange={setCurrency} size="small" />
+            <div className="flex flex-wrap gap-2">
+              {Object.keys(AGENT_COLORS).map((agent) => (
+                <button
+                  key={agent}
+                  onClick={() => toggleAgent(agent)}
+                  className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-medium transition ${
+                    visibleAgents.includes(agent)
+                      ? "ring-1 ring-white/20 text-white"
+                      : "bg-white/5 text-white/30"
+                  }`}
+                >
+                  <span
+                    className="h-2 w-2 rounded-full transition-opacity"
+                    style={{ backgroundColor: AGENT_COLORS[agent], opacity: visibleAgents.includes(agent) ? 1 : 0.3 }}
+                  />
+                  {agent}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="h-[360px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={MOCK_WEEKLY_USAGE} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <defs>
+                {Object.entries(AGENT_COLORS).map(([agent, color]) => (
+                  <linearGradient key={agent} id={`wgrad-${agent}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor={color} stopOpacity={0.65} />
+                    <stop offset="95%" stopColor={color} stopOpacity={0.05} />
+                  </linearGradient>
+                ))}
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
+              <XAxis dataKey="week" stroke="#ffffff40" fontSize={11} tickMargin={8} />
+              <YAxis
+                stroke="#ffffff40"
+                fontSize={10}
+                tickFormatter={(v) => formatAxisValue(v, currency)}
+              />
+              <Tooltip
+                contentStyle={{ backgroundColor: "#0f172a", borderColor: "#ffffff15", borderRadius: "10px", fontSize: "12px" }}
+                itemStyle={{ color: "#fff" }}
+                formatter={((value: number, name: string) => [formatTokensAsCost(value, currency), name]) as any}
+                labelStyle={{ color: "#ffffff80" }}
+              />
+              {Object.entries(AGENT_COLORS).map(([agent, color]) =>
+                visibleAgents.includes(agent) ? (
+                  <Area
+                    key={agent}
+                    type="monotone"
+                    dataKey={agent}
+                    stackId="w"
+                    stroke={color}
+                    fill={`url(#wgrad-${agent})`}
+                    strokeWidth={1.5}
+                  />
+                ) : null
+              )}
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* ──────── ROW 4: Top Users Per Agent ──────── */}
       <div className="rounded-2xl border border-white/10 bg-[#0F172A] p-6">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-semibold flex items-center gap-2">

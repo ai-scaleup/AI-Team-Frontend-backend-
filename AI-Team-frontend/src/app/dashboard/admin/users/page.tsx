@@ -3,28 +3,89 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-  Search, Filter, Calendar, MoreVertical, Edit2, Trash2,
-  ChevronDown, Users, Download, CreditCard, Clock, X
+  Search, Calendar, MoreVertical, Edit2, Trash2,
+  ChevronDown, Users, Download, CreditCard, Clock, X,
+  Activity, DollarSign, Euro
 } from "lucide-react";
+
+/* ──────────────── CURRENCY HELPERS ──────────────── */
+
+const USD_PER_TOKEN = 0.00003;
+const EUR_RATE = 0.92;
+
+type CurrencyMode = "tokens" | "USD" | "EUR";
+
+const formatTokensAsCost = (tokens: number, currency: CurrencyMode): string => {
+  if (currency === "tokens") {
+    if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)}M`;
+    return `${(tokens / 1000).toFixed(1)}k`;
+  }
+  const usd = tokens * USD_PER_TOKEN;
+  if (currency === "EUR") {
+    const eur = usd * EUR_RATE;
+    if (eur >= 1000) return `€${(eur / 1000).toFixed(1)}k`;
+    if (eur >= 1) return `€${eur.toFixed(2)}`;
+    return `€${eur.toFixed(3)}`;
+  }
+  if (usd >= 1000) return `$${(usd / 1000).toFixed(1)}k`;
+  if (usd >= 1) return `$${usd.toFixed(2)}`;
+  return `$${usd.toFixed(3)}`;
+};
+
+function CurrencyToggle({
+  currency,
+  onChange,
+  size = "default",
+}: {
+  currency: CurrencyMode;
+  onChange: (c: CurrencyMode) => void;
+  size?: "default" | "small";
+}) {
+  const modes: { key: CurrencyMode; label: string; icon: React.ReactNode }[] = [
+    { key: "tokens", label: "Tokens", icon: <Activity size={size === "small" ? 10 : 12} /> },
+    { key: "USD", label: "$ USD", icon: <DollarSign size={size === "small" ? 10 : 12} /> },
+    { key: "EUR", label: "€ EUR", icon: <Euro size={size === "small" ? 10 : 12} /> },
+  ];
+  return (
+    <div className={`flex items-center rounded-lg bg-white/5 border border-white/10 p-0.5 ${size === "small" ? "gap-0" : "gap-0.5"}`}>
+      {modes.map((m) => (
+        <button
+          key={m.key}
+          onClick={() => onChange(m.key)}
+          className={`flex items-center gap-1 rounded-md transition-all font-medium ${
+            size === "small" ? "px-2 py-1 text-[10px]" : "px-2.5 py-1.5 text-[11px]"
+          } ${
+            currency === m.key
+              ? "bg-sky-500/20 text-sky-400 ring-1 ring-sky-500/30 shadow-sm"
+              : "text-white/40 hover:text-white/60 hover:bg-white/5"
+          }`}
+        >
+          {m.icon}
+          {m.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /* ──────────────────────────── MOCK DATA ──────────────────────────── */
 
 const MOCK_USERS = [
-  { id: "101", name: "Mario Rossi", email: "mario@example.com", assigned: ["SARA_AI", "JIM"], membership: "1 year Sara AI", duration: 365, expiration: "2024-10-01", monthlyUsage: 145200, weeklyUsage: 32400, status: "active" },
-  { id: "102", name: "Luigi Verdi", email: "luigi@example.com", assigned: ["Marketing Powerhouse"], membership: "3 months Ai Team", duration: 90, expiration: "2023-12-15", monthlyUsage: 98700, weeklyUsage: 21300, status: "active" },
-  { id: "103", name: "Anna Neri", email: "anna@example.com", assigned: ["CHIARA_AI"], membership: "Starter Bundle", duration: 30, expiration: "2023-11-01", monthlyUsage: 76400, weeklyUsage: 18200, status: "expiring" },
-  { id: "104", name: "Paolo Gialli", email: "paolo@example.com", assigned: ["Sales Closers"], membership: "1 year Ai Team", duration: 365, expiration: "2024-05-20", monthlyUsage: 45600, weeklyUsage: 10800, status: "active" },
-  { id: "105", name: "Giulia Bianchi", email: "giulia@example.com", assigned: ["JENNIFER_AI"], membership: "6 months Jennifer AI", duration: 180, expiration: "2024-03-30", monthlyUsage: 112500, weeklyUsage: 28600, status: "active" },
-  { id: "106", name: "Luca Moretti", email: "luca@example.com", assigned: ["SARA_AI", "ALEX"], membership: "1 year Sara AI", duration: 365, expiration: "2024-08-12", monthlyUsage: 67300, weeklyUsage: 15200, status: "active" },
-  { id: "107", name: "Sofia Romano", email: "sofia@example.com", assigned: ["JENNIFER_AI", "MIKE"], membership: "3 months Ai Team", duration: 90, expiration: "2023-11-30", monthlyUsage: 87200, weeklyUsage: 19800, status: "expiring" },
-  { id: "108", name: "Andrea Colombo", email: "andrea@example.com", assigned: ["Content Creators"], membership: "Starter Bundle", duration: 30, expiration: "2023-10-28", monthlyUsage: 54300, weeklyUsage: 12100, status: "expired" },
-  { id: "109", name: "Elena Conti", email: "elena@example.com", assigned: ["SARA_AI"], membership: "1 year Sara AI", duration: 365, expiration: "2024-11-15", monthlyUsage: 45800, weeklyUsage: 9600, status: "active" },
-  { id: "110", name: "Marco Ferraro", email: "marco@example.com", assigned: ["JIM", "ALEX", "TONY"], membership: "1 year Ai Team", duration: 365, expiration: "2024-06-01", monthlyUsage: 32100, weeklyUsage: 7400, status: "active" },
-  { id: "111", name: "Chiara Ricci", email: "chiara@example.com", assigned: ["CHIARA_AI", "LARA"], membership: "3 months Ai Team", duration: 90, expiration: "2024-01-10", monthlyUsage: 38700, weeklyUsage: 8900, status: "active" },
-  { id: "112", name: "Francesco Mancini", email: "francesco@example.com", assigned: ["Customer Support Tier 1"], membership: "Starter Bundle", duration: 30, expiration: "2023-11-05", monthlyUsage: 65200, weeklyUsage: 14300, status: "expiring" },
-  { id: "113", name: "Valentina Costa", email: "valentina@example.com", assigned: ["VALENTINA", "DANIELE"], membership: "6 months Jennifer AI", duration: 180, expiration: "2024-04-20", monthlyUsage: 43100, weeklyUsage: 9100, status: "active" },
-  { id: "114", name: "Davide Galli", email: "davide@example.com", assigned: ["JENNIFER_AI"], membership: "Starter Bundle", duration: 30, expiration: "2023-10-25", monthlyUsage: 21900, weeklyUsage: 4800, status: "expired" },
-  { id: "115", name: "Roberto Esposito", email: "roberto@example.com", assigned: ["CHIARA_AI", "SARA_AI"], membership: "1 year Ai Team", duration: 365, expiration: "2024-09-18", monthlyUsage: 29800, weeklyUsage: 6200, status: "active" },
+  { id: "101", name: "Mario Rossi",       email: "mario@example.com",     assigned: ["SARA_AI", "JIM"],          membership: "1 year Sara AI",         duration: 365, expiration: "2024-10-01", monthlyUsage: 145200, weeklyUsage: 32400, dailyUsage: 4628, status: "active" },
+  { id: "102", name: "Luigi Verdi",        email: "luigi@example.com",     assigned: ["Marketing Powerhouse"],   membership: "3 months Ai Team",       duration: 90,  expiration: "2023-12-15", monthlyUsage: 98700,  weeklyUsage: 21300, dailyUsage: 3043, status: "active" },
+  { id: "103", name: "Anna Neri",          email: "anna@example.com",      assigned: ["CHIARA_AI"],              membership: "Starter Bundle",          duration: 30,  expiration: "2023-11-01", monthlyUsage: 76400,  weeklyUsage: 18200, dailyUsage: 2600, status: "expiring" },
+  { id: "104", name: "Paolo Gialli",       email: "paolo@example.com",     assigned: ["Sales Closers"],          membership: "1 year Ai Team",          duration: 365, expiration: "2024-05-20", monthlyUsage: 45600,  weeklyUsage: 10800, dailyUsage: 1543, status: "active" },
+  { id: "105", name: "Giulia Bianchi",     email: "giulia@example.com",    assigned: ["JENNIFER_AI"],            membership: "6 months Jennifer AI",    duration: 180, expiration: "2024-03-30", monthlyUsage: 112500, weeklyUsage: 28600, dailyUsage: 4086, status: "active" },
+  { id: "106", name: "Luca Moretti",       email: "luca@example.com",      assigned: ["SARA_AI", "ALEX"],        membership: "1 year Sara AI",          duration: 365, expiration: "2024-08-12", monthlyUsage: 67300,  weeklyUsage: 15200, dailyUsage: 2171, status: "active" },
+  { id: "107", name: "Sofia Romano",       email: "sofia@example.com",     assigned: ["JENNIFER_AI", "MIKE"],    membership: "3 months Ai Team",        duration: 90,  expiration: "2023-11-30", monthlyUsage: 87200,  weeklyUsage: 19800, dailyUsage: 2829, status: "expiring" },
+  { id: "108", name: "Andrea Colombo",     email: "andrea@example.com",    assigned: ["Content Creators"],       membership: "Starter Bundle",          duration: 30,  expiration: "2023-10-28", monthlyUsage: 54300,  weeklyUsage: 12100, dailyUsage: 1729, status: "expired" },
+  { id: "109", name: "Elena Conti",        email: "elena@example.com",     assigned: ["SARA_AI"],                membership: "1 year Sara AI",          duration: 365, expiration: "2024-11-15", monthlyUsage: 45800,  weeklyUsage: 9600,  dailyUsage: 1371, status: "active" },
+  { id: "110", name: "Marco Ferraro",      email: "marco@example.com",     assigned: ["JIM", "ALEX", "TONY"],   membership: "1 year Ai Team",          duration: 365, expiration: "2024-06-01", monthlyUsage: 32100,  weeklyUsage: 7400,  dailyUsage: 1057, status: "active" },
+  { id: "111", name: "Chiara Ricci",       email: "chiara@example.com",    assigned: ["CHIARA_AI", "LARA"],     membership: "3 months Ai Team",        duration: 90,  expiration: "2024-01-10", monthlyUsage: 38700,  weeklyUsage: 8900,  dailyUsage: 1271, status: "active" },
+  { id: "112", name: "Francesco Mancini",  email: "francesco@example.com", assigned: ["Customer Support Tier 1"], membership: "Starter Bundle",        duration: 30,  expiration: "2023-11-05", monthlyUsage: 65200,  weeklyUsage: 14300, dailyUsage: 2043, status: "expiring" },
+  { id: "113", name: "Valentina Costa",    email: "valentina@example.com", assigned: ["VALENTINA", "DANIELE"],  membership: "6 months Jennifer AI",    duration: 180, expiration: "2024-04-20", monthlyUsage: 43100,  weeklyUsage: 9100,  dailyUsage: 1300, status: "active" },
+  { id: "114", name: "Davide Galli",       email: "davide@example.com",    assigned: ["JENNIFER_AI"],            membership: "Starter Bundle",          duration: 30,  expiration: "2023-10-25", monthlyUsage: 21900,  weeklyUsage: 4800,  dailyUsage: 686,  status: "expired" },
+  { id: "115", name: "Roberto Esposito",   email: "roberto@example.com",   assigned: ["CHIARA_AI", "SARA_AI"],  membership: "1 year Ai Team",          duration: 365, expiration: "2024-09-18", monthlyUsage: 29800,  weeklyUsage: 6200,  dailyUsage: 886,  status: "active" },
 ];
 
 const TIMEFRAME_PRESETS = [
@@ -54,6 +115,7 @@ export default function AllUsersPage() {
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [sortField, setSortField] = useState<string>("monthlyUsage");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [currency, setCurrency] = useState<CurrencyMode>("tokens");
 
   const toggleUser = (id: string) => {
     setSelectedUsers((prev) => prev.includes(id) ? prev.filter((u) => u !== id) : [...prev, id]);
@@ -103,10 +165,15 @@ export default function AllUsersPage() {
     return map[status] || "";
   };
 
-  // Summary stats
   const totalUsers = filteredUsers.length;
   const activeUsers = filteredUsers.filter((u) => u.status === "active").length;
   const totalMonthlyTokens = filteredUsers.reduce((s, u) => s + u.monthlyUsage, 0);
+
+  const usageColLabel = (base: string) => {
+    if (currency === "USD") return `${base} ($)`;
+    if (currency === "EUR") return `${base} (€)`;
+    return base;
+  };
 
   return (
     <div className="p-8 max-w-[1600px] mx-auto">
@@ -140,8 +207,12 @@ export default function AllUsersPage() {
             <CreditCard size={20} />
           </div>
           <div>
-            <p className="text-[10px] uppercase tracking-wider text-white/35">Total Monthly Tokens</p>
-            <p className="text-xl font-bold font-mono text-sky-400">{(totalMonthlyTokens / 1000).toFixed(0)}k</p>
+            <p className="text-[10px] uppercase tracking-wider text-white/35">
+              {currency === "tokens" ? "Total Monthly Tokens" : currency === "USD" ? "Total Monthly Cost ($)" : "Total Monthly Cost (€)"}
+            </p>
+            <p className="text-xl font-bold font-mono text-sky-400">
+              {formatTokensAsCost(totalMonthlyTokens, currency)}
+            </p>
           </div>
         </div>
       </div>
@@ -228,6 +299,9 @@ export default function AllUsersPage() {
               </div>
             )}
           </div>
+
+          {/* Currency Toggle */}
+          <CurrencyToggle currency={currency} onChange={setCurrency} size="small" />
         </div>
 
         {/* Bulk Actions */}
@@ -295,10 +369,13 @@ export default function AllUsersPage() {
                 <th className="px-4 py-4 font-semibold">Expiration</th>
                 <th className="px-4 py-4 font-semibold">Status</th>
                 <th className="px-4 py-4 font-semibold text-right cursor-pointer hover:text-white transition" onClick={() => handleSort("monthlyUsage")}>
-                  Monthly Usage {sortField === "monthlyUsage" && (sortDir === "desc" ? "↓" : "↑")}
+                  {usageColLabel("Monthly")} {sortField === "monthlyUsage" && (sortDir === "desc" ? "↓" : "↑")}
                 </th>
                 <th className="px-4 py-4 font-semibold text-right cursor-pointer hover:text-white transition" onClick={() => handleSort("weeklyUsage")}>
-                  Weekly Usage {sortField === "weeklyUsage" && (sortDir === "desc" ? "↓" : "↑")}
+                  {usageColLabel("Weekly")} {sortField === "weeklyUsage" && (sortDir === "desc" ? "↓" : "↑")}
+                </th>
+                <th className="px-4 py-4 font-semibold text-right cursor-pointer hover:text-white transition" onClick={() => handleSort("dailyUsage")}>
+                  {usageColLabel("Daily")} {sortField === "dailyUsage" && (sortDir === "desc" ? "↓" : "↑")}
                 </th>
                 <th className="px-4 py-4"></th>
               </tr>
@@ -337,8 +414,15 @@ export default function AllUsersPage() {
                       {user.status}
                     </span>
                   </td>
-                  <td className="px-4 py-4 text-right font-mono text-sky-300">{(user.monthlyUsage / 1000).toFixed(1)}k</td>
-                  <td className="px-4 py-4 text-right font-mono text-sky-400/70">{(user.weeklyUsage / 1000).toFixed(1)}k</td>
+                  <td className="px-4 py-4 text-right font-mono text-sky-300">
+                    {formatTokensAsCost(user.monthlyUsage, currency)}
+                  </td>
+                  <td className="px-4 py-4 text-right font-mono text-sky-400/70">
+                    {formatTokensAsCost(user.weeklyUsage, currency)}
+                  </td>
+                  <td className="px-4 py-4 text-right font-mono text-sky-400/50">
+                    {formatTokensAsCost(user.dailyUsage, currency)}
+                  </td>
                   <td className="px-4 py-4 text-right">
                     <button className="text-white/30 hover:text-white transition opacity-0 group-hover:opacity-100"><MoreVertical size={16} /></button>
                   </td>
@@ -346,7 +430,7 @@ export default function AllUsersPage() {
               ))}
               {filteredUsers.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="px-4 py-12 text-center text-white/40">No users found matching your criteria.</td>
+                  <td colSpan={11} className="px-4 py-12 text-center text-white/40">No users found matching your criteria.</td>
                 </tr>
               )}
             </tbody>

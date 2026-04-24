@@ -4,13 +4,86 @@ import { use, useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import {
   ArrowLeft, User as UserIcon, Calendar, Activity, CreditCard,
-  Bot, Clock, ChevronDown, X, OctagonAlert, Shield, Mail, Hash
+  Bot, Clock, ChevronDown, OctagonAlert, Shield, Mail, Hash,
+  DollarSign, Euro
 } from "lucide-react";
 import {
-  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  Bar, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  ComposedChart, ReferenceLine
+  ComposedChart
 } from "recharts";
+
+/* ──────────────── CURRENCY HELPERS ──────────────── */
+
+const USD_PER_TOKEN = 0.00003;
+const EUR_RATE = 0.92;
+
+type CurrencyMode = "tokens" | "USD" | "EUR";
+
+const formatTokensAsCost = (tokens: number, currency: CurrencyMode): string => {
+  if (currency === "tokens") {
+    if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)}M`;
+    return `${(tokens / 1000).toFixed(1)}k`;
+  }
+  const usd = tokens * USD_PER_TOKEN;
+  if (currency === "EUR") {
+    const eur = usd * EUR_RATE;
+    if (eur >= 1000) return `€${(eur / 1000).toFixed(1)}k`;
+    if (eur >= 1) return `€${eur.toFixed(2)}`;
+    return `€${eur.toFixed(3)}`;
+  }
+  if (usd >= 1000) return `$${(usd / 1000).toFixed(1)}k`;
+  if (usd >= 1) return `$${usd.toFixed(2)}`;
+  return `$${usd.toFixed(3)}`;
+};
+
+const formatAxisValue = (value: number, currency: CurrencyMode): string => {
+  if (currency === "tokens") return `${(value / 1000).toFixed(0)}k`;
+  const usd = value * USD_PER_TOKEN;
+  if (currency === "EUR") {
+    const eur = usd * EUR_RATE;
+    if (eur >= 1) return `€${eur.toFixed(1)}`;
+    return `€${eur.toFixed(2)}`;
+  }
+  if (usd >= 1) return `$${usd.toFixed(1)}`;
+  return `$${usd.toFixed(2)}`;
+};
+
+function CurrencyToggle({
+  currency,
+  onChange,
+  size = "default",
+}: {
+  currency: CurrencyMode;
+  onChange: (c: CurrencyMode) => void;
+  size?: "default" | "small";
+}) {
+  const modes: { key: CurrencyMode; label: string; icon: React.ReactNode }[] = [
+    { key: "tokens", label: "Tokens", icon: <Activity size={size === "small" ? 10 : 12} /> },
+    { key: "USD", label: "$ USD", icon: <DollarSign size={size === "small" ? 10 : 12} /> },
+    { key: "EUR", label: "€ EUR", icon: <Euro size={size === "small" ? 10 : 12} /> },
+  ];
+  return (
+    <div className={`flex items-center rounded-lg bg-white/5 border border-white/10 p-0.5 ${size === "small" ? "gap-0" : "gap-0.5"}`}>
+      {modes.map((m) => (
+        <button
+          key={m.key}
+          onClick={() => onChange(m.key)}
+          className={`flex items-center gap-1 rounded-md transition-all font-medium ${
+            size === "small" ? "px-2 py-1 text-[10px]" : "px-2.5 py-1.5 text-[11px]"
+          } ${
+            currency === m.key
+              ? "bg-sky-500/20 text-sky-400 ring-1 ring-sky-500/30 shadow-sm"
+              : "text-white/40 hover:text-white/60 hover:bg-white/5"
+          }`}
+        >
+          {m.icon}
+          {m.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /* ─────────────────── MOCK DATA ─────────────────── */
 
@@ -32,7 +105,6 @@ const MOCK_USER = {
   },
 };
 
-// 30 days of daily data for richer graphs
 const generateDailyData = () => {
   const agents = ["SARA_AI", "JIM"];
   const days: any[] = [];
@@ -45,7 +117,6 @@ const generateDailyData = () => {
       dayTotal += val;
     });
     d.total = dayTotal;
-    // simulate stops on days with high usage
     d.stops = dayTotal > 10000 ? Math.ceil(Math.random() * 3) : 0;
     days.push(d);
   }
@@ -55,27 +126,27 @@ const MOCK_DAILY_USAGE = generateDailyData();
 
 const MOCK_WEEKLY_USAGE = [
   { week: "Week 1", SARA_AI: 25000, JIM: 12000, stops: 1 },
-  { week: "Week 2", SARA_AI: 35000, JIM: 8000, stops: 3 },
+  { week: "Week 2", SARA_AI: 35000, JIM: 8000,  stops: 3 },
   { week: "Week 3", SARA_AI: 40000, JIM: 15000, stops: 5 },
-  { week: "Week 4", SARA_AI: 18000, JIM: 5000, stops: 0 },
+  { week: "Week 4", SARA_AI: 18000, JIM: 5000,  stops: 0 },
 ];
 
 const MOCK_AGENT_USAGE = [
   { name: "SARA_AI", value: 118000, color: "#38bdf8" },
-  { name: "JIM", value: 40200, color: "#f472b6" },
+  { name: "JIM",     value: 40200,  color: "#f472b6" },
 ];
 
 const totalStops = MOCK_DAILY_USAGE.reduce((s, d) => s + d.stops, 0);
 
 /* ─────── TIMEFRAME PRESETS ─────── */
 const PRESETS = [
-  { label: "Today", value: "today" },
-  { label: "Yesterday", value: "yesterday" },
+  { label: "Today",       value: "today" },
+  { label: "Yesterday",   value: "yesterday" },
   { label: "Last 7 Days", value: "last_7" },
-  { label: "This Week", value: "this_week" },
-  { label: "Last Week", value: "last_week" },
-  { label: "This Month", value: "this_month" },
-  { label: "Last Month", value: "last_month" },
+  { label: "This Week",   value: "this_week" },
+  { label: "Last Week",   value: "last_week" },
+  { label: "This Month",  value: "this_month" },
+  { label: "Last Month",  value: "last_month" },
 ];
 
 /* ─────── COMPONENT ─────── */
@@ -87,9 +158,9 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [showPicker, setShowPicker] = useState(false);
+  const [currency, setCurrency] = useState<CurrencyMode>("tokens");
   const pickerRef = useRef<HTMLDivElement>(null);
 
-  // Close picker on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
@@ -115,23 +186,13 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
   };
 
   const handleCustomDays = () => {
-    if (customDays) {
-      setSelectedPreset("");
-      setCustomFrom("");
-      setCustomTo("");
-      setShowPicker(false);
-    }
+    if (customDays) { setSelectedPreset(""); setCustomFrom(""); setCustomTo(""); setShowPicker(false); }
   };
 
   const handleCustomRange = () => {
-    if (customFrom && customTo) {
-      setSelectedPreset("");
-      setCustomDays("");
-      setShowPicker(false);
-    }
+    if (customFrom && customTo) { setSelectedPreset(""); setCustomDays(""); setShowPicker(false); }
   };
 
-  // Subscription usage percentage
   const usagePercent = (MOCK_USER.subscription.usedThisCycle / MOCK_USER.subscription.monthlyLimit) * 100;
   const daysRemaining = Math.max(0, Math.ceil((new Date(MOCK_USER.subscription.expiration).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
 
@@ -172,7 +233,6 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
 
           {showPicker && (
             <div className="absolute right-0 top-full mt-2 z-50 w-[380px] rounded-2xl border border-white/10 bg-[#0B1221] p-5 shadow-2xl shadow-black/40 animate-in fade-in slide-in-from-top-2 duration-200">
-              {/* Presets grid */}
               <p className="text-[10px] uppercase tracking-widest text-white/30 mb-3">Presets</p>
               <div className="grid grid-cols-2 gap-2 mb-5">
                 {PRESETS.map((p) => (
@@ -190,52 +250,29 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
                 ))}
               </div>
 
-              {/* Custom N days */}
               <p className="text-[10px] uppercase tracking-widest text-white/30 mb-2">Last N Days</p>
               <div className="flex gap-2 mb-5">
                 <input
-                  type="number"
-                  min={1}
-                  placeholder="e.g. 14"
-                  value={customDays}
+                  type="number" min={1} placeholder="e.g. 14" value={customDays}
                   onChange={(e) => setCustomDays(e.target.value)}
                   className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-sky-500"
                 />
-                <button
-                  onClick={handleCustomDays}
-                  className="rounded-lg bg-sky-500/10 px-4 py-2 text-xs font-semibold text-sky-400 hover:bg-sky-500/20 transition"
-                >
-                  Apply
-                </button>
+                <button onClick={handleCustomDays} className="rounded-lg bg-sky-500/10 px-4 py-2 text-xs font-semibold text-sky-400 hover:bg-sky-500/20 transition">Apply</button>
               </div>
 
-              {/* Custom date range */}
               <p className="text-[10px] uppercase tracking-widest text-white/30 mb-2">Custom Range</p>
               <div className="flex gap-2 items-end">
                 <div className="flex-1">
                   <label className="text-[10px] text-white/40 mb-1 block">From</label>
-                  <input
-                    type="date"
-                    value={customFrom}
-                    onChange={(e) => setCustomFrom(e.target.value)}
-                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-sky-500"
-                  />
+                  <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)}
+                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-sky-500" />
                 </div>
                 <div className="flex-1">
                   <label className="text-[10px] text-white/40 mb-1 block">To</label>
-                  <input
-                    type="date"
-                    value={customTo}
-                    onChange={(e) => setCustomTo(e.target.value)}
-                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-sky-500"
-                  />
+                  <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)}
+                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-sky-500" />
                 </div>
-                <button
-                  onClick={handleCustomRange}
-                  className="rounded-lg bg-sky-500/10 px-4 py-2 text-xs font-semibold text-sky-400 hover:bg-sky-500/20 transition"
-                >
-                  Go
-                </button>
+                <button onClick={handleCustomRange} className="rounded-lg bg-sky-500/10 px-4 py-2 text-xs font-semibold text-sky-400 hover:bg-sky-500/20 transition">Go</button>
               </div>
             </div>
           )}
@@ -269,8 +306,10 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
 
         {/* Monthly limit */}
         <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-          <p className="text-[10px] uppercase tracking-wider text-white/35 mb-1.5">Monthly Token Limit</p>
-          <p className="font-mono text-lg text-sky-400">{MOCK_USER.subscription.monthlyLimit.toLocaleString()}</p>
+          <p className="text-[10px] uppercase tracking-wider text-white/35 mb-1.5">Monthly Limit</p>
+          <p className="font-mono text-lg text-sky-400">
+            {formatTokensAsCost(MOCK_USER.subscription.monthlyLimit, currency)}
+          </p>
           <div className="mt-2 h-1.5 rounded-full bg-white/5 overflow-hidden">
             <div className="h-full rounded-full bg-sky-500 transition-all" style={{ width: `${Math.min(usagePercent, 100)}%` }} />
           </div>
@@ -280,7 +319,7 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
         <div className={`rounded-xl border p-4 ${usagePercent >= 90 ? "border-red-500/30 bg-red-500/[0.04]" : "border-white/10 bg-white/[0.03]"}`}>
           <p className={`text-[10px] uppercase tracking-wider mb-1.5 ${usagePercent >= 90 ? "text-red-400/60" : "text-white/35"}`}>Used This Cycle</p>
           <p className={`font-mono text-lg ${usagePercent >= 90 ? "text-red-400" : "text-white"}`}>
-            {MOCK_USER.subscription.usedThisCycle.toLocaleString()}
+            {formatTokensAsCost(MOCK_USER.subscription.usedThisCycle, currency)}
           </p>
           <p className={`text-[10px] mt-1 uppercase tracking-wider ${usagePercent >= 90 ? "text-red-400/50" : "text-white/30"}`}>
             {usagePercent.toFixed(1)}% used · {totalStops} stops
@@ -301,124 +340,86 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
       </div>
 
       {/* ──────── ANALYTICS SECTION HEADER ──────── */}
-      <div className="flex items-center gap-3 mb-6">
-        <Activity size={20} className="text-sky-400" />
-        <h2 className="text-lg font-bold">Usage Analytics</h2>
-        <span className="rounded-md bg-white/5 px-2.5 py-1 text-[11px] text-white/50">{activeLabel}</span>
+      <div className="flex items-center justify-between gap-3 mb-6">
+        <div className="flex items-center gap-3">
+          <Activity size={20} className="text-sky-400" />
+          <h2 className="text-lg font-bold">Usage Analytics</h2>
+          <span className="rounded-md bg-white/5 px-2.5 py-1 text-[11px] text-white/50">{activeLabel}</span>
+        </div>
+        {/* Currency Toggle */}
+        <CurrencyToggle currency={currency} onChange={setCurrency} />
       </div>
 
-      {/* ──────── ROW 1: Daily + Agent Breakdown ──────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-        {/* Daily Token Usage (Composed chart with stops) */}
-        <div className="lg:col-span-2 rounded-2xl border border-white/10 bg-[#0F172A] p-6">
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="font-semibold flex items-center gap-2 text-sm">
-              <Activity size={16} className="text-sky-400" /> Total Token Usage by Days
-            </h3>
-            <div className="flex items-center gap-4 text-[11px] text-white/50">
-              <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-sky-400" /> SARA_AI</span>
-              <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-pink-400" /> JIM</span>
-              <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-red-500" /> Stops</span>
-            </div>
-          </div>
-
-          <div className="h-[320px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={MOCK_DAILY_USAGE} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="gradSara" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.6} />
-                    <stop offset="95%" stopColor="#38bdf8" stopOpacity={0.05} />
-                  </linearGradient>
-                  <linearGradient id="gradJim" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f472b6" stopOpacity={0.6} />
-                    <stop offset="95%" stopColor="#f472b6" stopOpacity={0.05} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
-                <XAxis dataKey="date" stroke="#ffffff40" fontSize={10} tickMargin={8} interval={2} />
-                <YAxis stroke="#ffffff40" fontSize={10} tickFormatter={(v) => `${v / 1000}k`} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: "#0f172a", borderColor: "#ffffff15", borderRadius: "10px", fontSize: "12px" }}
-                  itemStyle={{ color: "#fff" }}
-                  formatter={(value, name) => [`${(Number(value) / 1000).toFixed(1)}k`, name]}
-                  labelStyle={{ color: "#ffffff80" }}
-                />
-                <Bar dataKey="SARA_AI" stackId="stack" fill="url(#gradSara)" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="JIM" stackId="stack" fill="url(#gradJim)" radius={[3, 3, 0, 0]} />
-
-                {/* Stop indicators as a separate line */}
-                <Line
-                  type="monotone"
-                  dataKey="stops"
-                  stroke="none"
-                  dot={(props: any) => {
-                    const { cx, cy, payload } = props;
-                    if (payload.stops > 0) {
-                      return (
-                        <g key={`stop-${payload.date}`}>
-                          <circle cx={cx} cy={20} r={8} fill="#ef444440" />
-                          <circle cx={cx} cy={20} r={5} fill="#ef4444" />
-                          <text x={cx} y={24} textAnchor="middle" fill="#fff" fontSize={8} fontWeight={700}>
-                            {payload.stops}
-                          </text>
-                        </g>
-                      );
-                    }
-                    return <g key={`no-stop-${payload.date}`} />;
-                  }}
-                  yAxisId={1}
-                />
-                <YAxis yAxisId={1} hide domain={[0, 10]} />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Agent Breakdown Donut */}
-        <div className="rounded-2xl border border-white/10 bg-[#0F172A] p-6 flex flex-col">
-          <h3 className="font-semibold flex items-center gap-2 text-sm mb-5">
-            <Bot size={16} className="text-indigo-400" /> Total Usage by Agent
-          </h3>
-
-          <div className="flex-1 flex items-center justify-center">
-            <div className="h-[220px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={MOCK_AGENT_USAGE} innerRadius={55} outerRadius={85} paddingAngle={4} dataKey="value">
-                    {MOCK_AGENT_USAGE.map((entry, i) => (
-                      <Cell key={`cell-${i}`} fill={entry.color} stroke="transparent" />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{ backgroundColor: "#0f172a", borderColor: "#ffffff15", borderRadius: "10px", fontSize: "12px" }}
-                    formatter={(value) => [`${(Number(value) / 1000).toFixed(1)}k tokens`]}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Legend with values */}
-          <div className="space-y-2 mt-4">
-            {MOCK_AGENT_USAGE.map((a) => (
-              <div key={a.name} className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: a.color }} />
-                  <span className="text-white/70">{a.name}</span>
-                </div>
-                <span className="font-mono text-white/90">{(a.value / 1000).toFixed(1)}k</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ──────── ROW 2: Weekly Usage ──────── */}
+      {/* ──────── ROW 1: Daily Area Chart (same style as Assignments page) ──────── */}
       <div className="rounded-2xl border border-white/10 bg-[#0F172A] p-6 mb-8">
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-5">
           <h3 className="font-semibold flex items-center gap-2 text-sm">
-            <Calendar size={16} className="text-emerald-400" /> Total Token Usage by Weeks
+            <Activity size={16} className="text-sky-400" />
+            {currency === "tokens" ? "Token Usage by Days" : `Cost by Days — ${currency === "USD" ? "$ USD" : "€ EUR"}`}
+          </h3>
+          <div className="flex items-center gap-4 text-[11px] text-white/50">
+            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-sky-400" /> SARA_AI</span>
+            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-pink-400" /> JIM</span>
+            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-red-500" /> Stops</span>
+          </div>
+        </div>
+
+        <div className="h-[320px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={MOCK_DAILY_USAGE} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="gradSaraDay" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor="#38bdf8" stopOpacity={0.6} />
+                  <stop offset="95%" stopColor="#38bdf8" stopOpacity={0.05} />
+                </linearGradient>
+                <linearGradient id="gradJimDay" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor="#f472b6" stopOpacity={0.6} />
+                  <stop offset="95%" stopColor="#f472b6" stopOpacity={0.05} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
+              <XAxis dataKey="date" stroke="#ffffff40" fontSize={10} tickMargin={8} interval={2} />
+              <YAxis stroke="#ffffff40" fontSize={10} tickFormatter={(v) => formatAxisValue(v, currency)} />
+              <Tooltip
+                contentStyle={{ backgroundColor: "#0f172a", borderColor: "#ffffff15", borderRadius: "10px", fontSize: "12px" }}
+                itemStyle={{ color: "#fff" }}
+                formatter={((value: number, name: string) => [formatTokensAsCost(value, currency), name]) as any}
+                labelStyle={{ color: "#ffffff80" }}
+              />
+              <Bar dataKey="SARA_AI" stackId="stack" fill="url(#gradSaraDay)" radius={[0, 0, 0, 0]} />
+              <Bar dataKey="JIM"     stackId="stack" fill="url(#gradJimDay)"  radius={[3, 3, 0, 0]} />
+
+              <Line
+                type="monotone"
+                dataKey="stops"
+                stroke="none"
+                dot={(props: any) => {
+                  const { cx, cy, payload } = props;
+                  if (payload.stops > 0) {
+                    return (
+                      <g key={`stop-${payload.date}`}>
+                        <circle cx={cx} cy={20} r={8} fill="#ef444440" />
+                        <circle cx={cx} cy={20} r={5} fill="#ef4444" />
+                        <text x={cx} y={24} textAnchor="middle" fill="#fff" fontSize={8} fontWeight={700}>{payload.stops}</text>
+                      </g>
+                    );
+                  }
+                  return <g key={`no-stop-${payload.date}`} />;
+                }}
+                yAxisId={1}
+              />
+              <YAxis yAxisId={1} hide domain={[0, 10]} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* ──────── ROW 2: Weekly Area Chart ──────── */}
+      <div className="rounded-2xl border border-white/10 bg-[#0F172A] p-6 mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-5">
+          <h3 className="font-semibold flex items-center gap-2 text-sm">
+            <Calendar size={16} className="text-emerald-400" />
+            {currency === "tokens" ? "Token Usage by Weeks" : `Cost by Weeks — ${currency === "USD" ? "$ USD" : "€ EUR"}`}
           </h3>
           <div className="flex items-center gap-4 text-[11px] text-white/50">
             <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-sky-400" /> SARA_AI</span>
@@ -432,16 +433,16 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
             <ComposedChart data={MOCK_WEEKLY_USAGE} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
               <XAxis dataKey="week" stroke="#ffffff40" fontSize={12} tickMargin={10} />
-              <YAxis stroke="#ffffff40" fontSize={12} tickFormatter={(v) => `${v / 1000}k`} />
+              <YAxis stroke="#ffffff40" fontSize={12} tickFormatter={(v) => formatAxisValue(v, currency)} />
               <Tooltip
                 contentStyle={{ backgroundColor: "#0f172a", borderColor: "#ffffff15", borderRadius: "10px", fontSize: "12px" }}
                 cursor={{ fill: "#ffffff05" }}
+                formatter={((value: number, name: string) => [formatTokensAsCost(value, currency), name]) as any}
               />
               <Legend iconType="circle" />
               <Bar dataKey="SARA_AI" stackId="a" fill="#38bdf8" radius={[0, 0, 4, 4]} />
-              <Bar dataKey="JIM" stackId="a" fill="#f472b6" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="JIM"     stackId="a" fill="#f472b6" radius={[4, 4, 0, 0]} />
 
-              {/* Stops line overlay */}
               <Line
                 type="monotone"
                 dataKey="stops"
@@ -455,9 +456,7 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
                       <g key={`ws-${payload.week}`}>
                         <circle cx={cx} cy={cy} r={10} fill="#ef444420" />
                         <circle cx={cx} cy={cy} r={6} fill="#ef4444" stroke="#0f172a" strokeWidth={2} />
-                        <text x={cx} y={cy + 3.5} textAnchor="middle" fill="#fff" fontSize={8} fontWeight={700}>
-                          {payload.stops}
-                        </text>
+                        <text x={cx} y={cy + 3.5} textAnchor="middle" fill="#fff" fontSize={8} fontWeight={700}>{payload.stops}</text>
                       </g>
                     );
                   }
@@ -468,6 +467,41 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
               <YAxis yAxisId={1} hide domain={[0, 10]} />
             </ComposedChart>
           </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* ──────── ROW 3: Agent Breakdown Donut ──────── */}
+      <div className="rounded-2xl border border-white/10 bg-[#0F172A] p-6 mb-8">
+        <h3 className="font-semibold flex items-center gap-2 text-sm mb-5">
+          <Bot size={16} className="text-indigo-400" /> Total Usage by Agent
+        </h3>
+        <div className="flex flex-col md:flex-row items-center gap-8">
+          <div className="h-[220px] w-full max-w-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={MOCK_AGENT_USAGE} innerRadius={55} outerRadius={85} paddingAngle={4} dataKey="value">
+                  {MOCK_AGENT_USAGE.map((entry, i) => (
+                    <Cell key={`cell-${i}`} fill={entry.color} stroke="transparent" />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{ backgroundColor: "#0f172a", borderColor: "#ffffff15", borderRadius: "10px", fontSize: "12px" }}
+                  formatter={(value: any) => [formatTokensAsCost(Number(value), currency), ""]}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="space-y-3 flex-1">
+            {MOCK_AGENT_USAGE.map((a) => (
+              <div key={a.name} className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: a.color }} />
+                  <span className="text-white/70">{a.name}</span>
+                </div>
+                <span className="font-mono text-white/90">{formatTokensAsCost(a.value, currency)}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
