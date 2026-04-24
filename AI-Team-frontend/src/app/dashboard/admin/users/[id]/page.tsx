@@ -8,7 +8,7 @@ import {
   DollarSign, Euro
 } from "lucide-react";
 import {
-  Bar, Line, PieChart, Pie, Cell,
+  Area, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   ComposedChart
 } from "recharts";
@@ -369,12 +369,12 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
             <ComposedChart data={MOCK_DAILY_USAGE} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="gradSaraDay" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#38bdf8" stopOpacity={0.6} />
-                  <stop offset="95%" stopColor="#38bdf8" stopOpacity={0.05} />
+                  <stop offset="5%"  stopColor="#38bdf8" stopOpacity={0.75} />
+                  <stop offset="95%" stopColor="#38bdf8" stopOpacity={0.25} />
                 </linearGradient>
                 <linearGradient id="gradJimDay" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#f472b6" stopOpacity={0.6} />
-                  <stop offset="95%" stopColor="#f472b6" stopOpacity={0.05} />
+                  <stop offset="5%"  stopColor="#f472b6" stopOpacity={0.75} />
+                  <stop offset="95%" stopColor="#f472b6" stopOpacity={0.25} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
@@ -386,8 +386,8 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
                 formatter={((value: number, name: string) => [formatTokensAsCost(value, currency), name]) as any}
                 labelStyle={{ color: "#ffffff80" }}
               />
-              <Bar dataKey="SARA_AI" stackId="stack" fill="url(#gradSaraDay)" radius={[0, 0, 0, 0]} />
-              <Bar dataKey="JIM"     stackId="stack" fill="url(#gradJimDay)"  radius={[3, 3, 0, 0]} />
+              <Area type="monotone" dataKey="JIM"     stackId="1" stroke="#f472b6" strokeWidth={1.5} fill="url(#gradJimDay)"  dot={false} />
+              <Area type="monotone" dataKey="SARA_AI" stackId="1" stroke="#38bdf8" strokeWidth={1.5} fill="url(#gradSaraDay)" dot={false} />
 
               <Line
                 type="monotone"
@@ -440,8 +440,18 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
                 formatter={((value: number, name: string) => [formatTokensAsCost(value, currency), name]) as any}
               />
               <Legend iconType="circle" />
-              <Bar dataKey="SARA_AI" stackId="a" fill="#38bdf8" radius={[0, 0, 4, 4]} />
-              <Bar dataKey="JIM"     stackId="a" fill="#f472b6" radius={[4, 4, 0, 0]} />
+              <defs>
+                <linearGradient id="gradSaraWeek" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor="#38bdf8" stopOpacity={0.75} />
+                  <stop offset="95%" stopColor="#38bdf8" stopOpacity={0.25} />
+                </linearGradient>
+                <linearGradient id="gradJimWeek" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor="#f472b6" stopOpacity={0.75} />
+                  <stop offset="95%" stopColor="#f472b6" stopOpacity={0.25} />
+                </linearGradient>
+              </defs>
+              <Area type="monotone" dataKey="JIM"     stackId="1" stroke="#f472b6" strokeWidth={1.5} fill="url(#gradJimWeek)"  dot={false} />
+              <Area type="monotone" dataKey="SARA_AI" stackId="1" stroke="#38bdf8" strokeWidth={1.5} fill="url(#gradSaraWeek)" dot={false} />
 
               <Line
                 type="monotone"
