@@ -6,7 +6,8 @@ import {
 } from "recharts";
 import {
   UserPlus, Calendar, CreditCard, Activity, TrendingUp, Search,
-  ChevronDown, Bot, Users, Award, MoreVertical, Edit2, Clock
+  ChevronDown, Bot, Users, Award, MoreVertical, Edit2, Clock,
+  DollarSign, Euro
 } from "lucide-react";
 
 /* ──────────────────────────── MOCK DATA ──────────────────────────── */
@@ -97,13 +98,88 @@ const MOCK_TOP_USERS_BY_AGENT: Record<string, { name: string; email: string; tok
 
 // Recent assignments log
 const MOCK_RECENT_ASSIGNMENTS = [
-  { user: "mario@example.com", type: "Membership", package: "1 year Sara AI", date: "Oct 28", tokens: "500k", duration: "365d" },
-  { user: "luigi@example.com", type: "Team", package: "Marketing Powerhouse", date: "Oct 27", tokens: "200k", duration: "90d" },
-  { user: "anna@example.com", type: "Agent", package: "CHIARA_AI", date: "Oct 26", tokens: "100k", duration: "30d" },
-  { user: "paolo@example.com", type: "Agent", package: "JIM", date: "Oct 25", tokens: "150k", duration: "60d" },
-  { user: "giulia@example.com", type: "Membership", package: "3 months Ai Team", date: "Oct 24", tokens: "2M", duration: "90d" },
-  { user: "sofia@example.com", type: "Team", package: "Sales Closers", date: "Oct 23", tokens: "300k", duration: "180d" },
+  { user: "mario@example.com", type: "Membership", package: "1 year Sara AI", date: "Oct 28", tokens: 500000, duration: "365d" },
+  { user: "luigi@example.com", type: "Team", package: "Marketing Powerhouse", date: "Oct 27", tokens: 200000, duration: "90d" },
+  { user: "anna@example.com", type: "Agent", package: "CHIARA_AI", date: "Oct 26", tokens: 100000, duration: "30d" },
+  { user: "paolo@example.com", type: "Agent", package: "JIM", date: "Oct 25", tokens: 150000, duration: "60d" },
+  { user: "giulia@example.com", type: "Membership", package: "3 months Ai Team", date: "Oct 24", tokens: 2000000, duration: "90d" },
+  { user: "sofia@example.com", type: "Team", package: "Sales Closers", date: "Oct 23", tokens: 300000, duration: "180d" },
 ];
+
+/* ──────────────── CURRENCY HELPERS ──────────────── */
+
+// Mock cost rate: $0.03 per 1,000 tokens
+const USD_PER_TOKEN = 0.00003;
+const EUR_RATE = 0.92; // 1 USD = 0.92 EUR
+
+type CurrencyMode = "tokens" | "USD" | "EUR";
+
+const formatTokensAsCost = (tokens: number, currency: CurrencyMode): string => {
+  if (currency === "tokens") {
+    if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)}M`;
+    return `${(tokens / 1000).toFixed(1)}k`;
+  }
+  const usd = tokens * USD_PER_TOKEN;
+  if (currency === "EUR") {
+    const eur = usd * EUR_RATE;
+    if (eur >= 1000) return `€${(eur / 1000).toFixed(1)}k`;
+    if (eur >= 1) return `€${eur.toFixed(2)}`;
+    return `€${eur.toFixed(3)}`;
+  }
+  // USD
+  if (usd >= 1000) return `$${(usd / 1000).toFixed(1)}k`;
+  if (usd >= 1) return `$${usd.toFixed(2)}`;
+  return `$${usd.toFixed(3)}`;
+};
+
+const formatAxisValue = (value: number, currency: CurrencyMode): string => {
+  if (currency === "tokens") return `${value / 1000}k`;
+  const usd = value * USD_PER_TOKEN;
+  if (currency === "EUR") {
+    const eur = usd * EUR_RATE;
+    return `€${eur.toFixed(2)}`;
+  }
+  return `$${usd.toFixed(2)}`;
+};
+
+/* ──────────────── CURRENCY TOGGLE COMPONENT ──────────────── */
+
+function CurrencyToggle({
+  currency,
+  onChange,
+  size = "default",
+}: {
+  currency: CurrencyMode;
+  onChange: (c: CurrencyMode) => void;
+  size?: "default" | "small";
+}) {
+  const modes: { key: CurrencyMode; label: string; icon: React.ReactNode }[] = [
+    { key: "tokens", label: "Tokens", icon: <Activity size={size === "small" ? 10 : 12} /> },
+    { key: "USD", label: "$ USD", icon: <DollarSign size={size === "small" ? 10 : 12} /> },
+    { key: "EUR", label: "€ EUR", icon: <Euro size={size === "small" ? 10 : 12} /> },
+  ];
+
+  return (
+    <div className={`flex items-center rounded-lg bg-white/5 border border-white/10 p-0.5 ${size === "small" ? "gap-0" : "gap-0.5"}`}>
+      {modes.map((m) => (
+        <button
+          key={m.key}
+          onClick={() => onChange(m.key)}
+          className={`flex items-center gap-1 rounded-md transition-all font-medium ${
+            size === "small" ? "px-2 py-1 text-[10px]" : "px-2.5 py-1.5 text-[11px]"
+          } ${
+            currency === m.key
+              ? "bg-sky-500/20 text-sky-400 ring-1 ring-sky-500/30 shadow-sm"
+              : "text-white/40 hover:text-white/60 hover:bg-white/5"
+          }`}
+        >
+          {m.icon}
+          {m.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /* ──────────────────────────── COMPONENT ──────────────────────────── */
 
@@ -111,6 +187,7 @@ export default function AssignAndMetricsPage() {
   const [assignType, setAssignType] = useState<"membership" | "team" | "agent">("membership");
   const [selectedAgentTab, setSelectedAgentTab] = useState("SARA_AI");
   const [visibleAgents, setVisibleAgents] = useState<string[]>(["SARA_AI", "JENNIFER_AI", "CHIARA_AI", "JIM"]);
+  const [currency, setCurrency] = useState<CurrencyMode>("tokens");
 
   const toggleAgent = (agent: string) => {
     setVisibleAgents((prev) =>
@@ -127,9 +204,13 @@ export default function AssignAndMetricsPage() {
   return (
     <div className="p-8 max-w-[1600px] mx-auto">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold">Assignments & Metrics</h1>
-        <p className="text-sm text-white/50">Assign memberships, teams, or individual agents to users and monitor system-wide usage</p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Assignments & Metrics</h1>
+          <p className="text-sm text-white/50">Assign memberships, teams, or individual agents to users and monitor system-wide usage</p>
+        </div>
+        {/* Page-level Currency Toggle */}
+        <CurrencyToggle currency={currency} onChange={setCurrency} />
       </div>
 
       {/* ──────── ROW 1: Assignment Form + Recent Activity ──────── */}
@@ -221,9 +302,12 @@ export default function AssignAndMetricsPage() {
 
         {/* Recent Assignments Log */}
         <div className="lg:col-span-3 rounded-2xl border border-white/10 bg-[#0F172A] p-6">
-          <h2 className="text-lg font-semibold mb-5 flex items-center gap-2">
-            <Clock size={20} className="text-emerald-400" /> Recent Assignments
-          </h2>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Clock size={20} className="text-emerald-400" /> Recent Assignments
+            </h2>
+            <CurrencyToggle currency={currency} onChange={setCurrency} size="small" />
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm text-white/70">
               <thead className="bg-white/5 text-[10px] uppercase tracking-wider text-white/40">
@@ -232,7 +316,9 @@ export default function AssignAndMetricsPage() {
                   <th className="px-4 py-3">Type</th>
                   <th className="px-4 py-3">Package</th>
                   <th className="px-4 py-3">Duration</th>
-                  <th className="px-4 py-3">Tokens/mo</th>
+                  <th className="px-4 py-3">
+                    {currency === "tokens" ? "Tokens/mo" : currency === "USD" ? "Cost/mo ($)" : "Cost/mo (€)"}
+                  </th>
                   <th className="px-4 py-3 rounded-tr-lg">Date</th>
                 </tr>
               </thead>
@@ -247,7 +333,9 @@ export default function AssignAndMetricsPage() {
                     </td>
                     <td className="px-4 py-3.5">{a.package}</td>
                     <td className="px-4 py-3.5 font-mono text-xs">{a.duration}</td>
-                    <td className="px-4 py-3.5 font-mono text-xs text-sky-400">{a.tokens}</td>
+                    <td className="px-4 py-3.5 font-mono text-xs text-sky-400">
+                      {formatTokensAsCost(a.tokens, currency)}
+                    </td>
                     <td className="px-4 py-3.5 text-white/40">{a.date}</td>
                   </tr>
                 ))}
@@ -261,27 +349,34 @@ export default function AssignAndMetricsPage() {
       <div className="rounded-2xl border border-white/10 bg-[#0F172A] p-6 mb-8">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-5">
           <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Activity size={20} className="text-emerald-400" /> Token Usage by Days (All Agents)
+            <Activity size={20} className="text-emerald-400" />
+            {currency === "tokens"
+              ? "Token Usage by Days (All Agents)"
+              : `Cost by Days — ${currency === "USD" ? "$ USD" : "€ EUR"} (All Agents)`}
           </h2>
-          {/* Agent Toggle Chips */}
-          <div className="flex flex-wrap gap-2">
-            {Object.keys(AGENT_COLORS).map((agent) => (
-              <button
-                key={agent}
-                onClick={() => toggleAgent(agent)}
-                className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-medium transition ${
-                  visibleAgents.includes(agent)
-                    ? "ring-1 ring-white/20 text-white"
-                    : "bg-white/5 text-white/30"
-                }`}
-              >
-                <span
-                  className="h-2 w-2 rounded-full transition-opacity"
-                  style={{ backgroundColor: AGENT_COLORS[agent], opacity: visibleAgents.includes(agent) ? 1 : 0.3 }}
-                />
-                {agent}
-              </button>
-            ))}
+          <div className="flex items-center gap-4 flex-wrap">
+            {/* Currency Toggle */}
+            <CurrencyToggle currency={currency} onChange={setCurrency} size="small" />
+            {/* Agent Toggle Chips */}
+            <div className="flex flex-wrap gap-2">
+              {Object.keys(AGENT_COLORS).map((agent) => (
+                <button
+                  key={agent}
+                  onClick={() => toggleAgent(agent)}
+                  className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-medium transition ${
+                    visibleAgents.includes(agent)
+                      ? "ring-1 ring-white/20 text-white"
+                      : "bg-white/5 text-white/30"
+                  }`}
+                >
+                  <span
+                    className="h-2 w-2 rounded-full transition-opacity"
+                    style={{ backgroundColor: AGENT_COLORS[agent], opacity: visibleAgents.includes(agent) ? 1 : 0.3 }}
+                  />
+                  {agent}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -298,11 +393,15 @@ export default function AssignAndMetricsPage() {
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
               <XAxis dataKey="date" stroke="#ffffff40" fontSize={10} tickMargin={8} interval={2} />
-              <YAxis stroke="#ffffff40" fontSize={10} tickFormatter={(v) => `${v / 1000}k`} />
+              <YAxis
+                stroke="#ffffff40"
+                fontSize={10}
+                tickFormatter={(v) => formatAxisValue(v, currency)}
+              />
               <Tooltip
                 contentStyle={{ backgroundColor: "#0f172a", borderColor: "#ffffff15", borderRadius: "10px", fontSize: "12px" }}
                 itemStyle={{ color: "#fff" }}
-                formatter={(value, name) => [`${(Number(value) / 1000).toFixed(1)}k`, name]}
+                formatter={((value: number, name: string) => [formatTokensAsCost(value, currency), name]) as any}
                 labelStyle={{ color: "#ffffff80" }}
               />
               {Object.entries(AGENT_COLORS).map(([agent, color]) =>
@@ -325,9 +424,12 @@ export default function AssignAndMetricsPage() {
 
       {/* ──────── ROW 3: Top Users Per Agent ──────── */}
       <div className="rounded-2xl border border-white/10 bg-[#0F172A] p-6">
-        <h2 className="text-lg font-semibold mb-5 flex items-center gap-2">
-          <TrendingUp size={20} className="text-sky-400" /> Top Users by Agent
-        </h2>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <TrendingUp size={20} className="text-sky-400" /> Top Users by Agent
+          </h2>
+          <CurrencyToggle currency={currency} onChange={setCurrency} size="small" />
+        </div>
 
         {/* Agent Tabs */}
         <div className="flex flex-wrap gap-2 mb-6 border-b border-white/10 pb-4">
@@ -356,7 +458,9 @@ export default function AssignAndMetricsPage() {
                 <th className="px-4 py-3 rounded-tl-lg w-8">#</th>
                 <th className="px-4 py-3">User</th>
                 <th className="px-4 py-3">Email</th>
-                <th className="px-4 py-3 text-right">Total Tokens</th>
+                <th className="px-4 py-3 text-right">
+                  {currency === "tokens" ? "Total Tokens" : currency === "USD" ? "Total Cost ($)" : "Total Cost (€)"}
+                </th>
                 <th className="px-4 py-3 text-right rounded-tr-lg">% of Agent Total</th>
               </tr>
             </thead>
@@ -381,7 +485,9 @@ export default function AssignAndMetricsPage() {
                     </td>
                     <td className="px-4 py-3.5 font-medium text-white">{user.name}</td>
                     <td className="px-4 py-3.5 text-white/50">{user.email}</td>
-                    <td className="px-4 py-3.5 text-right font-mono text-sky-400">{(user.tokens / 1000).toFixed(1)}k</td>
+                    <td className="px-4 py-3.5 text-right font-mono text-sky-400">
+                      {formatTokensAsCost(user.tokens, currency)}
+                    </td>
                     <td className="px-4 py-3.5 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <div className="w-20 h-1.5 rounded-full bg-white/5 overflow-hidden">
