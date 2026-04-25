@@ -17,6 +17,11 @@ export class ChiaraController {
         return this.chiaraService.getAllSessions();
     }
 
+    @Get('chat-logs/senders/distinct')
+    async getDistinctSenders() {
+        return this.chiaraService.getDistinctSenders();
+    }
+
     @Get('chat-logs/:sessionId')
     async getChatLogs(@Param('sessionId') sessionId: string) {
         return this.chiaraService.getChatLogsBySessionId(sessionId);
