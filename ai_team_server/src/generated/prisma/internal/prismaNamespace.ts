@@ -2143,10 +2143,11 @@ export const UserAgentTokenUsageScalarFieldEnum = {
   id: 'id',
   oauthId: 'oauthId',
   agentName: 'agentName',
-  inputTokens: 'inputTokens',
-  outputTokens: 'outputTokens',
-  totalTokens: 'totalTokens',
-  tokenLimit: 'tokenLimit',
+  totalUsedInputTokens: 'totalUsedInputTokens',
+  totalUsedOutputTokens: 'totalUsedOutputTokens',
+  totalUsedTokens: 'totalUsedTokens',
+  totalTokensLeft: 'totalTokensLeft',
+  totalTokenLimit: 'totalTokenLimit',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

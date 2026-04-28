@@ -381,10 +381,11 @@ model UserAgentTokenUsage {
   id           String    @id @default(uuid())
   oauthId      String
   agentName    AgentName
-  inputTokens  Int       @default(0)
-  outputTokens Int       @default(0)
-  totalTokens  Int       @default(0)
-  tokenLimit   Int       @default(100000)
+  totalUsedInputTokens  Int @default(0)
+  totalUsedOutputTokens Int @default(0)
+  totalUsedTokens       Int @default(0)
+  totalTokensLeft       Int @default(0)
+  totalTokenLimit       Int @default(1000)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   user         User      @relation(fields: [oauthId], references: [oauthId], onDelete: Cascade)

@@ -2,12 +2,20 @@ import {
   Injectable,
   InternalServerErrorException,
   ForbiddenException,
+  BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
 import { AgentName } from 'src/generated/prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 const MODEL = 'claude-sonnet-4-6';
+
+const getAnthropicApiKey = () =>
+  process.env.ANTHROPIC_API_KEY ||
+  process.env.CLAUDE_API_KEY ||
+  process.env.anthropic_api_key ||
+  process.env.claude_api_key;
 
 export interface ClaudeCallOptions {
   oauthId: string;
@@ -17,12 +25,50 @@ export interface ClaudeCallOptions {
   maxTokens?: number;
 }
 
+export interface CountTextTokensResult {
+  model: string;
+  totalUsedInputTokens: number;
+  totalUsedTokens: number;
+}
+
+export interface SetTokenUsageInput {
+  totalUsedInputTokens: number;
+  totalUsedOutputTokens: number;
+}
+
 @Injectable()
 export class TokenUsageService {
   private readonly anthropic: Anthropic;
 
   constructor(private readonly prisma: PrismaService) {
-    this.anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const apiKey = getAnthropicApiKey();
+
+    if (!apiKey) {
+      throw new Error(
+        'Anthropic API key is not configured. Set ANTHROPIC_API_KEY or CLAUDE_API_KEY in ai_team_server/.env.',
+      );
+    }
+
+    this.anthropic = new Anthropic({ apiKey });
+  }
+
+  private async resolveEmailToOauthId(email: string): Promise<string> {
+    const normalizedEmail = email?.trim();
+
+    if (!normalizedEmail) {
+      throw new BadRequestException('email is required');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: { oauthId: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with email "${normalizedEmail}" not found`);
+    }
+
+    return user.oauthId;
   }
 
   private async calculateUserQuota(oauthId: string, agentName: AgentName) {
@@ -78,7 +124,7 @@ export class TokenUsageService {
     // fallback to legacy limit if 0
     if (totalLimit === 0) {
       const legacy = await this.prisma.userAgentTokenUsage.findUnique({ where: { oauthId_agentName: { oauthId, agentName} }});
-      if (legacy) totalLimit = legacy.tokenLimit;
+      if (legacy) totalLimit = legacy.totalTokensLeft;
       else totalLimit = 100000;
     }
 
@@ -171,12 +217,13 @@ export class TokenUsageService {
     // Update legacy usage tracker just to keep it in sync for total overall
     await this.prisma.userAgentTokenUsage.upsert({
       where: { oauthId_agentName: { oauthId, agentName } },
-      create: { oauthId, agentName, inputTokens: input, outputTokens: output, totalTokens: totalNew, tokenLimit: limit },
+      create: { oauthId, agentName, totalUsedInputTokens: input, totalUsedOutputTokens: output, totalUsedTokens: totalNew, totalTokensLeft: limit, totalTokenLimit: limit },
       update: {
-        inputTokens: { increment: input },
-        outputTokens: { increment: output },
-        totalTokens: { increment: totalNew },
-        tokenLimit: limit
+        totalUsedInputTokens: { increment: input },
+        totalUsedOutputTokens: { increment: output },
+        totalUsedTokens: { increment: totalNew },
+        totalTokensLeft: limit,
+        totalTokenLimit: limit,
       },
     });
 
@@ -189,22 +236,100 @@ export class TokenUsageService {
     return response;
   }
 
-  async setTokenLimit(oauthId: string, agentName: AgentName, tokenLimit: number) {
+  async setTokenLimit(email: string, agentName: AgentName, totalTokenLimit: number) {
+    const oauthId = await this.resolveEmailToOauthId(email);
+
     return this.prisma.userAgentTokenUsage.upsert({
       where: { oauthId_agentName: { oauthId, agentName } },
-      create: { oauthId, agentName, tokenLimit },
-      update: { tokenLimit },
+      create: { oauthId, agentName, totalTokenLimit, totalTokensLeft: totalTokenLimit },
+      update: { totalTokenLimit, totalTokensLeft: totalTokenLimit },
     });
   }
 
-  async getUserUsage(oauthId: string) {
+  async setTokenUsage(
+    email: string,
+    agentName: AgentName,
+    usage: SetTokenUsageInput,
+  ) {
+    const inputTokens = Number(usage?.totalUsedInputTokens);
+    const outputTokens = Number(usage?.totalUsedOutputTokens);
+    const totalTokens = inputTokens + outputTokens;
+
+    if (
+      !Number.isInteger(inputTokens) ||
+      inputTokens < 0 ||
+      !Number.isInteger(outputTokens) ||
+      outputTokens < 0
+    ) {
+      throw new BadRequestException(
+        'totalUsedInputTokens and totalUsedOutputTokens must be non-negative integers',
+      );
+    }
+
+    const oauthId = await this.resolveEmailToOauthId(email);
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const today = new Date(`${todayStr}T00:00:00Z`);
+
+    await this.prisma.dailyTokenUsage.upsert({
+      where: { oauthId_agentName_date: { oauthId, agentName, date: today } },
+      create: { oauthId, agentName, date: today, inputTokens, outputTokens, totalTokens },
+      update: { inputTokens, outputTokens, totalTokens },
+    });
+
+    return this.prisma.userAgentTokenUsage.upsert({
+      where: { oauthId_agentName: { oauthId, agentName } },
+      create: {
+        oauthId,
+        agentName,
+        totalUsedInputTokens: inputTokens,
+        totalUsedOutputTokens: outputTokens,
+        totalUsedTokens: totalTokens,
+        totalTokenLimit: 100000,
+        totalTokensLeft: Math.max(0, 100000 - totalTokens),
+      },
+      update: {
+        totalUsedInputTokens: { increment: inputTokens },
+        totalUsedOutputTokens: { increment: outputTokens },
+        totalUsedTokens: { increment: totalTokens },
+        totalTokensLeft: { decrement: totalTokens },
+      },
+    });
+  }
+
+  async countTextTokens(text: string): Promise<CountTextTokensResult> {
+    if (typeof text !== 'string' || text.trim().length === 0) {
+      throw new BadRequestException('text must be a non-empty string');
+    }
+
+    try {
+      const tokenCount = await this.anthropic.messages.countTokens({
+        model: MODEL,
+        messages: [{ role: 'user', content: text }],
+      });
+
+      return {
+        model: MODEL,
+        totalUsedInputTokens: tokenCount.input_tokens,
+        totalUsedTokens: tokenCount.input_tokens,
+      };
+    } catch (err) {
+      throw new InternalServerErrorException(`Claude token count error: ${err?.message}`);
+    }
+  }
+
+  async getUserUsage(email: string) {
+    const oauthId = await this.resolveEmailToOauthId(email);
+
     return this.prisma.userAgentTokenUsage.findMany({
       where: { oauthId },
-      orderBy: { totalTokens: 'desc' },
+      orderBy: { totalUsedTokens: 'desc' },
     });
   }
 
-  async getAgentUsage(oauthId: string, agentName: AgentName) {
+  async getAgentUsage(email: string, agentName: AgentName) {
+    const oauthId = await this.resolveEmailToOauthId(email);
+
     return this.prisma.userAgentTokenUsage.findUnique({
       where: { oauthId_agentName: { oauthId, agentName } },
     });
@@ -213,7 +338,7 @@ export class TokenUsageService {
   async getAllUsage() {
     return this.prisma.userAgentTokenUsage.findMany({
       include: { user: { select: { email: true, username: true } } },
-      orderBy: { totalTokens: 'desc' },
+      orderBy: { totalUsedTokens: 'desc' },
     });
   }
 }

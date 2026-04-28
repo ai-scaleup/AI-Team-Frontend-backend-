@@ -1,8 +1,11 @@
 import * as dotenv from 'dotenv';
-dotenv.config();
+import { resolve } from 'path';
+
+dotenv.config({ path: resolve(__dirname, '..', '.env') });
 
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { setupSwagger } from './swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -10,6 +13,9 @@ async function bootstrap() {
     origin: '*',
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
   });
+
+  setupSwagger(app);
+
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();

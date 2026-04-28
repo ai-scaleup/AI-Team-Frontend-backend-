@@ -1,13 +1,33 @@
 import { Controller, Post, Body, Headers, Res, HttpStatus } from '@nestjs/common';
+import {
+  ApiBody,
+  ApiHeader,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Response } from 'express';
 import { ClerkService } from './clerk.service';
 
 
+@ApiTags('webhooks')
 @Controller('webhooks')
 export class ClerkController {
   constructor(private readonly clerkService: ClerkService) {}
 
   @Post('clerk')
+  @ApiOperation({ summary: 'Receive Clerk webhook events' })
+  @ApiHeader({ name: 'svix-id', required: true })
+  @ApiHeader({ name: 'svix-timestamp', required: true })
+  @ApiHeader({ name: 'svix-signature', required: true })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      additionalProperties: true,
+      example: { type: 'user.created', data: { id: 'user_2abc123' } },
+    },
+  })
+  @ApiOkResponse({ description: 'Webhook processed successfully' })
   async handleClerkWebhook(
     @Headers('svix-id') svixId: string,
     @Headers('svix-timestamp') svixTimestamp: string,
