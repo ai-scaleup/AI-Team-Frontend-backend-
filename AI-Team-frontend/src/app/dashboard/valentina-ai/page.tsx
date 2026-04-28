@@ -359,6 +359,28 @@ export default function App() {
   const [isPrefsOpen, setIsPrefsOpen] = useState(false)
   const [userPrefs, setUserPrefs] = useState<UserPreference | null>(null)
   const { user } = useUser()
+  const userEmail =
+    user?.primaryEmailAddress?.emailAddress ||
+    user?.emailAddresses?.[0]?.emailAddress ||
+    ""
+
+  // --- TOKEN USAGE ---
+  const [tokenUsage, setTokenUsage] = useState<{
+    totalUsedTokens: number
+    totalTokenLimit: number
+    totalTokensLeft: number
+  } | null>(null)
+
+  useEffect(() => {
+    if (!userEmail) return
+
+    const userIdentifier = encodeURIComponent(userEmail)
+    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""
+    fetch(`${API_BASE}/token-usage/${userIdentifier}/VALENTINA`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data) setTokenUsage(data) })
+      .catch(() => {})
+  }, [userEmail])
 
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -1044,10 +1066,6 @@ export default function App() {
 
   // --- Message Sending Logic ---
   const sendMessage = async () => {
-    if (!userPrefs?.displayName) {
-      setIsPrefsOpen(true)
-      return
-    }
     if (!inputValue.trim() && selectedFiles.length === 0) return
 
     setIsLoading(true)
@@ -1248,6 +1266,42 @@ export default function App() {
         } catch (error) {
           console.error("❌ Valentina AI: Failed to save AI message:", error)
         }
+      }
+
+      // Count tokens and update usage
+      const userIdentifier = userEmail ? encodeURIComponent(userEmail) : ""
+      const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""
+      try {
+        if (!userIdentifier) return
+
+        const [inputCount, outputCount] = await Promise.all([
+          fetch(`${API_BASE}/token-usage/count`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: userMessage.text }),
+          }).then((r) => r.ok ? r.json() : null),
+          fetch(`${API_BASE}/token-usage/count`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: finalAiMessage.text }),
+          }).then((r) => r.ok ? r.json() : null),
+        ])
+
+        const totalUsedInputTokens = inputCount?.totalUsedInputTokens ?? 0
+        const totalUsedOutputTokens = outputCount?.totalUsedInputTokens ?? 0
+
+        await fetch(`${API_BASE}/token-usage/${userIdentifier}/VALENTINA/usage`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ totalUsedInputTokens, totalUsedOutputTokens }),
+        })
+
+        // Refresh token usage display
+        const updated = await fetch(`${API_BASE}/token-usage/${userIdentifier}/VALENTINA`).then((r) => r.ok ? r.json() : null)
+        if (updated) setTokenUsage(updated)
+        console.log("✅ Valentina AI: Token usage updated", { totalUsedInputTokens, totalUsedOutputTokens })
+      } catch (err) {
+        console.error("❌ Valentina AI: Failed to update token usage:", err)
       }
     } catch (error) {
       console.error("Error sending message:", error)
@@ -1883,6 +1937,19 @@ export default function App() {
                       >
                         {currentAgent.role}
                       </p>
+                      {tokenUsage && (
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <div className="w-28 h-1.5 rounded-full bg-slate-300/30 overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-violet-500"
+                              style={{ width: `${Math.min(100, (tokenUsage.totalUsedTokens / tokenUsage.totalTokenLimit) * 100).toFixed(1)}%` }}
+                            />
+                          </div>
+                          <span className={`text-[11px] font-semibold tabular-nums ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+                            {tokenUsage.totalUsedTokens.toLocaleString()} / {tokenUsage.totalTokenLimit.toLocaleString()} token
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
