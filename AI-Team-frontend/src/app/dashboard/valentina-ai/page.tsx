@@ -1,4 +1,5 @@
 "use client"
+// Valentina AI chat page
 
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
