@@ -15,69 +15,25 @@ export class ChiaraService {
     }
 
     async getChatLogsBySessionId(sessionId: string) {
-        // User messages are stored with sessionId = "PHONE|| PHONE" (n8n artifact),
-        // while AI messages use the clean "PHONE" sessionId.
-        // We fetch both variants and merge by timestamp so the full conversation is visible.
         return this.prisma.chiaraInboundChatLog.findMany({
-            where: {
-                OR: [
-                    { sessionId },
-                    { sessionId: { startsWith: sessionId + '||' } },
-                ],
-            },
+            where: { sessionId },
             orderBy: { createdAt: 'asc' },
         });
     }
 
-    async getDistinctSenders() {
-        const rows = await this.prisma.chiaraInboundChatLog.findMany({
-            select: { sender: true },
-            distinct: ['sender'],
-        });
-        return rows.map(r => r.sender);
-    }
-
     async getAllSessions() {
-        const rows = await this.prisma.chiaraInboundChatLog.groupBy({
+        const sessions = await this.prisma.chiaraInboundChatLog.groupBy({
             by: ['sessionId'],
             _max: { createdAt: true },
             _count: { id: true },
             orderBy: { _max: { createdAt: 'desc' } },
         });
 
-        // Normalise: strip the "|| ..." suffix that n8n appends to user-message sessionIds,
-        // then merge counts so each phone number appears once with a combined total.
-        const map = new Map<string, { lastMessageAt: Date | null; messageCount: number }>()
-        for (const row of rows) {
-            const base = row.sessionId.includes('||')
-                ? row.sessionId.split('||')[0].trim()
-                : row.sessionId
-            const existing = map.get(base)
-            const rowMax = row._max.createdAt
-            if (!existing) {
-                map.set(base, { lastMessageAt: rowMax, messageCount: row._count.id })
-            } else {
-                map.set(base, {
-                    lastMessageAt:
-                        rowMax && existing.lastMessageAt && rowMax > existing.lastMessageAt
-                            ? rowMax
-                            : existing.lastMessageAt,
-                    messageCount: existing.messageCount + row._count.id,
-                })
-            }
-        }
-
-        return [...map.entries()]
-            .map(([sessionId, v]) => ({
-                sessionId,
-                lastMessageAt: v.lastMessageAt,
-                messageCount: v.messageCount,
-            }))
-            .sort((a, b) => {
-                if (!a.lastMessageAt) return 1
-                if (!b.lastMessageAt) return -1
-                return b.lastMessageAt > a.lastMessageAt ? 1 : -1
-            })
+        return sessions.map((s) => ({
+            sessionId: s.sessionId,
+            lastMessageAt: s._max.createdAt,
+            messageCount: s._count.id,
+        }));
     }
 
     // ChiaraLead methods

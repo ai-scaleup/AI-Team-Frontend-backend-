@@ -27,27 +27,30 @@ export type AggregateUserAgentTokenUsage = {
 }
 
 export type UserAgentTokenUsageAvgAggregateOutputType = {
-  inputTokens: number | null
-  outputTokens: number | null
-  totalTokens: number | null
-  tokenLimit: number | null
+  totalUsedInputTokens: number | null
+  totalUsedOutputTokens: number | null
+  totalUsedTokens: number | null
+  totalTokensLeft: number | null
+  totalTokenLimit: number | null
 }
 
 export type UserAgentTokenUsageSumAggregateOutputType = {
-  inputTokens: number | null
-  outputTokens: number | null
-  totalTokens: number | null
-  tokenLimit: number | null
+  totalUsedInputTokens: number | null
+  totalUsedOutputTokens: number | null
+  totalUsedTokens: number | null
+  totalTokensLeft: number | null
+  totalTokenLimit: number | null
 }
 
 export type UserAgentTokenUsageMinAggregateOutputType = {
   id: string | null
   oauthId: string | null
   agentName: $Enums.AgentName | null
-  inputTokens: number | null
-  outputTokens: number | null
-  totalTokens: number | null
-  tokenLimit: number | null
+  totalUsedInputTokens: number | null
+  totalUsedOutputTokens: number | null
+  totalUsedTokens: number | null
+  totalTokensLeft: number | null
+  totalTokenLimit: number | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -56,10 +59,11 @@ export type UserAgentTokenUsageMaxAggregateOutputType = {
   id: string | null
   oauthId: string | null
   agentName: $Enums.AgentName | null
-  inputTokens: number | null
-  outputTokens: number | null
-  totalTokens: number | null
-  tokenLimit: number | null
+  totalUsedInputTokens: number | null
+  totalUsedOutputTokens: number | null
+  totalUsedTokens: number | null
+  totalTokensLeft: number | null
+  totalTokenLimit: number | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -68,10 +72,11 @@ export type UserAgentTokenUsageCountAggregateOutputType = {
   id: number
   oauthId: number
   agentName: number
-  inputTokens: number
-  outputTokens: number
-  totalTokens: number
-  tokenLimit: number
+  totalUsedInputTokens: number
+  totalUsedOutputTokens: number
+  totalUsedTokens: number
+  totalTokensLeft: number
+  totalTokenLimit: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -79,27 +84,30 @@ export type UserAgentTokenUsageCountAggregateOutputType = {
 
 
 export type UserAgentTokenUsageAvgAggregateInputType = {
-  inputTokens?: true
-  outputTokens?: true
-  totalTokens?: true
-  tokenLimit?: true
+  totalUsedInputTokens?: true
+  totalUsedOutputTokens?: true
+  totalUsedTokens?: true
+  totalTokensLeft?: true
+  totalTokenLimit?: true
 }
 
 export type UserAgentTokenUsageSumAggregateInputType = {
-  inputTokens?: true
-  outputTokens?: true
-  totalTokens?: true
-  tokenLimit?: true
+  totalUsedInputTokens?: true
+  totalUsedOutputTokens?: true
+  totalUsedTokens?: true
+  totalTokensLeft?: true
+  totalTokenLimit?: true
 }
 
 export type UserAgentTokenUsageMinAggregateInputType = {
   id?: true
   oauthId?: true
   agentName?: true
-  inputTokens?: true
-  outputTokens?: true
-  totalTokens?: true
-  tokenLimit?: true
+  totalUsedInputTokens?: true
+  totalUsedOutputTokens?: true
+  totalUsedTokens?: true
+  totalTokensLeft?: true
+  totalTokenLimit?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -108,10 +116,11 @@ export type UserAgentTokenUsageMaxAggregateInputType = {
   id?: true
   oauthId?: true
   agentName?: true
-  inputTokens?: true
-  outputTokens?: true
-  totalTokens?: true
-  tokenLimit?: true
+  totalUsedInputTokens?: true
+  totalUsedOutputTokens?: true
+  totalUsedTokens?: true
+  totalTokensLeft?: true
+  totalTokenLimit?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -120,10 +129,11 @@ export type UserAgentTokenUsageCountAggregateInputType = {
   id?: true
   oauthId?: true
   agentName?: true
-  inputTokens?: true
-  outputTokens?: true
-  totalTokens?: true
-  tokenLimit?: true
+  totalUsedInputTokens?: true
+  totalUsedOutputTokens?: true
+  totalUsedTokens?: true
+  totalTokensLeft?: true
+  totalTokenLimit?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -219,10 +229,11 @@ export type UserAgentTokenUsageGroupByOutputType = {
   id: string
   oauthId: string
   agentName: $Enums.AgentName
-  inputTokens: number
-  outputTokens: number
-  totalTokens: number
-  tokenLimit: number
+  totalUsedInputTokens: number
+  totalUsedOutputTokens: number
+  totalUsedTokens: number
+  totalTokensLeft: number
+  totalTokenLimit: number
   createdAt: Date
   updatedAt: Date
   _count: UserAgentTokenUsageCountAggregateOutputType | null
@@ -254,10 +265,11 @@ export type UserAgentTokenUsageWhereInput = {
   id?: Prisma.StringFilter<"UserAgentTokenUsage"> | string
   oauthId?: Prisma.StringFilter<"UserAgentTokenUsage"> | string
   agentName?: Prisma.EnumAgentNameFilter<"UserAgentTokenUsage"> | $Enums.AgentName
-  inputTokens?: Prisma.IntFilter<"UserAgentTokenUsage"> | number
-  outputTokens?: Prisma.IntFilter<"UserAgentTokenUsage"> | number
-  totalTokens?: Prisma.IntFilter<"UserAgentTokenUsage"> | number
-  tokenLimit?: Prisma.IntFilter<"UserAgentTokenUsage"> | number
+  totalUsedInputTokens?: Prisma.IntFilter<"UserAgentTokenUsage"> | number
+  totalUsedOutputTokens?: Prisma.IntFilter<"UserAgentTokenUsage"> | number
+  totalUsedTokens?: Prisma.IntFilter<"UserAgentTokenUsage"> | number
+  totalTokensLeft?: Prisma.IntFilter<"UserAgentTokenUsage"> | number
+  totalTokenLimit?: Prisma.IntFilter<"UserAgentTokenUsage"> | number
   createdAt?: Prisma.DateTimeFilter<"UserAgentTokenUsage"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"UserAgentTokenUsage"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -267,10 +279,11 @@ export type UserAgentTokenUsageOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   oauthId?: Prisma.SortOrder
   agentName?: Prisma.SortOrder
-  inputTokens?: Prisma.SortOrder
-  outputTokens?: Prisma.SortOrder
-  totalTokens?: Prisma.SortOrder
-  tokenLimit?: Prisma.SortOrder
+  totalUsedInputTokens?: Prisma.SortOrder
+  totalUsedOutputTokens?: Prisma.SortOrder
+  totalUsedTokens?: Prisma.SortOrder
+  totalTokensLeft?: Prisma.SortOrder
+  totalTokenLimit?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
@@ -284,10 +297,11 @@ export type UserAgentTokenUsageWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.UserAgentTokenUsageWhereInput | Prisma.UserAgentTokenUsageWhereInput[]
   oauthId?: Prisma.StringFilter<"UserAgentTokenUsage"> | string
   agentName?: Prisma.EnumAgentNameFilter<"UserAgentTokenUsage"> | $Enums.AgentName
-  inputTokens?: Prisma.IntFilter<"UserAgentTokenUsage"> | number
-  outputTokens?: Prisma.IntFilter<"UserAgentTokenUsage"> | number
-  totalTokens?: Prisma.IntFilter<"UserAgentTokenUsage"> | number
-  tokenLimit?: Prisma.IntFilter<"UserAgentTokenUsage"> | number
+  totalUsedInputTokens?: Prisma.IntFilter<"UserAgentTokenUsage"> | number
+  totalUsedOutputTokens?: Prisma.IntFilter<"UserAgentTokenUsage"> | number
+  totalUsedTokens?: Prisma.IntFilter<"UserAgentTokenUsage"> | number
+  totalTokensLeft?: Prisma.IntFilter<"UserAgentTokenUsage"> | number
+  totalTokenLimit?: Prisma.IntFilter<"UserAgentTokenUsage"> | number
   createdAt?: Prisma.DateTimeFilter<"UserAgentTokenUsage"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"UserAgentTokenUsage"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -297,10 +311,11 @@ export type UserAgentTokenUsageOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   oauthId?: Prisma.SortOrder
   agentName?: Prisma.SortOrder
-  inputTokens?: Prisma.SortOrder
-  outputTokens?: Prisma.SortOrder
-  totalTokens?: Prisma.SortOrder
-  tokenLimit?: Prisma.SortOrder
+  totalUsedInputTokens?: Prisma.SortOrder
+  totalUsedOutputTokens?: Prisma.SortOrder
+  totalUsedTokens?: Prisma.SortOrder
+  totalTokensLeft?: Prisma.SortOrder
+  totalTokenLimit?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.UserAgentTokenUsageCountOrderByAggregateInput
@@ -317,10 +332,11 @@ export type UserAgentTokenUsageScalarWhereWithAggregatesInput = {
   id?: Prisma.StringWithAggregatesFilter<"UserAgentTokenUsage"> | string
   oauthId?: Prisma.StringWithAggregatesFilter<"UserAgentTokenUsage"> | string
   agentName?: Prisma.EnumAgentNameWithAggregatesFilter<"UserAgentTokenUsage"> | $Enums.AgentName
-  inputTokens?: Prisma.IntWithAggregatesFilter<"UserAgentTokenUsage"> | number
-  outputTokens?: Prisma.IntWithAggregatesFilter<"UserAgentTokenUsage"> | number
-  totalTokens?: Prisma.IntWithAggregatesFilter<"UserAgentTokenUsage"> | number
-  tokenLimit?: Prisma.IntWithAggregatesFilter<"UserAgentTokenUsage"> | number
+  totalUsedInputTokens?: Prisma.IntWithAggregatesFilter<"UserAgentTokenUsage"> | number
+  totalUsedOutputTokens?: Prisma.IntWithAggregatesFilter<"UserAgentTokenUsage"> | number
+  totalUsedTokens?: Prisma.IntWithAggregatesFilter<"UserAgentTokenUsage"> | number
+  totalTokensLeft?: Prisma.IntWithAggregatesFilter<"UserAgentTokenUsage"> | number
+  totalTokenLimit?: Prisma.IntWithAggregatesFilter<"UserAgentTokenUsage"> | number
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"UserAgentTokenUsage"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"UserAgentTokenUsage"> | Date | string
 }
@@ -328,10 +344,11 @@ export type UserAgentTokenUsageScalarWhereWithAggregatesInput = {
 export type UserAgentTokenUsageCreateInput = {
   id?: string
   agentName: $Enums.AgentName
-  inputTokens?: number
-  outputTokens?: number
-  totalTokens?: number
-  tokenLimit?: number
+  totalUsedInputTokens?: number
+  totalUsedOutputTokens?: number
+  totalUsedTokens?: number
+  totalTokensLeft?: number
+  totalTokenLimit?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutTokenUsageInput
@@ -341,10 +358,11 @@ export type UserAgentTokenUsageUncheckedCreateInput = {
   id?: string
   oauthId: string
   agentName: $Enums.AgentName
-  inputTokens?: number
-  outputTokens?: number
-  totalTokens?: number
-  tokenLimit?: number
+  totalUsedInputTokens?: number
+  totalUsedOutputTokens?: number
+  totalUsedTokens?: number
+  totalTokensLeft?: number
+  totalTokenLimit?: number
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -352,10 +370,11 @@ export type UserAgentTokenUsageUncheckedCreateInput = {
 export type UserAgentTokenUsageUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   agentName?: Prisma.EnumAgentNameFieldUpdateOperationsInput | $Enums.AgentName
-  inputTokens?: Prisma.IntFieldUpdateOperationsInput | number
-  outputTokens?: Prisma.IntFieldUpdateOperationsInput | number
-  totalTokens?: Prisma.IntFieldUpdateOperationsInput | number
-  tokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
+  totalUsedInputTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  totalUsedOutputTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  totalUsedTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  totalTokensLeft?: Prisma.IntFieldUpdateOperationsInput | number
+  totalTokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutTokenUsageNestedInput
@@ -365,10 +384,11 @@ export type UserAgentTokenUsageUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   oauthId?: Prisma.StringFieldUpdateOperationsInput | string
   agentName?: Prisma.EnumAgentNameFieldUpdateOperationsInput | $Enums.AgentName
-  inputTokens?: Prisma.IntFieldUpdateOperationsInput | number
-  outputTokens?: Prisma.IntFieldUpdateOperationsInput | number
-  totalTokens?: Prisma.IntFieldUpdateOperationsInput | number
-  tokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
+  totalUsedInputTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  totalUsedOutputTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  totalUsedTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  totalTokensLeft?: Prisma.IntFieldUpdateOperationsInput | number
+  totalTokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -377,10 +397,11 @@ export type UserAgentTokenUsageCreateManyInput = {
   id?: string
   oauthId: string
   agentName: $Enums.AgentName
-  inputTokens?: number
-  outputTokens?: number
-  totalTokens?: number
-  tokenLimit?: number
+  totalUsedInputTokens?: number
+  totalUsedOutputTokens?: number
+  totalUsedTokens?: number
+  totalTokensLeft?: number
+  totalTokenLimit?: number
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -388,10 +409,11 @@ export type UserAgentTokenUsageCreateManyInput = {
 export type UserAgentTokenUsageUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   agentName?: Prisma.EnumAgentNameFieldUpdateOperationsInput | $Enums.AgentName
-  inputTokens?: Prisma.IntFieldUpdateOperationsInput | number
-  outputTokens?: Prisma.IntFieldUpdateOperationsInput | number
-  totalTokens?: Prisma.IntFieldUpdateOperationsInput | number
-  tokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
+  totalUsedInputTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  totalUsedOutputTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  totalUsedTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  totalTokensLeft?: Prisma.IntFieldUpdateOperationsInput | number
+  totalTokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -400,10 +422,11 @@ export type UserAgentTokenUsageUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   oauthId?: Prisma.StringFieldUpdateOperationsInput | string
   agentName?: Prisma.EnumAgentNameFieldUpdateOperationsInput | $Enums.AgentName
-  inputTokens?: Prisma.IntFieldUpdateOperationsInput | number
-  outputTokens?: Prisma.IntFieldUpdateOperationsInput | number
-  totalTokens?: Prisma.IntFieldUpdateOperationsInput | number
-  tokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
+  totalUsedInputTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  totalUsedOutputTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  totalUsedTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  totalTokensLeft?: Prisma.IntFieldUpdateOperationsInput | number
+  totalTokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -427,29 +450,32 @@ export type UserAgentTokenUsageCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   oauthId?: Prisma.SortOrder
   agentName?: Prisma.SortOrder
-  inputTokens?: Prisma.SortOrder
-  outputTokens?: Prisma.SortOrder
-  totalTokens?: Prisma.SortOrder
-  tokenLimit?: Prisma.SortOrder
+  totalUsedInputTokens?: Prisma.SortOrder
+  totalUsedOutputTokens?: Prisma.SortOrder
+  totalUsedTokens?: Prisma.SortOrder
+  totalTokensLeft?: Prisma.SortOrder
+  totalTokenLimit?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
 
 export type UserAgentTokenUsageAvgOrderByAggregateInput = {
-  inputTokens?: Prisma.SortOrder
-  outputTokens?: Prisma.SortOrder
-  totalTokens?: Prisma.SortOrder
-  tokenLimit?: Prisma.SortOrder
+  totalUsedInputTokens?: Prisma.SortOrder
+  totalUsedOutputTokens?: Prisma.SortOrder
+  totalUsedTokens?: Prisma.SortOrder
+  totalTokensLeft?: Prisma.SortOrder
+  totalTokenLimit?: Prisma.SortOrder
 }
 
 export type UserAgentTokenUsageMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   oauthId?: Prisma.SortOrder
   agentName?: Prisma.SortOrder
-  inputTokens?: Prisma.SortOrder
-  outputTokens?: Prisma.SortOrder
-  totalTokens?: Prisma.SortOrder
-  tokenLimit?: Prisma.SortOrder
+  totalUsedInputTokens?: Prisma.SortOrder
+  totalUsedOutputTokens?: Prisma.SortOrder
+  totalUsedTokens?: Prisma.SortOrder
+  totalTokensLeft?: Prisma.SortOrder
+  totalTokenLimit?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -458,19 +484,21 @@ export type UserAgentTokenUsageMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   oauthId?: Prisma.SortOrder
   agentName?: Prisma.SortOrder
-  inputTokens?: Prisma.SortOrder
-  outputTokens?: Prisma.SortOrder
-  totalTokens?: Prisma.SortOrder
-  tokenLimit?: Prisma.SortOrder
+  totalUsedInputTokens?: Prisma.SortOrder
+  totalUsedOutputTokens?: Prisma.SortOrder
+  totalUsedTokens?: Prisma.SortOrder
+  totalTokensLeft?: Prisma.SortOrder
+  totalTokenLimit?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
 
 export type UserAgentTokenUsageSumOrderByAggregateInput = {
-  inputTokens?: Prisma.SortOrder
-  outputTokens?: Prisma.SortOrder
-  totalTokens?: Prisma.SortOrder
-  tokenLimit?: Prisma.SortOrder
+  totalUsedInputTokens?: Prisma.SortOrder
+  totalUsedOutputTokens?: Prisma.SortOrder
+  totalUsedTokens?: Prisma.SortOrder
+  totalTokensLeft?: Prisma.SortOrder
+  totalTokenLimit?: Prisma.SortOrder
 }
 
 export type UserAgentTokenUsageCreateNestedManyWithoutUserInput = {
@@ -518,10 +546,11 @@ export type UserAgentTokenUsageUncheckedUpdateManyWithoutUserNestedInput = {
 export type UserAgentTokenUsageCreateWithoutUserInput = {
   id?: string
   agentName: $Enums.AgentName
-  inputTokens?: number
-  outputTokens?: number
-  totalTokens?: number
-  tokenLimit?: number
+  totalUsedInputTokens?: number
+  totalUsedOutputTokens?: number
+  totalUsedTokens?: number
+  totalTokensLeft?: number
+  totalTokenLimit?: number
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -529,10 +558,11 @@ export type UserAgentTokenUsageCreateWithoutUserInput = {
 export type UserAgentTokenUsageUncheckedCreateWithoutUserInput = {
   id?: string
   agentName: $Enums.AgentName
-  inputTokens?: number
-  outputTokens?: number
-  totalTokens?: number
-  tokenLimit?: number
+  totalUsedInputTokens?: number
+  totalUsedOutputTokens?: number
+  totalUsedTokens?: number
+  totalTokensLeft?: number
+  totalTokenLimit?: number
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -570,10 +600,11 @@ export type UserAgentTokenUsageScalarWhereInput = {
   id?: Prisma.StringFilter<"UserAgentTokenUsage"> | string
   oauthId?: Prisma.StringFilter<"UserAgentTokenUsage"> | string
   agentName?: Prisma.EnumAgentNameFilter<"UserAgentTokenUsage"> | $Enums.AgentName
-  inputTokens?: Prisma.IntFilter<"UserAgentTokenUsage"> | number
-  outputTokens?: Prisma.IntFilter<"UserAgentTokenUsage"> | number
-  totalTokens?: Prisma.IntFilter<"UserAgentTokenUsage"> | number
-  tokenLimit?: Prisma.IntFilter<"UserAgentTokenUsage"> | number
+  totalUsedInputTokens?: Prisma.IntFilter<"UserAgentTokenUsage"> | number
+  totalUsedOutputTokens?: Prisma.IntFilter<"UserAgentTokenUsage"> | number
+  totalUsedTokens?: Prisma.IntFilter<"UserAgentTokenUsage"> | number
+  totalTokensLeft?: Prisma.IntFilter<"UserAgentTokenUsage"> | number
+  totalTokenLimit?: Prisma.IntFilter<"UserAgentTokenUsage"> | number
   createdAt?: Prisma.DateTimeFilter<"UserAgentTokenUsage"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"UserAgentTokenUsage"> | Date | string
 }
@@ -581,10 +612,11 @@ export type UserAgentTokenUsageScalarWhereInput = {
 export type UserAgentTokenUsageCreateManyUserInput = {
   id?: string
   agentName: $Enums.AgentName
-  inputTokens?: number
-  outputTokens?: number
-  totalTokens?: number
-  tokenLimit?: number
+  totalUsedInputTokens?: number
+  totalUsedOutputTokens?: number
+  totalUsedTokens?: number
+  totalTokensLeft?: number
+  totalTokenLimit?: number
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -592,10 +624,11 @@ export type UserAgentTokenUsageCreateManyUserInput = {
 export type UserAgentTokenUsageUpdateWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   agentName?: Prisma.EnumAgentNameFieldUpdateOperationsInput | $Enums.AgentName
-  inputTokens?: Prisma.IntFieldUpdateOperationsInput | number
-  outputTokens?: Prisma.IntFieldUpdateOperationsInput | number
-  totalTokens?: Prisma.IntFieldUpdateOperationsInput | number
-  tokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
+  totalUsedInputTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  totalUsedOutputTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  totalUsedTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  totalTokensLeft?: Prisma.IntFieldUpdateOperationsInput | number
+  totalTokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -603,10 +636,11 @@ export type UserAgentTokenUsageUpdateWithoutUserInput = {
 export type UserAgentTokenUsageUncheckedUpdateWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   agentName?: Prisma.EnumAgentNameFieldUpdateOperationsInput | $Enums.AgentName
-  inputTokens?: Prisma.IntFieldUpdateOperationsInput | number
-  outputTokens?: Prisma.IntFieldUpdateOperationsInput | number
-  totalTokens?: Prisma.IntFieldUpdateOperationsInput | number
-  tokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
+  totalUsedInputTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  totalUsedOutputTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  totalUsedTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  totalTokensLeft?: Prisma.IntFieldUpdateOperationsInput | number
+  totalTokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -614,10 +648,11 @@ export type UserAgentTokenUsageUncheckedUpdateWithoutUserInput = {
 export type UserAgentTokenUsageUncheckedUpdateManyWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   agentName?: Prisma.EnumAgentNameFieldUpdateOperationsInput | $Enums.AgentName
-  inputTokens?: Prisma.IntFieldUpdateOperationsInput | number
-  outputTokens?: Prisma.IntFieldUpdateOperationsInput | number
-  totalTokens?: Prisma.IntFieldUpdateOperationsInput | number
-  tokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
+  totalUsedInputTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  totalUsedOutputTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  totalUsedTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  totalTokensLeft?: Prisma.IntFieldUpdateOperationsInput | number
+  totalTokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -628,10 +663,11 @@ export type UserAgentTokenUsageSelect<ExtArgs extends runtime.Types.Extensions.I
   id?: boolean
   oauthId?: boolean
   agentName?: boolean
-  inputTokens?: boolean
-  outputTokens?: boolean
-  totalTokens?: boolean
-  tokenLimit?: boolean
+  totalUsedInputTokens?: boolean
+  totalUsedOutputTokens?: boolean
+  totalUsedTokens?: boolean
+  totalTokensLeft?: boolean
+  totalTokenLimit?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -641,10 +677,11 @@ export type UserAgentTokenUsageSelectCreateManyAndReturn<ExtArgs extends runtime
   id?: boolean
   oauthId?: boolean
   agentName?: boolean
-  inputTokens?: boolean
-  outputTokens?: boolean
-  totalTokens?: boolean
-  tokenLimit?: boolean
+  totalUsedInputTokens?: boolean
+  totalUsedOutputTokens?: boolean
+  totalUsedTokens?: boolean
+  totalTokensLeft?: boolean
+  totalTokenLimit?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -654,10 +691,11 @@ export type UserAgentTokenUsageSelectUpdateManyAndReturn<ExtArgs extends runtime
   id?: boolean
   oauthId?: boolean
   agentName?: boolean
-  inputTokens?: boolean
-  outputTokens?: boolean
-  totalTokens?: boolean
-  tokenLimit?: boolean
+  totalUsedInputTokens?: boolean
+  totalUsedOutputTokens?: boolean
+  totalUsedTokens?: boolean
+  totalTokensLeft?: boolean
+  totalTokenLimit?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -667,15 +705,16 @@ export type UserAgentTokenUsageSelectScalar = {
   id?: boolean
   oauthId?: boolean
   agentName?: boolean
-  inputTokens?: boolean
-  outputTokens?: boolean
-  totalTokens?: boolean
-  tokenLimit?: boolean
+  totalUsedInputTokens?: boolean
+  totalUsedOutputTokens?: boolean
+  totalUsedTokens?: boolean
+  totalTokensLeft?: boolean
+  totalTokenLimit?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type UserAgentTokenUsageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "oauthId" | "agentName" | "inputTokens" | "outputTokens" | "totalTokens" | "tokenLimit" | "createdAt" | "updatedAt", ExtArgs["result"]["userAgentTokenUsage"]>
+export type UserAgentTokenUsageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "oauthId" | "agentName" | "totalUsedInputTokens" | "totalUsedOutputTokens" | "totalUsedTokens" | "totalTokensLeft" | "totalTokenLimit" | "createdAt" | "updatedAt", ExtArgs["result"]["userAgentTokenUsage"]>
 export type UserAgentTokenUsageInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }
@@ -695,10 +734,11 @@ export type $UserAgentTokenUsagePayload<ExtArgs extends runtime.Types.Extensions
     id: string
     oauthId: string
     agentName: $Enums.AgentName
-    inputTokens: number
-    outputTokens: number
-    totalTokens: number
-    tokenLimit: number
+    totalUsedInputTokens: number
+    totalUsedOutputTokens: number
+    totalUsedTokens: number
+    totalTokensLeft: number
+    totalTokenLimit: number
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["userAgentTokenUsage"]>
@@ -1128,10 +1168,11 @@ export interface UserAgentTokenUsageFieldRefs {
   readonly id: Prisma.FieldRef<"UserAgentTokenUsage", 'String'>
   readonly oauthId: Prisma.FieldRef<"UserAgentTokenUsage", 'String'>
   readonly agentName: Prisma.FieldRef<"UserAgentTokenUsage", 'AgentName'>
-  readonly inputTokens: Prisma.FieldRef<"UserAgentTokenUsage", 'Int'>
-  readonly outputTokens: Prisma.FieldRef<"UserAgentTokenUsage", 'Int'>
-  readonly totalTokens: Prisma.FieldRef<"UserAgentTokenUsage", 'Int'>
-  readonly tokenLimit: Prisma.FieldRef<"UserAgentTokenUsage", 'Int'>
+  readonly totalUsedInputTokens: Prisma.FieldRef<"UserAgentTokenUsage", 'Int'>
+  readonly totalUsedOutputTokens: Prisma.FieldRef<"UserAgentTokenUsage", 'Int'>
+  readonly totalUsedTokens: Prisma.FieldRef<"UserAgentTokenUsage", 'Int'>
+  readonly totalTokensLeft: Prisma.FieldRef<"UserAgentTokenUsage", 'Int'>
+  readonly totalTokenLimit: Prisma.FieldRef<"UserAgentTokenUsage", 'Int'>
   readonly createdAt: Prisma.FieldRef<"UserAgentTokenUsage", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"UserAgentTokenUsage", 'DateTime'>
 }

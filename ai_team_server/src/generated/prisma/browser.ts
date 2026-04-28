@@ -92,3 +92,28 @@ export type Tag = Prisma.TagModel
  * 
  */
 export type UserAgentTokenUsage = Prisma.UserAgentTokenUsageModel
+/**
+ * Model MembershipTemplate
+ * 
+ */
+export type MembershipTemplate = Prisma.MembershipTemplateModel
+/**
+ * Model AssignedMembership
+ * 
+ */
+export type AssignedMembership = Prisma.AssignedMembershipModel
+/**
+ * Model DailyTokenUsage
+ * 
+ */
+export type DailyTokenUsage = Prisma.DailyTokenUsageModel
+/**
+ * Model TokenLimitStopLog
+ * 
+ */
+export type TokenLimitStopLog = Prisma.TokenLimitStopLogModel
+/**
+ * Model UserAlert
+ * 
+ */
+export type UserAlert = Prisma.UserAlertModel

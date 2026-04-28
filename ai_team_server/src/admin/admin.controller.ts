@@ -14,6 +14,14 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import {
+  ApiBody,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
+import {
   IsArray,
   ArrayMinSize,
   IsBoolean,
@@ -56,6 +64,33 @@ const toDate = ({ value }: { value: any }) => {
 const toBool = ({ value }: { value: any }) => {
   if (typeof value === 'string') return value === 'true';
   return Boolean(value);
+};
+
+const groupSelectorSchema = {
+  type: 'object',
+  properties: {
+    groupId: { type: 'string', format: 'uuid' },
+    groupName: { type: 'string', example: 'Default Team' },
+  },
+};
+
+const assignmentOptionsSchema = {
+  startsAt: { type: 'string', format: 'date-time' },
+  expiresAt: { type: 'string', format: 'date-time', nullable: true },
+  durationDays: { type: 'integer', minimum: 1, example: 30 },
+  isActive: { type: 'boolean', example: true },
+};
+
+const agentsArraySchema = {
+  type: 'object',
+  required: ['agentNames'],
+  properties: {
+    agentNames: {
+      type: 'array',
+      items: { type: 'string', enum: Object.values(AgentName) },
+      example: ['JIM', 'ALEX'],
+    },
+  },
 };
 
 /* --------------------------------- DTOs ---------------------------------- */
@@ -419,6 +454,7 @@ class GetAgentsByEmailQuery {
 /* ------------------------------- Controller ------------------------------- */
 
 @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
+@ApiTags('admin')
 @Controller('admin')
 export class AdminController {
   constructor(private readonly admin: AdminService) { }
@@ -432,6 +468,12 @@ export class AdminController {
    *   - activeOnly (optional, default true): only return active non-expired agents
    */
   @Get('agents-by-email')
+  @ApiOperation({ summary: 'Get assigned agents for a user by email' })
+  @ApiQuery({ name: 'email', required: true, example: 'user@example.com' })
+  @ApiQuery({ name: 'groupId', required: false, format: 'uuid' })
+  @ApiQuery({ name: 'groupName', required: false })
+  @ApiQuery({ name: 'activeOnly', required: false, example: true })
+  @ApiOkResponse({ description: 'Assigned agents returned' })
   getAgentsByEmail(@Query() q: GetAgentsByEmailQuery) {
     const selector = q.groupId
       ? { groupId: q.groupId }
@@ -453,6 +495,19 @@ export class AdminController {
    * Response is AssignedAgent[] (materialized per-agent assignments).
    */
   @Post('assign/group')
+  @ApiOperation({ summary: 'Assign all agents from one group to a user by email' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['email', 'selector'],
+      properties: {
+        email: { type: 'string', format: 'email' },
+        selector: groupSelectorSchema,
+        ...assignmentOptionsSchema,
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Group agents assigned' })
   assignGroup(@Body() dto: AssignGroupByEmailDto) {
     const { selector } = dto;
     if (!selector?.groupId && !selector?.groupName) {
@@ -472,6 +527,19 @@ export class AdminController {
 
   /** Assign all agents from multiple groups (merge & dedupe) to a user by email */
   @Post('assign/groups')
+  @ApiOperation({ summary: 'Assign all agents from multiple groups to a user by email' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['email', 'selectors'],
+      properties: {
+        email: { type: 'string', format: 'email' },
+        selectors: { type: 'array', items: groupSelectorSchema },
+        ...assignmentOptionsSchema,
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Group agents assigned' })
   assignGroups(@Body() dto: AssignGroupsByEmailDto) {
     const selectors = dto.selectors.map((s) => {
       if (!s.groupId && !s.groupName) {
@@ -492,12 +560,38 @@ export class AdminController {
 
   /** Create a bare group (no members) */
   @Post('groups')
+  @ApiOperation({ summary: 'Create an agent group' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['name'],
+      properties: {
+        name: { type: 'string', example: 'Default Team' },
+        description: { type: 'string' },
+        isActive: { type: 'boolean', example: true },
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Group created' })
   createGroup(@Body() dto: CreateGroupDto) {
     return this.admin.createAgentGroup(dto);
   }
 
   /** Update a group by id */
   @Patch('groups/:id')
+  @ApiOperation({ summary: 'Update an agent group' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', example: 'Default Team' },
+        description: { type: 'string' },
+        isActive: { type: 'boolean', example: true },
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Group updated' })
   updateGroup(@Param() p: GroupIdParam, @Body() dto: UpdateGroupDto) {
     return this.admin.updateAgentGroup(p.id, dto);
   }
@@ -510,48 +604,95 @@ export class AdminController {
    *   - delete the AgentGroup itself
    */
   @Delete('groups/:id')
+  @ApiOperation({ summary: 'Delete an agent group' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiOkResponse({ description: 'Group deleted' })
   deleteGroup(@Param() p: GroupIdParam) {
     return this.admin.deleteAgentGroup(p.id);
   }
 
   /** List groups with filters + pagination */
   @Get('groups')
+  @ApiOperation({ summary: 'List agent groups' })
+  @ApiQuery({ name: 'page', required: false, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, example: 20 })
+  @ApiQuery({ name: 'nameContains', required: false })
+  @ApiQuery({ name: 'isActive', required: false })
+  @ApiQuery({ name: 'sortBy', required: false, enum: ['createdAt', 'updatedAt', 'name'] })
+  @ApiQuery({ name: 'sortOrder', required: false, enum: ['asc', 'desc'] })
+  @ApiOkResponse({ description: 'Groups returned' })
   listGroups(@Query() q: ListGroupsQuery) {
     return this.admin.listAgentGroups(q);
   }
 
   /** Get a single group by ID */
   @Get('groups/:id')
+  @ApiOperation({ summary: 'Get an agent group by ID' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiOkResponse({ description: 'Group returned' })
   getGroup(@Param() p: GroupIdParam) {
     return this.admin.getAgentGroupById(p.id);
   }
 
   /** Add agents to a group (deduped, idempotent) */
   @Post('groups/:id/agents')
+  @ApiOperation({ summary: 'Add agents to a group' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiBody({ schema: agentsArraySchema })
+  @ApiOkResponse({ description: 'Agents added' })
   addAgents(@Param() p: GroupIdParam, @Body() dto: AgentsArrayDto) {
     return this.admin.addAgentsToGroup(p.id, dto.agentNames);
   }
 
   /** Remove specific agents from a group */
   @Delete('groups/:id/agents')
+  @ApiOperation({ summary: 'Remove agents from a group' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiBody({ schema: agentsArraySchema })
+  @ApiOkResponse({ description: 'Agents removed' })
   removeAgents(@Param() p: GroupIdParam, @Body() dto: AgentsArrayDto) {
     return this.admin.removeAgentsFromGroup(p.id, dto.agentNames);
   }
 
   /** Replace all agents in a group with provided list (transactional) */
   @Put('groups/:id/agents')
+  @ApiOperation({ summary: 'Replace all agents in a group' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiBody({ schema: agentsArraySchema })
+  @ApiOkResponse({ description: 'Agents replaced' })
   replaceAgents(@Param() p: GroupIdParam, @Body() dto: AgentsArrayDto) {
     return this.admin.replaceGroupAgents(p.id, dto.agentNames);
   }
 
   /** Get all agents belonging to a specific group */
   @Get('groups/:id/agents/list')
+  @ApiOperation({ summary: 'List agents in a group' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiOkResponse({ description: 'Group agents returned' })
   getGroupAgents(@Param() p: GroupIdParam) {
     return this.admin.listGroupAgents(p.id);
   }
 
   /** Add agents to a group and assign them to a user by email */
   @Post('groups/agents/assign')
+  @ApiOperation({ summary: 'Add agents to a group and assign them to a user' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['email', 'selector', 'agentNames'],
+      properties: {
+        email: { type: 'string', format: 'email' },
+        selector: groupSelectorSchema,
+        agentNames: {
+          type: 'array',
+          items: { type: 'string', enum: Object.values(AgentName) },
+          example: ['JIM', 'ALEX'],
+        },
+        ...assignmentOptionsSchema,
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Agents added and assigned' })
   addAgentsToGroupAndAssign(@Body() dto: AddAgentsToGroupAndAssignDto) {
     const { selector } = dto;
     if (!selector?.groupId && !selector?.groupName) {
@@ -574,12 +715,53 @@ export class AdminController {
 
   /** Create a group and its agents in one step */
   @Post('groups-with-agents')
+  @ApiOperation({ summary: 'Create a group with agents' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['name', 'agentNames'],
+      properties: {
+        name: { type: 'string', example: 'Default Team' },
+        description: { type: 'string' },
+        isActive: { type: 'boolean', example: true },
+        agentNames: {
+          type: 'array',
+          items: { type: 'string', enum: Object.values(AgentName) },
+          example: ['JIM', 'ALEX'],
+        },
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Group with agents created' })
   createGroupWithAgents(@Body() dto: CreateGroupWithAgentsDto) {
     return this.admin.createAgentGroupWithAgents(dto);
   }
 
   /** Create a group with agents and assign that group to a user by email (agent-level materialization) */
   @Post('groups-with-agents/assign')
+  @ApiOperation({ summary: 'Create a group with agents and assign it to a user' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['email', 'name', 'agentNames'],
+      properties: {
+        email: { type: 'string', format: 'email' },
+        name: { type: 'string', example: 'Default Team' },
+        description: { type: 'string' },
+        isActive: { type: 'boolean', example: true },
+        agentNames: {
+          type: 'array',
+          items: { type: 'string', enum: Object.values(AgentName) },
+          example: ['JIM', 'ALEX'],
+        },
+        startsAt: { type: 'string', format: 'date-time' },
+        expiresAt: { type: 'string', format: 'date-time', nullable: true },
+        durationDays: { type: 'integer', minimum: 1, example: 30 },
+        isActiveAssignment: { type: 'boolean', example: true },
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Group created and assigned' })
   createGroupWithAgentsAndAssign(@Body() dto: CreateGroupWithAgentsAndAssignDto) {
     return this.admin.createGroupWithAgentsAndAssignByEmail(
       dto.email,
@@ -602,6 +784,20 @@ export class AdminController {
 
   /** Admin: assign a GROUP to a user (creates/updates AssignedGroup; optionally also assigns per-agent) */
   @Post('group-assignments')
+  @ApiOperation({ summary: 'Assign a group to a user by email' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['email', 'selector'],
+      properties: {
+        email: { type: 'string', format: 'email' },
+        selector: groupSelectorSchema,
+        ...assignmentOptionsSchema,
+        alsoAssignAgents: { type: 'boolean', example: true },
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Group assignment created or updated' })
   assignGroupToUser(@Body() dto: AssignGroupToUserByEmailDto) {
     const { selector } = dto;
     if (!selector?.groupId && !selector?.groupName) {
@@ -622,12 +818,28 @@ export class AdminController {
 
   /** Admin: list GROUP assignments for a user */
   @Get('group-assignments')
+  @ApiOperation({ summary: 'List group assignments for a user' })
+  @ApiQuery({ name: 'email', required: true, example: 'user@example.com' })
+  @ApiQuery({ name: 'activeOnly', required: false, example: false })
+  @ApiOkResponse({ description: 'Group assignments returned' })
   listGroupAssignments(@Query() q: ListGroupAssignmentsQuery) {
     return this.admin.listGroupAssignmentsByEmail(q.email, q.activeOnly ?? false);
   }
 
   /** Admin: deactivate a GROUP assignment for a user */
   @Post('group-assignments/deactivate')
+  @ApiOperation({ summary: 'Deactivate a group assignment for a user' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['email', 'selector'],
+      properties: {
+        email: { type: 'string', format: 'email' },
+        selector: groupSelectorSchema,
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Group assignment deactivated' })
   deactivateGroupAssignment(@Body() dto: DeactivateGroupByEmailDto) {
     const { selector } = dto;
     if (!selector?.groupId && !selector?.groupName) {
@@ -641,6 +853,18 @@ export class AdminController {
 
   /** Admin: permanently delete a GROUP assignment for a user */
   @Delete('group-assignments')
+  @ApiOperation({ summary: 'Delete a group assignment for a user' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['email', 'selector'],
+      properties: {
+        email: { type: 'string', format: 'email' },
+        selector: groupSelectorSchema,
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Group assignment deleted' })
   deleteGroupAssignment(@Body() dto: DeactivateGroupByEmailDto) {
     const { selector } = dto;
     if (!selector?.groupId && !selector?.groupName) {
@@ -656,6 +880,19 @@ export class AdminController {
 
   /** User: update their own GROUP assignment fields */
   @Patch('my/group-assignment')
+  @ApiOperation({ summary: 'Update a user-owned group assignment by email' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['email', 'selector'],
+      properties: {
+        email: { type: 'string', format: 'email' },
+        selector: groupSelectorSchema,
+        ...assignmentOptionsSchema,
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Group assignment updated' })
   updateMyGroupAssignment(@Body() dto: UpdateMyGroupAssignmentDto) {
     const { selector } = dto;
     if (!selector?.groupId && !selector?.groupName) {
@@ -675,6 +912,19 @@ export class AdminController {
 
   /** User: extend/reduce their GROUP assignment by N days */
   @Post('my/group-assignment/extend')
+  @ApiOperation({ summary: 'Extend or reduce a user-owned group assignment' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['email', 'selector', 'addDays'],
+      properties: {
+        email: { type: 'string', format: 'email' },
+        selector: groupSelectorSchema,
+        addDays: { type: 'integer', minimum: -3650, maximum: 3650, example: 30 },
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Group assignment duration updated' })
   extendMyGroupAssignment(@Body() dto: ExtendMyGroupAssignmentDto) {
     const { selector } = dto;
     if (!selector?.groupId && !selector?.groupName) {
@@ -689,6 +939,18 @@ export class AdminController {
 
   /** User: deactivate (opt-out) their GROUP assignment */
   @Post('my/group-assignment/deactivate')
+  @ApiOperation({ summary: 'Deactivate a user-owned group assignment' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['email', 'selector'],
+      properties: {
+        email: { type: 'string', format: 'email' },
+        selector: groupSelectorSchema,
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Group assignment deactivated' })
   deactivateMyGroupAssignment(@Body() dto: DeactivateMyGroupAssignmentDto) {
     const { selector } = dto;
     if (!selector?.groupId && !selector?.groupName) {
@@ -702,18 +964,25 @@ export class AdminController {
 
   /** List all user emails (for admin UI dropdowns, etc.) */
   @Get('emails')
+  @ApiOperation({ summary: 'List all user emails' })
+  @ApiOkResponse({ description: 'Emails returned' })
   async listAllEmails(): Promise<{ email: string; name: string | null }[]> {
     return this.admin.listAllEmails();
   }
 
   /** List all registered users (admin panel) */
   @Get('users')
+  @ApiOperation({ summary: 'List all registered users' })
+  @ApiOkResponse({ description: 'Users returned' })
   async listAllUsers() {
     return this.admin.listAllUsers();
   }
 
   /** Get token/usage stats for a single user */
   @Get('users/:id/token-stats')
+  @ApiOperation({ summary: 'Get token usage stats for a user' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiOkResponse({ description: 'Token stats returned' })
   async getUserTokenStats(@Param('id') id: string) {
     return this.admin.getUserTokenStats(id);
   }

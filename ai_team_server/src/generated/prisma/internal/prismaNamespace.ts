@@ -398,7 +398,12 @@ export const ModelName = {
   ChiaraLead: 'ChiaraLead',
   TagField: 'TagField',
   Tag: 'Tag',
-  UserAgentTokenUsage: 'UserAgentTokenUsage'
+  UserAgentTokenUsage: 'UserAgentTokenUsage',
+  MembershipTemplate: 'MembershipTemplate',
+  AssignedMembership: 'AssignedMembership',
+  DailyTokenUsage: 'DailyTokenUsage',
+  TokenLimitStopLog: 'TokenLimitStopLog',
+  UserAlert: 'UserAlert'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -414,7 +419,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "userPreference" | "assignedAgent" | "agentGroup" | "agentGroupItem" | "assignedGroup" | "conversation" | "message" | "chatLog" | "metisChatLog" | "chiaraInboundChatLog" | "chiaraLead" | "tagField" | "tag" | "userAgentTokenUsage"
+    modelProps: "user" | "userPreference" | "assignedAgent" | "agentGroup" | "agentGroupItem" | "assignedGroup" | "conversation" | "message" | "chatLog" | "metisChatLog" | "chiaraInboundChatLog" | "chiaraLead" | "tagField" | "tag" | "userAgentTokenUsage" | "membershipTemplate" | "assignedMembership" | "dailyTokenUsage" | "tokenLimitStopLog" | "userAlert"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1528,6 +1533,376 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    MembershipTemplate: {
+      payload: Prisma.$MembershipTemplatePayload<ExtArgs>
+      fields: Prisma.MembershipTemplateFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.MembershipTemplateFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipTemplatePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.MembershipTemplateFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipTemplatePayload>
+        }
+        findFirst: {
+          args: Prisma.MembershipTemplateFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipTemplatePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.MembershipTemplateFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipTemplatePayload>
+        }
+        findMany: {
+          args: Prisma.MembershipTemplateFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipTemplatePayload>[]
+        }
+        create: {
+          args: Prisma.MembershipTemplateCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipTemplatePayload>
+        }
+        createMany: {
+          args: Prisma.MembershipTemplateCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.MembershipTemplateCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipTemplatePayload>[]
+        }
+        delete: {
+          args: Prisma.MembershipTemplateDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipTemplatePayload>
+        }
+        update: {
+          args: Prisma.MembershipTemplateUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipTemplatePayload>
+        }
+        deleteMany: {
+          args: Prisma.MembershipTemplateDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.MembershipTemplateUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.MembershipTemplateUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipTemplatePayload>[]
+        }
+        upsert: {
+          args: Prisma.MembershipTemplateUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipTemplatePayload>
+        }
+        aggregate: {
+          args: Prisma.MembershipTemplateAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateMembershipTemplate>
+        }
+        groupBy: {
+          args: Prisma.MembershipTemplateGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MembershipTemplateGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.MembershipTemplateCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MembershipTemplateCountAggregateOutputType> | number
+        }
+      }
+    }
+    AssignedMembership: {
+      payload: Prisma.$AssignedMembershipPayload<ExtArgs>
+      fields: Prisma.AssignedMembershipFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.AssignedMembershipFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssignedMembershipPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.AssignedMembershipFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssignedMembershipPayload>
+        }
+        findFirst: {
+          args: Prisma.AssignedMembershipFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssignedMembershipPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.AssignedMembershipFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssignedMembershipPayload>
+        }
+        findMany: {
+          args: Prisma.AssignedMembershipFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssignedMembershipPayload>[]
+        }
+        create: {
+          args: Prisma.AssignedMembershipCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssignedMembershipPayload>
+        }
+        createMany: {
+          args: Prisma.AssignedMembershipCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.AssignedMembershipCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssignedMembershipPayload>[]
+        }
+        delete: {
+          args: Prisma.AssignedMembershipDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssignedMembershipPayload>
+        }
+        update: {
+          args: Prisma.AssignedMembershipUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssignedMembershipPayload>
+        }
+        deleteMany: {
+          args: Prisma.AssignedMembershipDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.AssignedMembershipUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.AssignedMembershipUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssignedMembershipPayload>[]
+        }
+        upsert: {
+          args: Prisma.AssignedMembershipUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssignedMembershipPayload>
+        }
+        aggregate: {
+          args: Prisma.AssignedMembershipAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateAssignedMembership>
+        }
+        groupBy: {
+          args: Prisma.AssignedMembershipGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AssignedMembershipGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.AssignedMembershipCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AssignedMembershipCountAggregateOutputType> | number
+        }
+      }
+    }
+    DailyTokenUsage: {
+      payload: Prisma.$DailyTokenUsagePayload<ExtArgs>
+      fields: Prisma.DailyTokenUsageFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.DailyTokenUsageFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DailyTokenUsagePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.DailyTokenUsageFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DailyTokenUsagePayload>
+        }
+        findFirst: {
+          args: Prisma.DailyTokenUsageFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DailyTokenUsagePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.DailyTokenUsageFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DailyTokenUsagePayload>
+        }
+        findMany: {
+          args: Prisma.DailyTokenUsageFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DailyTokenUsagePayload>[]
+        }
+        create: {
+          args: Prisma.DailyTokenUsageCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DailyTokenUsagePayload>
+        }
+        createMany: {
+          args: Prisma.DailyTokenUsageCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.DailyTokenUsageCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DailyTokenUsagePayload>[]
+        }
+        delete: {
+          args: Prisma.DailyTokenUsageDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DailyTokenUsagePayload>
+        }
+        update: {
+          args: Prisma.DailyTokenUsageUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DailyTokenUsagePayload>
+        }
+        deleteMany: {
+          args: Prisma.DailyTokenUsageDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.DailyTokenUsageUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.DailyTokenUsageUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DailyTokenUsagePayload>[]
+        }
+        upsert: {
+          args: Prisma.DailyTokenUsageUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DailyTokenUsagePayload>
+        }
+        aggregate: {
+          args: Prisma.DailyTokenUsageAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateDailyTokenUsage>
+        }
+        groupBy: {
+          args: Prisma.DailyTokenUsageGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.DailyTokenUsageGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.DailyTokenUsageCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.DailyTokenUsageCountAggregateOutputType> | number
+        }
+      }
+    }
+    TokenLimitStopLog: {
+      payload: Prisma.$TokenLimitStopLogPayload<ExtArgs>
+      fields: Prisma.TokenLimitStopLogFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.TokenLimitStopLogFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenLimitStopLogPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.TokenLimitStopLogFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenLimitStopLogPayload>
+        }
+        findFirst: {
+          args: Prisma.TokenLimitStopLogFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenLimitStopLogPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.TokenLimitStopLogFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenLimitStopLogPayload>
+        }
+        findMany: {
+          args: Prisma.TokenLimitStopLogFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenLimitStopLogPayload>[]
+        }
+        create: {
+          args: Prisma.TokenLimitStopLogCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenLimitStopLogPayload>
+        }
+        createMany: {
+          args: Prisma.TokenLimitStopLogCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.TokenLimitStopLogCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenLimitStopLogPayload>[]
+        }
+        delete: {
+          args: Prisma.TokenLimitStopLogDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenLimitStopLogPayload>
+        }
+        update: {
+          args: Prisma.TokenLimitStopLogUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenLimitStopLogPayload>
+        }
+        deleteMany: {
+          args: Prisma.TokenLimitStopLogDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.TokenLimitStopLogUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.TokenLimitStopLogUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenLimitStopLogPayload>[]
+        }
+        upsert: {
+          args: Prisma.TokenLimitStopLogUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenLimitStopLogPayload>
+        }
+        aggregate: {
+          args: Prisma.TokenLimitStopLogAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateTokenLimitStopLog>
+        }
+        groupBy: {
+          args: Prisma.TokenLimitStopLogGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.TokenLimitStopLogGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.TokenLimitStopLogCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.TokenLimitStopLogCountAggregateOutputType> | number
+        }
+      }
+    }
+    UserAlert: {
+      payload: Prisma.$UserAlertPayload<ExtArgs>
+      fields: Prisma.UserAlertFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.UserAlertFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserAlertPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.UserAlertFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserAlertPayload>
+        }
+        findFirst: {
+          args: Prisma.UserAlertFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserAlertPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.UserAlertFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserAlertPayload>
+        }
+        findMany: {
+          args: Prisma.UserAlertFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserAlertPayload>[]
+        }
+        create: {
+          args: Prisma.UserAlertCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserAlertPayload>
+        }
+        createMany: {
+          args: Prisma.UserAlertCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.UserAlertCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserAlertPayload>[]
+        }
+        delete: {
+          args: Prisma.UserAlertDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserAlertPayload>
+        }
+        update: {
+          args: Prisma.UserAlertUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserAlertPayload>
+        }
+        deleteMany: {
+          args: Prisma.UserAlertDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.UserAlertUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.UserAlertUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserAlertPayload>[]
+        }
+        upsert: {
+          args: Prisma.UserAlertUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$UserAlertPayload>
+        }
+        aggregate: {
+          args: Prisma.UserAlertAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateUserAlert>
+        }
+        groupBy: {
+          args: Prisma.UserAlertGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.UserAlertGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.UserAlertCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.UserAlertCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -1613,6 +1988,11 @@ export const AssignedAgentScalarFieldEnum = {
   expiresAt: 'expiresAt',
   durationDays: 'durationDays',
   isActive: 'isActive',
+  monthlyTokenLimit: 'monthlyTokenLimit',
+  threshold50Notified: 'threshold50Notified',
+  threshold80Notified: 'threshold80Notified',
+  threshold90Notified: 'threshold90Notified',
+  threshold100Notified: 'threshold100Notified',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -1651,6 +2031,11 @@ export const AssignedGroupScalarFieldEnum = {
   expiresAt: 'expiresAt',
   durationDays: 'durationDays',
   isActive: 'isActive',
+  monthlyTokenLimit: 'monthlyTokenLimit',
+  threshold50Notified: 'threshold50Notified',
+  threshold80Notified: 'threshold80Notified',
+  threshold90Notified: 'threshold90Notified',
+  threshold100Notified: 'threshold100Notified',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -1758,15 +2143,87 @@ export const UserAgentTokenUsageScalarFieldEnum = {
   id: 'id',
   oauthId: 'oauthId',
   agentName: 'agentName',
-  inputTokens: 'inputTokens',
-  outputTokens: 'outputTokens',
-  totalTokens: 'totalTokens',
-  tokenLimit: 'tokenLimit',
+  totalUsedInputTokens: 'totalUsedInputTokens',
+  totalUsedOutputTokens: 'totalUsedOutputTokens',
+  totalUsedTokens: 'totalUsedTokens',
+  totalTokensLeft: 'totalTokensLeft',
+  totalTokenLimit: 'totalTokenLimit',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
 
 export type UserAgentTokenUsageScalarFieldEnum = (typeof UserAgentTokenUsageScalarFieldEnum)[keyof typeof UserAgentTokenUsageScalarFieldEnum]
+
+
+export const MembershipTemplateScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  durationDays: 'durationDays',
+  monthlyTokenLimit: 'monthlyTokenLimit',
+  includedAgents: 'includedAgents',
+  includedGroupIds: 'includedGroupIds',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type MembershipTemplateScalarFieldEnum = (typeof MembershipTemplateScalarFieldEnum)[keyof typeof MembershipTemplateScalarFieldEnum]
+
+
+export const AssignedMembershipScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  membershipTemplateId: 'membershipTemplateId',
+  startsAt: 'startsAt',
+  expiresAt: 'expiresAt',
+  isActive: 'isActive',
+  threshold50Notified: 'threshold50Notified',
+  threshold80Notified: 'threshold80Notified',
+  threshold90Notified: 'threshold90Notified',
+  threshold100Notified: 'threshold100Notified',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AssignedMembershipScalarFieldEnum = (typeof AssignedMembershipScalarFieldEnum)[keyof typeof AssignedMembershipScalarFieldEnum]
+
+
+export const DailyTokenUsageScalarFieldEnum = {
+  id: 'id',
+  oauthId: 'oauthId',
+  agentName: 'agentName',
+  date: 'date',
+  inputTokens: 'inputTokens',
+  outputTokens: 'outputTokens',
+  totalTokens: 'totalTokens',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type DailyTokenUsageScalarFieldEnum = (typeof DailyTokenUsageScalarFieldEnum)[keyof typeof DailyTokenUsageScalarFieldEnum]
+
+
+export const TokenLimitStopLogScalarFieldEnum = {
+  id: 'id',
+  oauthId: 'oauthId',
+  agentName: 'agentName',
+  reason: 'reason',
+  attemptedTokens: 'attemptedTokens',
+  createdAt: 'createdAt'
+} as const
+
+export type TokenLimitStopLogScalarFieldEnum = (typeof TokenLimitStopLogScalarFieldEnum)[keyof typeof TokenLimitStopLogScalarFieldEnum]
+
+
+export const UserAlertScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  type: 'type',
+  message: 'message',
+  read: 'read',
+  createdAt: 'createdAt'
+} as const
+
+export type UserAlertScalarFieldEnum = (typeof UserAlertScalarFieldEnum)[keyof typeof UserAlertScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -2125,6 +2582,11 @@ export type GlobalOmitConfig = {
   tagField?: Prisma.TagFieldOmit
   tag?: Prisma.TagOmit
   userAgentTokenUsage?: Prisma.UserAgentTokenUsageOmit
+  membershipTemplate?: Prisma.MembershipTemplateOmit
+  assignedMembership?: Prisma.AssignedMembershipOmit
+  dailyTokenUsage?: Prisma.DailyTokenUsageOmit
+  tokenLimitStopLog?: Prisma.TokenLimitStopLogOmit
+  userAlert?: Prisma.UserAlertOmit
 }
 
 /* Types for Logging */
