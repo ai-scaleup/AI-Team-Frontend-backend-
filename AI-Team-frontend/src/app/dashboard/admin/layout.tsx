@@ -11,7 +11,6 @@ import {
   Users,
   LogOut
 } from "lucide-react";
-import { useEffect, useState } from "react";
 
 const ADMIN_EMAILS = [
   "digitalcoachai@gmail.com",
@@ -21,13 +20,8 @@ const ADMIN_EMAILS = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoaded } = useUser();
   const pathname = usePathname();
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  useEffect(() => {
-    if (!isLoaded) return;
-    const email = user?.primaryEmailAddress?.emailAddress;
-    setIsAdmin(!!email && ADMIN_EMAILS.includes(email));
-  }, [user, isLoaded]);
+  const email = user?.primaryEmailAddress?.emailAddress;
+  const isAdmin = !!email && ADMIN_EMAILS.includes(email);
 
   if (!isLoaded) {
     return (
@@ -57,9 +51,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   ];
 
   return (
-    <div className="flex min-h-screen bg-[#020617] text-white">
+    <div className="flex h-screen overflow-hidden bg-[#020617] text-white">
       {/* Sidebar */}
-      <aside className="w-64 flex-shrink-0 border-r border-white/10 bg-[#0B1221]">
+      <aside className="relative h-screen w-64 flex-shrink-0 border-r border-white/10 bg-[#0B1221]">
         <div className="flex h-16 items-center border-b border-white/10 px-6">
           <h1 className="text-lg font-bold bg-gradient-to-r from-sky-400 to-indigo-400 bg-clip-text text-transparent">AI Team Admin</h1>
         </div>
@@ -95,7 +89,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="h-screen min-w-0 flex-1 overflow-y-auto custom-scrollbar">
         {children}
       </main>
     </div>

@@ -1,21 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import {
   Bot, Users, Plus, ShieldCheck, MoreVertical, Search, CreditCard,
-  AlertTriangle, ToggleLeft, ToggleRight, Trash2, MessageSquare, Save, Zap
+  AlertTriangle, ToggleLeft, ToggleRight, Trash2, MessageSquare, Save, Zap,
+  X, Loader2, Pencil
 } from "lucide-react";
 
-// Mock Data
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "https://ai-team-server.onrender.com";
+
 const SINGLE_AGENTS = [
   "SARA_AI", "JENNIFER_AI", "CHIARA_AI", "JIM", "ALEX", "MIKE", "TONY", 
   "LARA", "VALENTINA", "DANIELE", "SIMONE", "NIKO", "ALADINO", "LAURA", "DAN"
-];
-
-const MOCK_TEAMS = [
-  { id: 1, name: "Marketing Powerhouse", agents: ["SARA_AI", "JENNIFER_AI", "JIM"], users: 142 },
-  { id: 2, name: "Sales Closers", agents: ["ALEX", "MIKE", "TONY", "CHIARA_AI"], users: 89 },
-  { id: 3, name: "Customer Support Tier 1", agents: ["LARA", "VALENTINA", "DANIELE"], users: 312 },
 ];
 
 const MOCK_MEMBERSHIPS = [
@@ -50,6 +46,28 @@ interface AlertThreshold {
   message: string;
 }
 
+interface AgentTeam {
+  id: string;
+  name: string;
+  description?: string | null;
+  agents: string[];
+  users?: number;
+}
+
+interface AgentGroupListItem {
+  id: string;
+  name: string;
+  description?: string | null;
+}
+
+interface AgentGroupListResponse {
+  data?: AgentGroupListItem[];
+}
+
+interface AgentGroupDetails extends AgentGroupListItem {
+  agents?: string[];
+}
+
 const DEFAULT_ALERTS: AlertThreshold[] = [
   { id: "a1", percentage: 50, level: "info", message: "You've used 50% of your conversation tokens. Consider wrapping up soon." },
   { id: "a2", percentage: 75, level: "warning", message: "⚠️ 75% of conversation tokens used. You're approaching the limit." },
@@ -64,6 +82,21 @@ const ALERT_LEVEL_STYLES: Record<string, { badge: string; border: string }> = {
 
 export default function AgentsAndTeamsPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [teams, setTeams] = useState<AgentTeam[]>([]);
+  const [isLoadingTeams, setIsLoadingTeams] = useState(true);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [teamName, setTeamName] = useState("");
+  const [teamDescription, setTeamDescription] = useState("");
+  const [selectedTeamAgents, setSelectedTeamAgents] = useState<string[]>([]);
+  const [isCreatingTeam, setIsCreatingTeam] = useState(false);
+  const [deletingTeamId, setDeletingTeamId] = useState<string | null>(null);
+  const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
+  const [editTeamName, setEditTeamName] = useState("");
+  const [editTeamDescription, setEditTeamDescription] = useState("");
+  const [editTeamAgents, setEditTeamAgents] = useState<string[]>([]);
+  const [isUpdatingTeam, setIsUpdatingTeam] = useState(false);
+  const [teamMessage, setTeamMessage] = useState<string | null>(null);
+  const [teamError, setTeamError] = useState<string | null>(null);
 
   // Conversation Limits state
   const [globalMode, setGlobalMode] = useState(true);
@@ -75,8 +108,242 @@ export default function AgentsAndTeamsPage() {
 
   const filteredAgents = SINGLE_AGENTS.filter(a => a.toLowerCase().includes(searchTerm.toLowerCase()));
 
+  const loadTeams = async () => {
+    setIsLoadingTeams(true);
+    setTeamError(null);
+
+    try {
+      const response = await fetch(`${API_BASE}/admin/groups?limit=100&sortBy=createdAt&sortOrder=desc`, {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      const payload = (await response.json()) as AgentGroupListResponse | AgentGroupListItem[];
+      const groups = Array.isArray(payload) ? payload : payload.data ?? [];
+
+      const details = await Promise.all(
+        groups.map(async (group) => {
+          const detailResponse = await fetch(`${API_BASE}/admin/groups/${group.id}`, {
+            cache: "no-store",
+          });
+
+          if (!detailResponse.ok) {
+            return { ...group, agents: [] };
+          }
+
+          return (await detailResponse.json()) as AgentGroupDetails;
+        }),
+      );
+
+      setTeams(
+        details.map((group) => ({
+          id: group.id,
+          name: group.name,
+          description: group.description,
+          agents: group.agents ?? [],
+        })),
+      );
+    } catch (error) {
+      setTeamError(error instanceof Error ? error.message : "Unable to load teams.");
+      setTeams([]);
+    } finally {
+      setIsLoadingTeams(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadTeams();
+  }, []);
+
   const updateAgentLimit = (agent: string, value: number) => {
     setPerAgentLimits(prev => ({ ...prev, [agent]: value }));
+  };
+
+  const toggleTeamAgent = (agent: string) => {
+    setSelectedTeamAgents(prev =>
+      prev.includes(agent) ? prev.filter(item => item !== agent) : [...prev, agent],
+    );
+  };
+
+  const toggleEditTeamAgent = (agent: string) => {
+    setEditTeamAgents(prev =>
+      prev.includes(agent) ? prev.filter(item => item !== agent) : [...prev, agent],
+    );
+  };
+
+  const resetCreateTeamForm = () => {
+    setTeamName("");
+    setTeamDescription("");
+    setSelectedTeamAgents([]);
+  };
+
+  const startEditingTeam = (team: AgentTeam) => {
+    setTeamError(null);
+    setTeamMessage(null);
+    setEditingTeamId(team.id);
+    setEditTeamName(team.name);
+    setEditTeamDescription(team.description ?? "");
+    setEditTeamAgents(team.agents);
+  };
+
+  const cancelEditingTeam = () => {
+    setEditingTeamId(null);
+    setEditTeamName("");
+    setEditTeamDescription("");
+    setEditTeamAgents([]);
+  };
+
+  const createTeam = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setTeamError(null);
+    setTeamMessage(null);
+
+    if (!teamName.trim()) {
+      setTeamError("Team name is required.");
+      return;
+    }
+
+    if (selectedTeamAgents.length === 0) {
+      setTeamError("Select at least one agent for the team.");
+      return;
+    }
+
+    setIsCreatingTeam(true);
+
+    try {
+      const response = await fetch(`${API_BASE}/admin/groups-with-agents`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: teamName.trim(),
+          description: teamDescription.trim() || undefined,
+          isActive: true,
+          agentNames: selectedTeamAgents,
+        }),
+      });
+
+      if (!response.ok) {
+        const detail = await response.text();
+        throw new Error(detail || "Unable to create team.");
+      }
+
+      const result = await response.json();
+      const group = result.group as AgentGroupListItem;
+
+      setTeams(prev => [
+        {
+          id: group.id,
+          name: group.name,
+          description: group.description,
+          agents: selectedTeamAgents,
+        },
+        ...prev,
+      ]);
+      setTeamMessage(`Created "${teamName.trim()}".`);
+      resetCreateTeamForm();
+      setIsCreateOpen(false);
+    } catch (error) {
+      setTeamError(error instanceof Error ? error.message : "Unable to create team.");
+    } finally {
+      setIsCreatingTeam(false);
+    }
+  };
+
+  const deleteTeam = async (team: AgentTeam) => {
+    setTeamError(null);
+    setTeamMessage(null);
+
+    const confirmed = window.confirm(`Delete "${team.name}"? This will remove the team and its user assignments.`);
+    if (!confirmed) return;
+
+    setDeletingTeamId(team.id);
+
+    try {
+      const response = await fetch(`${API_BASE}/admin/groups/${team.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const detail = await response.text();
+        throw new Error(detail || "Unable to delete team.");
+      }
+
+      setTeams(prev => prev.filter(item => item.id !== team.id));
+      setTeamMessage(`Deleted "${team.name}".`);
+    } catch (error) {
+      setTeamError(error instanceof Error ? error.message : "Unable to delete team.");
+    } finally {
+      setDeletingTeamId(null);
+    }
+  };
+
+  const updateTeam = async (team: AgentTeam) => {
+    setTeamError(null);
+    setTeamMessage(null);
+
+    if (!editTeamName.trim()) {
+      setTeamError("Team name is required.");
+      return;
+    }
+
+    if (editTeamAgents.length === 0) {
+      setTeamError("Select at least one agent for the team.");
+      return;
+    }
+
+    setIsUpdatingTeam(true);
+
+    try {
+      const groupResponse = await fetch(`${API_BASE}/admin/groups/${team.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editTeamName.trim(),
+          description: editTeamDescription.trim() || undefined,
+          isActive: true,
+        }),
+      });
+
+      if (!groupResponse.ok) {
+        const detail = await groupResponse.text();
+        throw new Error(detail || "Unable to update team.");
+      }
+
+      const agentsResponse = await fetch(`${API_BASE}/admin/groups/${team.id}/agents`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agentNames: editTeamAgents }),
+      });
+
+      if (!agentsResponse.ok) {
+        const detail = await agentsResponse.text();
+        throw new Error(detail || "Unable to update team agents.");
+      }
+
+      const updatedGroup = (await groupResponse.json()) as AgentGroupListItem;
+
+      setTeams(prev =>
+        prev.map(item =>
+          item.id === team.id
+            ? {
+                ...item,
+                name: updatedGroup.name,
+                description: updatedGroup.description,
+                agents: editTeamAgents,
+              }
+            : item,
+        ),
+      );
+      setTeamMessage(`Updated "${editTeamName.trim()}".`);
+      cancelEditingTeam();
+    } catch (error) {
+      setTeamError(error instanceof Error ? error.message : "Unable to update team.");
+    } finally {
+      setIsUpdatingTeam(false);
+    }
   };
 
   const addAlert = () => {
@@ -112,33 +379,218 @@ export default function AgentsAndTeamsPage() {
         <div className="lg:col-span-2 space-y-8">
           
           {/* Teams Section */}
-          <section className="rounded-2xl border border-white/10 bg-[#0F172A] p-6">
-            <div className="flex items-center justify-between mb-6">
+          <section className="flex max-h-[calc(100vh-9rem)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0F172A] p-6">
+            <div className="mb-6 flex shrink-0 items-center justify-between">
               <h2 className="text-lg font-semibold flex items-center gap-2">
                 <Users size={20} className="text-indigo-400" /> Agent Teams
               </h2>
-              <button className="flex items-center gap-2 rounded-xl bg-indigo-500/10 px-4 py-2 text-sm font-medium text-indigo-400 transition hover:bg-indigo-500/20">
-                <Plus size={16} /> Create Team
+              <button
+                onClick={() => {
+                  setIsCreateOpen(prev => !prev);
+                  setTeamError(null);
+                  setTeamMessage(null);
+                }}
+                className="flex items-center gap-2 rounded-xl bg-indigo-500/10 px-4 py-2 text-sm font-medium text-indigo-400 transition hover:bg-indigo-500/20"
+              >
+                {isCreateOpen ? <X size={16} /> : <Plus size={16} />}
+                {isCreateOpen ? "Close" : "Create Team"}
               </button>
             </div>
+
+            {isCreateOpen && (
+              <form
+                onSubmit={createTeam}
+                className="mb-6 shrink-0 rounded-xl border border-indigo-400/20 bg-indigo-500/[0.04] p-4"
+              >
+                <div className="grid grid-cols-1 gap-3">
+                  <div>
+                    <label className="mb-1.5 block text-xs text-white/50">Team name</label>
+                    <input
+                      value={teamName}
+                      onChange={(event) => setTeamName(event.target.value)}
+                      placeholder="Marketing Powerhouse"
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-indigo-400/60"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs text-white/50">Description</label>
+                    <input
+                      value={teamDescription}
+                      onChange={(event) => setTeamDescription(event.target.value)}
+                      placeholder="Optional team description"
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-indigo-400/60"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <label className="mb-2 block text-xs text-white/50">Agents</label>
+                  <div className="flex flex-wrap gap-2">
+                    {SINGLE_AGENTS.map(agent => {
+                      const isSelected = selectedTeamAgents.includes(agent);
+                      return (
+                        <button
+                          key={agent}
+                          type="button"
+                          onClick={() => toggleTeamAgent(agent)}
+                          className={`rounded-lg border px-2.5 py-1.5 text-xs transition ${
+                            isSelected
+                              ? "border-indigo-400/60 bg-indigo-500/20 text-indigo-200"
+                              : "border-white/10 bg-white/5 text-white/55 hover:border-white/20 hover:text-white/80"
+                          }`}
+                        >
+                          {agent}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="mt-4 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={isCreatingTeam}
+                    className="flex items-center gap-2 rounded-xl bg-indigo-600/90 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isCreatingTeam ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
+                    Create Team
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {(teamError || teamMessage) && (
+              <div
+                className={`mb-4 shrink-0 rounded-xl border px-4 py-3 text-sm ${
+                  teamError
+                    ? "border-red-400/20 bg-red-500/10 text-red-200"
+                    : "border-emerald-400/20 bg-emerald-500/10 text-emerald-200"
+                }`}
+              >
+                {teamError ?? teamMessage}
+              </div>
+            )}
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {MOCK_TEAMS.map(team => (
+            <div className="grid min-h-0 grid-cols-1 gap-4 overflow-y-auto pr-2 md:grid-cols-2 custom-scrollbar">
+              {isLoadingTeams && (
+                <div className="md:col-span-2 flex items-center justify-center gap-2 rounded-xl border border-white/5 bg-white/5 p-8 text-sm text-white/45">
+                  <Loader2 size={16} className="animate-spin" />
+                  Loading teams...
+                </div>
+              )}
+
+              {!isLoadingTeams && teams.length === 0 && (
+                <div className="md:col-span-2 rounded-xl border border-white/5 bg-white/5 p-8 text-center text-sm text-white/35">
+                  No agent teams found.
+                </div>
+              )}
+
+              {!isLoadingTeams && teams.map(team => (
                 <div key={team.id} className="rounded-xl border border-white/5 bg-white/5 p-4 hover:bg-white/10 transition">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold text-white/90">{team.name}</h3>
-                    <button className="text-white/40 hover:text-white"><MoreVertical size={16} /></button>
-                  </div>
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {team.agents.map(agent => (
-                      <span key={agent} className="rounded-md bg-white/10 px-2 py-1 text-xs text-white/70">
-                        {agent}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-white/40">
-                    <Users size={14} /> {team.users} active users
-                  </div>
+                  {editingTeamId === team.id ? (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-1 gap-3">
+                        <div>
+                          <label className="mb-1.5 block text-xs text-white/45">Team name</label>
+                          <input
+                            value={editTeamName}
+                            onChange={(event) => setEditTeamName(event.target.value)}
+                            className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-indigo-400/60"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs text-white/45">Description</label>
+                          <input
+                            value={editTeamDescription}
+                            onChange={(event) => setEditTeamDescription(event.target.value)}
+                            placeholder="Optional team description"
+                            className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-indigo-400/60"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="mb-2 block text-xs text-white/45">Agents</label>
+                        <div className="flex flex-wrap gap-2">
+                          {SINGLE_AGENTS.map(agent => {
+                            const isSelected = editTeamAgents.includes(agent);
+                            return (
+                              <button
+                                key={agent}
+                                type="button"
+                                onClick={() => toggleEditTeamAgent(agent)}
+                                className={`rounded-lg border px-2.5 py-1.5 text-xs transition ${
+                                  isSelected
+                                    ? "border-indigo-400/60 bg-indigo-500/20 text-indigo-200"
+                                    : "border-white/10 bg-white/5 text-white/55 hover:border-white/20 hover:text-white/80"
+                                }`}
+                              >
+                                {agent}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={cancelEditingTeam}
+                          disabled={isUpdatingTeam}
+                          className="rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-white/60 transition hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateTeam(team)}
+                          disabled={isUpdatingTeam}
+                          className="flex items-center gap-2 rounded-lg bg-indigo-600/90 px-3 py-2 text-xs font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {isUpdatingTeam ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                          Save
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-semibold text-white/90">{team.name}</h3>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => startEditingTeam(team)}
+                            title="Edit team"
+                            className="rounded-lg p-1.5 text-white/35 transition hover:bg-indigo-500/10 hover:text-indigo-300"
+                          >
+                            <Pencil size={15} />
+                          </button>
+                          <button
+                            onClick={() => deleteTeam(team)}
+                            disabled={deletingTeamId === team.id}
+                            title="Delete team"
+                            className="rounded-lg p-1.5 text-white/35 transition hover:bg-red-500/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {deletingTeamId === team.id ? (
+                              <Loader2 size={15} className="animate-spin" />
+                            ) : (
+                              <Trash2 size={15} />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {team.agents.map(agent => (
+                          <span key={agent} className="rounded-md bg-white/10 px-2 py-1 text-xs text-white/70">
+                            {agent}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-white/40">
+                        <Users size={14} />
+                        {typeof team.users === "number" ? `${team.users} active user` : "Assigned users managed by email"}
+                      </div>
+                    </>
+                  )}
                 </div>
               ))}
             </div>
@@ -391,7 +843,7 @@ export default function AgentsAndTeamsPage() {
         </div>
 
         {/* Right Col: Single Agents */}
-        <div className="rounded-2xl border border-white/10 bg-[#0F172A] p-6 h-max">
+        <div className="sticky top-8 flex max-h-[calc(100vh-4rem)] flex-col rounded-2xl border border-white/10 bg-[#0F172A] p-6">
            <h2 className="text-lg font-semibold mb-6 flex items-center gap-2">
             <Bot size={20} className="text-sky-400" /> Single Agents
           </h2>
@@ -407,7 +859,7 @@ export default function AgentsAndTeamsPage() {
             />
           </div>
 
-          <div className="space-y-2 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-2 custom-scrollbar">
             {filteredAgents.map(agent => (
               <div key={agent} className="flex items-center justify-between rounded-xl bg-white/5 p-3 hover:bg-white/10 transition">
                 <div className="flex items-center gap-3">

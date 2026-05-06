@@ -1187,7 +1187,7 @@ export default function App() {
             `\n\nUSER_PROFILE_DATA: ${JSON.stringify(userPrefs)}`,
           sessionId: sessionId,
           useMemory: useMemory,
-          metadata: { namespace: CURRENT_NAMESPACE.current, source: activeAgentId },
+          metadata: { namespace: CURRENT_NAMESPACE.current, source: activeAgentId, email: userEmail },
           chatId: currentChatIdForSend,
         }),
       })
@@ -1228,11 +1228,38 @@ export default function App() {
               })
             } else if (obj.type === "done") {
               break
+            } else if (typeof obj.output === "string") {
+              // plain JSON response from N8N: { "output": "..." }
+              rawText = obj.output
+              setMessages((prev) => {
+                const newMsgs = [...prev]
+                newMsgs[newMsgs.length - 1].text = rawText
+                return newMsgs
+              })
+            } else if (Array.isArray(obj) && typeof obj[0]?.output === "string") {
+              // array format: [{ "output": "..." }]
+              rawText = obj[0].output
+              setMessages((prev) => {
+                const newMsgs = [...prev]
+                newMsgs[newMsgs.length - 1].text = rawText
+                return newMsgs
+              })
             }
           } catch (e) {
             console.error("Failed to parse JSON chunk:", e, "Line:", trimmed)
           }
         }
+      }
+
+      // Fallback: if rawText still empty, try parsing the remaining buffer as plain JSON
+      if (!rawText && buffer.trim()) {
+        try {
+          const obj = JSON.parse(buffer.trim())
+          if (typeof obj.output === "string") rawText = obj.output
+          else if (Array.isArray(obj) && typeof obj[0]?.output === "string") rawText = obj[0].output
+          else if (typeof obj.text === "string") rawText = obj.text
+          else if (typeof obj.message === "string") rawText = obj.message
+        } catch (e) { /* not JSON */ }
       }
 
       const finalAiMessage: Message = {

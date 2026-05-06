@@ -1,31 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
-  ComposedChart, Bar
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from "recharts";
 import {
   UserPlus, Calendar, CreditCard, Activity, TrendingUp, Search,
-  ChevronDown, Bot, Users, Award, MoreVertical, Edit2, Clock,
-  DollarSign, Euro
+  Bot, Users, Clock,
+  DollarSign, Euro, Loader2, CheckCircle2, AlertCircle
 } from "lucide-react";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "https://ai-team-server.onrender.com";
 
 /* ──────────────────────────── MOCK DATA ──────────────────────────── */
 
 const ALL_AGENTS = [
   "SARA_AI", "JENNIFER_AI", "CHIARA_AI", "JIM", "ALEX", "MIKE", "TONY",
   "LARA", "VALENTINA", "DANIELE", "SIMONE", "NIKO", "ALADINO", "LAURA", "DAN",
-]
+  "MAX", "SOFIA", "ROBERTA", "TEST_JIM", "TEST_ALEX", "TEST_MIKE", "TEST_TONY",
+  "TEST_LARA", "TEST_VALENTINA", "TEST_DANIELE", "TEST_SIMONE", "TEST_NIKO",
+  "TEST_ALADINO", "TEST_LAURA", "TEST_DAN", "TEST_MAX", "TEST_SOFIA",
+  "TEST_ROBERTA", "TEST_SARA_AI", "TEST_JENNIFER_AI", "TEST_CHIARA_AI",
+];
 
 //ddd
-
-const MOCK_TEAMS = [
-  { name: "Marketing Powerhouse", agents: ["SARA_AI", "JENNIFER_AI", "JIM"] },
-  { name: "Sales Closers", agents: ["ALEX", "MIKE", "TONY", "CHIARA_AI"] },
-  { name: "Customer Support Tier 1", agents: ["LARA", "VALENTINA", "DANIELE"] },
-  { name: "Content Creators", agents: ["LAURA", "DAN", "SIMONE"] },
-];
 
 const MOCK_MEMBERSHIPS = [
   { name: "1 year Sara AI", duration: 365, tokens: 500000 },
@@ -131,6 +129,25 @@ const EUR_RATE = 0.92; // 1 USD = 0.92 EUR
 
 type CurrencyMode = "tokens" | "USD" | "EUR";
 
+type AgentTeam = {
+  id: string;
+  name: string;
+  agents: string[];
+};
+
+type AgentGroupListItem = {
+  id: string;
+  name: string;
+};
+
+type AgentGroupListResponse = {
+  data?: AgentGroupListItem[];
+};
+
+type AgentGroupDetails = AgentGroupListItem & {
+  agents?: string[];
+};
+
 const formatTokensAsCost = (tokens: number, currency: CurrencyMode): string => {
   if (currency === "tokens") {
     if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)}M`;
@@ -158,6 +175,18 @@ const formatAxisValue = (value: number, currency: CurrencyMode): string => {
   }
   return `$${usd.toFixed(2)}`;
 };
+
+async function parseApiError(response: Response) {
+  try {
+    const payload = await response.json();
+    if (typeof payload?.message === "string") return payload.message;
+    if (Array.isArray(payload?.message)) return payload.message.join(", ");
+  } catch {
+    // Fall back to status text.
+  }
+
+  return response.statusText || "Request failed";
+}
 
 /* ──────────────── CURRENCY TOGGLE COMPONENT ──────────────── */
 
@@ -202,6 +231,14 @@ function CurrencyToggle({
 
 export default function AssignAndMetricsPage() {
   const [assignType, setAssignType] = useState<"membership" | "team" | "agent">("membership");
+  const [userEmail, setUserEmail] = useState("");
+  const [selectedAssignment, setSelectedAssignment] = useState(MOCK_MEMBERSHIPS[0].name);
+  const [durationDays, setDurationDays] = useState(MOCK_MEMBERSHIPS[0].duration);
+  const [monthlyTokenLimit, setMonthlyTokenLimit] = useState(MOCK_MEMBERSHIPS[0].tokens);
+  const [teams, setTeams] = useState<AgentTeam[]>([]);
+  const [isLoadingTeams, setIsLoadingTeams] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [assignmentMessage, setAssignmentMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [selectedAgentTab, setSelectedAgentTab] = useState("SARA_AI");
   const [visibleAgents, setVisibleAgents] = useState<string[]>(["SARA_AI", "JENNIFER_AI", "CHIARA_AI", "JIM"]);
   const [currency, setCurrency] = useState<CurrencyMode>("tokens");
@@ -216,6 +253,189 @@ export default function AssignAndMetricsPage() {
     Membership: "bg-emerald-500/20 text-emerald-400",
     Team: "bg-indigo-500/20 text-indigo-400",
     Agent: "bg-sky-500/20 text-sky-400",
+  };
+
+  const loadTeams = async () => {
+    setIsLoadingTeams(true);
+
+    try {
+      const response = await fetch(`${API_BASE}/admin/groups?limit=100&sortBy=createdAt&sortOrder=desc`, {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        throw new Error(await parseApiError(response));
+      }
+
+      const payload = (await response.json()) as AgentGroupListResponse | AgentGroupListItem[];
+      const groups = Array.isArray(payload) ? payload : payload.data ?? [];
+      const details = await Promise.all(
+        groups.map(async (group) => {
+          const detailResponse = await fetch(`${API_BASE}/admin/groups/${group.id}`, {
+            cache: "no-store",
+          });
+
+          if (!detailResponse.ok) {
+            return { ...group, agents: [] };
+          }
+
+          return (await detailResponse.json()) as AgentGroupDetails;
+        }),
+      );
+
+      const loadedTeams = details.map((group) => ({
+        id: group.id,
+        name: group.name,
+        agents: group.agents ?? [],
+      }));
+
+      setTeams(loadedTeams);
+      if (assignType === "team" && !loadedTeams.some((team) => team.id === selectedAssignment)) {
+        setSelectedAssignment(loadedTeams[0]?.id ?? "");
+      }
+    } catch (error) {
+      setTeams([]);
+      setAssignmentMessage({
+        type: "error",
+        text: error instanceof Error ? error.message : "Unable to load teams.",
+      });
+    } finally {
+      setIsLoadingTeams(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadTeams();
+  }, []);
+
+  const updateAssignType = (type: "membership" | "team" | "agent") => {
+    setAssignType(type);
+    setAssignmentMessage(null);
+
+    if (type === "membership") {
+      setSelectedAssignment(MOCK_MEMBERSHIPS[0].name);
+      setDurationDays(MOCK_MEMBERSHIPS[0].duration);
+      setMonthlyTokenLimit(MOCK_MEMBERSHIPS[0].tokens);
+      return;
+    }
+
+    if (type === "team") {
+      setSelectedAssignment(teams[0]?.id ?? "");
+      setDurationDays(30);
+      return;
+    }
+
+    setSelectedAssignment(ALL_AGENTS[0]);
+    setDurationDays(30);
+    setMonthlyTokenLimit(100000);
+  };
+
+  const handleAssignmentChange = (value: string) => {
+    setSelectedAssignment(value);
+
+    if (assignType === "membership") {
+      const membership = MOCK_MEMBERSHIPS.find((item) => item.name === value);
+      if (membership) {
+        setDurationDays(membership.duration);
+        setMonthlyTokenLimit(membership.tokens);
+      }
+    }
+  };
+
+  const applyAssignment = async () => {
+    const email = userEmail.trim();
+
+    if (!email) {
+      setAssignmentMessage({ type: "error", text: "User email is required." });
+      return;
+    }
+
+    if (assignType === "team" && !selectedAssignment) {
+      setAssignmentMessage({
+        type: "error",
+        text: "Select a team to assign.",
+      });
+      return;
+    }
+
+    if (!Number.isInteger(durationDays) || durationDays < 1) {
+      setAssignmentMessage({
+        type: "error",
+        text: "Duration must be at least 1 day.",
+      });
+      return;
+    }
+
+    if (assignType === "agent" && (!Number.isInteger(monthlyTokenLimit) || monthlyTokenLimit < 0)) {
+      setAssignmentMessage({
+        type: "error",
+        text: "Token assignment must be a non-negative integer.",
+      });
+      return;
+    }
+
+    setIsAssigning(true);
+    setAssignmentMessage(null);
+
+    try {
+      if (assignType === "team") {
+        const selectedTeam = teams.find((team) => team.id === selectedAssignment);
+        const response = await fetch(`${API_BASE}/admin/group-assignments`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email,
+            selector: { groupId: selectedAssignment },
+            durationDays,
+            isActive: true,
+            alsoAssignAgents: true,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+
+        setAssignmentMessage({
+          type: "success",
+          text: `${selectedTeam?.name ?? "Team"} assigned to ${email} for ${durationDays} days.`,
+        });
+        return;
+      }
+
+      if (assignType === "agent") {
+        const response = await fetch(
+          `${API_BASE}/token-usage/${encodeURIComponent(email)}/${encodeURIComponent(selectedAssignment)}/limit`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ totalTokenLimit: monthlyTokenLimit }),
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error(await parseApiError(response));
+        }
+
+        setAssignmentMessage({
+          type: "success",
+          text: `${monthlyTokenLimit.toLocaleString()} tokens assigned to ${selectedAssignment} for ${email}.`,
+        });
+        return;
+      }
+
+      setAssignmentMessage({
+        type: "error",
+        text: "Membership assignment is not connected yet.",
+      });
+    } catch (error) {
+      setAssignmentMessage({
+        type: "error",
+        text: error instanceof Error ? error.message : "Unable to apply assignment.",
+      });
+    } finally {
+      setIsAssigning(false);
+    }
   };
 
   return (
@@ -239,16 +459,13 @@ export default function AssignAndMetricsPage() {
             <UserPlus size={20} className="text-indigo-400" /> New Assignment
           </h2>
 
-          <form className="space-y-5">
-            {/* User Email */}
-            <div>
-              <label className="text-xs text-white/50 mb-1.5 block">User Email</label>
-              <div className="relative">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
-                <input type="email" placeholder="Search user by email..." className="w-full rounded-xl border border-white/10 bg-white/5 p-3 pl-9 text-sm text-white outline-none focus:border-indigo-500 transition" />
-              </div>
-            </div>
-
+          <form
+            className="space-y-5"
+            onSubmit={(event) => {
+              event.preventDefault();
+              applyAssignment();
+            }}
+          >
             {/* Assignment Type Tabs */}
             <div>
               <label className="text-xs text-white/50 mb-1.5 block">Assignment Type</label>
@@ -257,7 +474,7 @@ export default function AssignAndMetricsPage() {
                   <button
                     key={type}
                     type="button"
-                    onClick={() => setAssignType(type)}
+                    onClick={() => updateAssignType(type)}
                     className={`rounded-lg py-2 text-xs font-semibold capitalize transition ${
                       assignType === type
                         ? "bg-indigo-500/20 text-indigo-400 ring-1 ring-indigo-500/30"
@@ -273,45 +490,96 @@ export default function AssignAndMetricsPage() {
               </div>
             </div>
 
+            {/* User Email */}
+            <div>
+              <label className="text-xs text-white/50 mb-1.5 block">User Email</label>
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+                <input
+                  type="email"
+                  value={userEmail}
+                  onChange={(e) => setUserEmail(e.target.value)}
+                  placeholder="Search user by email..."
+                  className="w-full rounded-xl border border-white/10 bg-white/5 p-3 pl-9 text-sm text-white outline-none focus:border-indigo-500 transition"
+                />
+              </div>
+            </div>
+
             {/* Dynamic Package Selector */}
             <div>
               <label className="text-xs text-white/50 mb-1.5 block">
                 {assignType === "membership" ? "Select Membership" : assignType === "team" ? "Select Team" : "Select Agent"}
               </label>
-              <select className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white outline-none focus:border-indigo-500 appearance-none transition">
-                {assignType === "membership" && MOCK_MEMBERSHIPS.map((m) => <option key={m.name}>{m.name} — {m.duration}d / {(m.tokens / 1000).toFixed(0)}k tokens</option>)}
-                {assignType === "team" && MOCK_TEAMS.map((t) => <option key={t.name}>{t.name} ({t.agents.length} agents)</option>)}
-                {assignType === "agent" && ALL_AGENTS.map((a) => <option key={a}>{a}</option>)}
+              <select
+                value={selectedAssignment}
+                onChange={(e) => handleAssignmentChange(e.target.value)}
+                disabled={assignType === "team" && isLoadingTeams}
+                className="w-full rounded-xl border border-white/10 bg-[#111827] p-3 text-sm text-white outline-none transition focus:border-indigo-500 disabled:cursor-wait disabled:opacity-60"
+                style={{ colorScheme: "dark" }}
+              >
+                {assignType === "membership" && MOCK_MEMBERSHIPS.map((m) => <option key={m.name} value={m.name}>{m.name} — {m.duration}d / {(m.tokens / 1000).toFixed(0)}k tokens</option>)}
+                {assignType === "team" && (
+                  isLoadingTeams
+                    ? <option value="">Loading teams...</option>
+                    : teams.length > 0
+                      ? teams.map((team) => <option key={team.id} value={team.id}>{team.name} ({team.agents.length} agents)</option>)
+                      : <option value="">No teams available</option>
+                )}
+                {assignType === "agent" && ALL_AGENTS.map((a) => <option key={a} value={a}>{a}</option>)}
               </select>
             </div>
 
             {/* Duration & Token Limit */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className={`grid gap-4 ${assignType === "team" ? "grid-cols-1" : "grid-cols-2"}`}>
               <div>
                 <label className="text-xs text-white/50 mb-1.5 block">Duration (Days)</label>
                 <div className="relative">
                   <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
                   <input
                     type="number"
-                    defaultValue={assignType === "membership" ? 365 : 30}
+                    value={durationDays}
+                    onChange={(e) => setDurationDays(Number(e.target.value))}
                     className="w-full rounded-xl border border-white/10 bg-white/5 p-3 pl-9 text-sm text-white outline-none focus:border-indigo-500 transition"
                   />
                 </div>
               </div>
-              <div>
-                <label className="text-xs text-white/50 mb-1.5 block">Monthly Token Limit</label>
-                <div className="relative">
-                  <CreditCard size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
-                  <input
-                    type="number"
-                    defaultValue={100000}
-                    className="w-full rounded-xl border border-white/10 bg-white/5 p-3 pl-9 text-sm text-white outline-none focus:border-indigo-500 transition"
-                  />
+              {assignType !== "team" && (
+                <div>
+                  <label className="text-xs text-white/50 mb-1.5 block">Token Assignment</label>
+                  <div className="relative">
+                    <CreditCard size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={monthlyTokenLimit}
+                      onChange={(e) => setMonthlyTokenLimit(Number(e.target.value))}
+                      className="w-full rounded-xl border border-white/10 bg-white/5 p-3 pl-9 text-sm text-white outline-none focus:border-indigo-500 transition"
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
-            <button type="button" className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-semibold text-white transition hover:bg-indigo-500 shadow-lg shadow-indigo-500/20">
+            {assignmentMessage && (
+              <div
+                className={`flex items-start gap-2 rounded-xl border px-3 py-2.5 text-xs ${
+                  assignmentMessage.type === "success"
+                    ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-200"
+                    : "border-red-500/20 bg-red-500/10 text-red-200"
+                }`}
+              >
+                {assignmentMessage.type === "success" ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
+                <span>{assignmentMessage.text}</span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={isAssigning}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60 shadow-lg shadow-indigo-500/20"
+            >
+              {isAssigning && <Loader2 size={16} className="animate-spin" />}
               Apply Assignment
             </button>
           </form>
@@ -418,7 +686,7 @@ export default function AssignAndMetricsPage() {
               <Tooltip
                 contentStyle={{ backgroundColor: "#0f172a", borderColor: "#ffffff15", borderRadius: "10px", fontSize: "12px" }}
                 itemStyle={{ color: "#fff" }}
-                formatter={((value: number, name: string) => [formatTokensAsCost(value, currency), name]) as any}
+                formatter={(value, name) => [formatTokensAsCost(Number(value), currency), String(name)]}
                 labelStyle={{ color: "#ffffff80" }}
               />
               {Object.entries(AGENT_COLORS).map(([agent, color]) =>
@@ -493,7 +761,7 @@ export default function AssignAndMetricsPage() {
               <Tooltip
                 contentStyle={{ backgroundColor: "#0f172a", borderColor: "#ffffff15", borderRadius: "10px", fontSize: "12px" }}
                 itemStyle={{ color: "#fff" }}
-                formatter={((value: number, name: string) => [formatTokensAsCost(value, currency), name]) as any}
+                formatter={(value, name) => [formatTokensAsCost(Number(value), currency), String(name)]}
                 labelStyle={{ color: "#ffffff80" }}
               />
               {Object.entries(AGENT_COLORS).map(([agent, color]) =>
