@@ -833,7 +833,7 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
                       </g>
                     );
                   }
-                  return <g key={`no-stop-${payload.date}`} />;
+                  return <g key={`no-stop-${payload?.date ?? 'unknown'}`} />;
                 }}
                 yAxisId={1}
               />
