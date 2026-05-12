@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Image from "next/image"
 
 import { SignedIn, SignedOut, SignInButton, SignUpButton, useUser } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
@@ -157,10 +158,10 @@ const Navbar = ({ isDark, toggleTheme }: { isDark: boolean; toggleTheme: () => v
               Home
             </a>
             <a
-              href="#luca-voice"
+              href="#agents"
               className="text-gray-600 dark:text-gray-300 hover:text-[#0284c7] dark:hover:text-[#0ea5e9] transition px-3 py-2 rounded-md text-sm font-medium flex items-center hover:bg-black/5 dark:hover:bg-white/5"
             >
-              <MicIcon size={16} className="mr-2" /> Luca Voice AI
+              <BotIcon size={16} className="mr-2" /> AI Agents
             </a>
             <SignedOut>
               <SignUpButton mode="modal" forceRedirectUrl="/dashboard">
@@ -251,12 +252,12 @@ const Hero = () => (
             </div>
           </SignedIn>
           <a
-            href="#luca-voice"
+            href="#agents"
             className="relative overflow-hidden group flex items-center justify-center px-10 py-4 border border-gray-300 dark:border-white/20 text-lg font-semibold rounded-full text-gray-700 dark:text-gray-200 bg-white/50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition backdrop-blur-sm"
           >
             <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-gray-200/30 dark:via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition duration-1000"></span>
-            <MicIcon className="mr-3 text-[#0284c7] dark:text-[#0ea5e9] group-hover:scale-110 transition" />
-            Parla con Luca AI
+            <BotIcon size={20} className="mr-3 text-[#0284c7] dark:text-[#0ea5e9] group-hover:scale-110 transition" />
+            Scopri gli AI Agents
           </a>
         </div>
       </div>
@@ -287,71 +288,187 @@ const Hero = () => (
   </section>
 )
 
-const LucaVoiceInterface = () => {
-  const lucaFaceUrl = "https://www.ai-scaleup.com/wp-content/uploads/2025/06/Luca-AI.png"
+const SHOWCASE_AGENTS = [
+  { key: "ALEX",      name: "Alex AI",      role: "Cross-Platform ADs Manager",              image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Alex-AI.png"       },
+  { key: "TONY",      name: "Tony AI",      role: "Direttore Commerciale",                   image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Tony-AI.png"       },
+  { key: "MIKE",      name: "Mike AI",      role: "Direttore Marketing",                     image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Mike-AI.png"       },
+  { key: "LARA",      name: "Lara AI",      role: "Social Media Manager",                    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Lara-AI-1.png"    },
+  { key: "SIMONE",    name: "Simone AI",    role: "SEO Copywriter",                          image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/SImone-ai.png"    },
+  { key: "ALADINO",   name: "Aladino AI",   role: "Creatore di nuove offerte e prodotti",    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Aladdin-AI.png"   },
+  { key: "VALENTINA", name: "Valentina AI", role: "SEO Optimizer",                           image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Valentina-AI.png" },
+  { key: "NIKO",      name: "Niko AI",      role: "SEO Manager",                             image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Niko-AI.png"      },
+  { key: "JIM",       name: "Jim AI",       role: "Coach di Vendite",                        image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/JIM-ai.png"       },
+  { key: "DANIELE",   name: "Daniele AI",   role: "Copywriter per Vendere (Direct Response)",image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Daniele-ai.png"   },
+]
 
-  // Dynamic import to avoid SSR issues
-  const [Widget, setWidget] = useState<any>(null)
+const AgentShowcase = () => (
+  <section
+    id="agents"
+    className="relative py-16 overflow-hidden bg-[#020617] border-t border-white/5"
+  >
+    <style jsx global>{`
+      .lp-bg-tech-grid {
+        background-image:
+          linear-gradient(rgba(14, 165, 233, 0.05) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(14, 165, 233, 0.05) 1px, transparent 1px);
+        background-size: 40px 40px;
+      }
+      .lp-glass-card {
+        background: rgba(17, 24, 39, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(10px);
+        transition: all 0.3s ease;
+      }
+      .lp-glass-card:hover {
+        box-shadow: 0 0 25px rgba(14, 165, 233, 0.3), inset 0 0 0 1px rgba(14, 165, 233, 0.4);
+        border-color: rgba(14, 165, 233, 0.5);
+      }
+      .lp-manager-card {
+        box-shadow: 0 0 30px rgba(229, 43, 80, 0.25);
+        border-color: rgba(229, 43, 80, 0.8) !important;
+        animation: lp-manager-pulse 3s infinite alternate;
+      }
+      .lp-manager-card:hover {
+        box-shadow: 0 0 60px rgba(229, 43, 80, 0.5), inset 0 0 0 2px rgba(229, 43, 80, 0.6);
+      }
+      @keyframes lp-manager-pulse {
+        0%   { box-shadow: 0 0 20px rgba(229, 43, 80, 0.2); }
+        100% { box-shadow: 0 0 40px rgba(229, 43, 80, 0.4); }
+      }
+      @keyframes lp-pulse-green-strong {
+        0%   { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.9); opacity: 1; }
+        50%  { opacity: 0.8; }
+        100% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); opacity: 1; }
+      }
+      .lp-status-dot-active { animation: lp-pulse-green-strong 1.5s infinite ease-in-out; }
+      .lp-character-image {
+        mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
+        -webkit-mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
+      }
+      @keyframes lp-scanline {
+        0%   { transform: translateY(-100%); }
+        100% { transform: translateY(100%); }
+      }
+      .lp-hologram-bg {
+        background-image: linear-gradient(transparent 50%, rgba(0, 0, 0, 0.5) 50%);
+        background-size: 100% 4px;
+      }
+      .lp-scan-bar {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background: linear-gradient(to bottom, transparent, rgba(14, 165, 233, 0.2), transparent);
+        animation: lp-scanline 2s linear infinite;
+        pointer-events: none;
+      }
+      .lp-manager-scan-bar {
+        background: linear-gradient(to bottom, transparent, rgba(229, 43, 80, 0.3), transparent);
+      }
+    `}</style>
 
-  useEffect(() => {
-    import('@/components/ui/LucaVoiceWidget').then((mod) => {
-      setWidget(() => mod.default)
-    })
-  }, [])
+    <div className="lp-bg-tech-grid absolute inset-0 pointer-events-none" />
 
-  return (
-    <section
-      id="luca-voice"
-      className="min-h-screen flex items-center relative overflow-hidden py-24 bg-gray-50 dark:bg-[#0B1120]/95 border-t border-gray-200 dark:border-white/5 transition-colors duration-300"
-    >
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100vw] h-[100vh] bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#0284c7]/5 via-transparent to-transparent dark:from-[#0284c7]/20 dark:via-[#0B1120] dark:to-[#0B1120] opacity-50 -z-10"></div>
-      <div className="absolute inset-0 bg-tech-pattern opacity-5 dark:opacity-5 invert dark:invert-0 -z-5 transition-all duration-300"></div>
+    <div style={{ fontFamily: "'Rajdhani', sans-serif" }} className="mx-auto w-full max-w-[1600px] px-4 py-2 sm:px-6 lg:px-8 text-white">
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
-        <div className="glass-panel rounded-[3rem] shadow-2xl overflow-hidden border-2 border-white/50 dark:border-white/10 p-8 lg:p-20 flex flex-col lg:flex-row items-center justify-between gap-16 relative group hover:border-[#0284c7]/20 dark:hover:border-white/20 transition duration-700">
-          <div className="absolute inset-0 bg-gradient-to-r from-[#0ea5e9]/5 via-transparent to-[#8b5cf6]/5 opacity-0 group-hover:opacity-100 transition duration-700 pointer-events-none"></div>
-
-          <div className="lg:w-5/12 text-center lg:text-left z-10">
-            <div className="relative w-48 h-48 mx-auto lg:mx-0 mb-10 group/avatar cursor-pointer">
-              <div className="absolute inset-0 bg-[#0284c7] dark:bg-[#0ea5e9] rounded-full blur-[60px] opacity-20 dark:opacity-30 group-hover/avatar:opacity-40 dark:group-hover/avatar:opacity-60 transition duration-500 animate-pulse-slow"></div>
-              <div className="w-full h-full rounded-full p-1 bg-gradient-to-br from-[#0284c7] via-blue-400 to-[#8b5cf6] dark:from-[#0ea5e9] dark:via-blue-500 dark:to-[#8b5cf6] relative z-10 shadow-xl transform group-hover/avatar:scale-105 transition duration-300">
-                <img
-                  src={lucaFaceUrl || "/placeholder.svg"}
-                  alt="Luca AI Coach"
-                  className="w-full h-full object-cover rounded-full border-4 border-white dark:border-[#0B1120]"
-                />
-              </div>
-              <div className="absolute bottom-2 right-2 w-8 h-8 bg-green-500 border-4 border-white dark:border-[#0B1120] rounded-full z-20 shadow-[0_0_15px_#22c55e] animate-bounce"></div>
-            </div>
-
-            <h2 className="text-5xl font-black text-gray-900 dark:text-white mb-4 leading-tight transition-colors duration-300 font-tech">
-              Parla con{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0284c7] to-blue-500 dark:from-[#0ea5e9] dark:to-blue-300">
-                Luca AI
-              </span>
-            </h2>
-            <h3 className="text-2xl text-[#0284c7] dark:text-[#0ea5e9] font-bold uppercase tracking-wider mb-8 transition-colors duration-300">
-              Il tuo AI Coach
-            </h3>
-
-            <p className="text-2xl font-medium text-gray-600 dark:text-gray-300 leading-relaxed max-w-xl mx-auto lg:mx-0 transition-colors duration-300">
-              &quot;Condividi con me le tue sfide e i tuoi obiettivi e ti spiegherò come puoi raggiungerli grazie a un
-              team di AI Agents che lavora per te.&quot;
-            </p>
+      {/* Header — exact copy of dashboard header */}
+      <header className="relative mb-4">
+        <div className="space-y-0.5 mb-2">
+          <p className="text-[#0ea5e9] text-xs font-bold tracking-[0.15em] uppercase pl-1">Command Center</p>
+          <h2 className="text-4xl md:text-5xl font-bold leading-none tracking-tight text-white">
+            IL TUO AI TEAM:<br />
+            <span className="text-[#0ea5e9]">sfrutta i Super Poteri dei tuoi Ai Agents</span><br />
+            <span className="text-white">per Distruggere i Competitor</span>
+          </h2>
+        </div>
+        <div className="flex justify-end mt-[-50px] mb-4 gap-4">
+          <div className="backdrop-blur-md border rounded-xl px-5 py-2 min-w-[130px] bg-[#111827]/80 border-white/5">
+            <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5 text-gray-400">Agenti Attivi</p>
+            <p className="text-xl font-bold text-white">10/10</p>
           </div>
-
-          <div className="lg:w-7/12">
-            {Widget ? <Widget /> : (
-              <div className="flex items-center justify-center h-96">
-                <div className="text-gray-400">Caricamento interfaccia vocale...</div>
-              </div>
-            )}
+          <div className="backdrop-blur-md border rounded-xl px-5 py-2 min-w-[130px] bg-[#111827]/80 border-white/5">
+            <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5 text-gray-400">Task Completati</p>
+            <p className="text-xl font-bold text-[#0ea5e9]">1,240</p>
           </div>
         </div>
+      </header>
+
+      <section>
+        <h2 className="mb-3 text-xl font-bold tracking-wide flex items-center gap-3 text-white">
+          <span className="w-1.5 h-6 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full"></span>
+          I tuoi Agenti AI assegnati
+        </h2>
+        <div className="overflow-x-auto pb-4">
+          <main className="grid grid-cols-5 gap-4 min-w-[1200px] lg:gap-5 xl:gap-6">
+            {SHOWCASE_AGENTS.map((agent) => {
+              const isManager = agent.name === "Mike AI"
+              return (
+                <div key={agent.key} className="group">
+                  <div className={`relative w-full aspect-[3/4] lp-glass-card rounded-2xl overflow-hidden hover:-translate-y-2 transition-all duration-500 cursor-pointer ${isManager ? "lp-manager-card" : ""}`}>
+                    <div className={`absolute inset-0 bg-gradient-to-t from-[#020617] via-transparent to-transparent opacity-90 z-10 pointer-events-none`}></div>
+
+                    <div className="absolute inset-0 w-full h-full">
+                      <Image
+                        src={agent.image}
+                        alt={agent.name}
+                        fill
+                        className="object-cover object-top transition duration-700 group-hover:scale-105 lp-character-image"
+                      />
+                    </div>
+
+                    <div className="absolute top-4 right-4 z-30">
+                      <div className="flex items-center gap-2 bg-black/40 backdrop-blur-sm px-2 py-1 rounded-full border border-green-500/30">
+                        <div className="w-2 h-2 rounded-full bg-green-500 lp-status-dot-active"></div>
+                        <span className="text-[10px] font-bold text-green-400 uppercase tracking-wider">Active</span>
+                      </div>
+                    </div>
+
+                    <div className="absolute bottom-0 left-0 w-full p-4 z-20 flex flex-col justify-end h-full group-hover:opacity-0 transition-opacity duration-300">
+                      <div className="transform translate-y-2">
+                        <div className={`border-l-4 pl-3 mb-1 ${isManager ? "border-[#E52B50]" : "border-[#0ea5e9]"}`}>
+                          <h3 className={`text-2xl font-bold leading-none drop-shadow-md ${isManager ? "text-[#E52B50]" : "text-white"}`}>{agent.name}</h3>
+                          <p className={`text-xs font-bold tracking-widest uppercase mt-1 ${isManager ? "text-[#E52B50]" : "text-[#0ea5e9]"}`}>{agent.role}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={`absolute inset-0 z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex flex-col items-center justify-center p-5 text-center lp-hologram-bg backdrop-blur-md bg-[#020617]/90`}>
+                      <div className={`lp-scan-bar ${isManager ? "lp-manager-scan-bar" : ""}`}></div>
+                      <div className="relative z-10 transform scale-95 group-hover:scale-100 transition-transform duration-500 delay-75">
+                        <h3 className={`text-xl font-bold mb-1 ${isManager ? "text-[#E52B50]" : "text-[#0ea5e9]"}`}>{agent.name}</h3>
+                        <p className="text-[10px] uppercase tracking-widest mb-3 text-gray-400">{agent.role}</p>
+                        <div className={`h-px w-10 mx-auto mb-3 ${isManager ? "bg-[#E52B50]" : "bg-[#0ea5e9]"}`}></div>
+                        <p className="text-xs font-medium leading-relaxed px-2 text-white">Clicca per accedere alla dashboard di {agent.name}</p>
+                        <div className={`mt-4 px-4 py-1.5 rounded border font-bold uppercase text-[10px] tracking-widest inline-block ${isManager ? "border-[#E52B50] text-[#E52B50]" : "border-[#0ea5e9] text-[#0ea5e9]"}`}>Accedi</div>
+                      </div>
+                      <div className={`absolute top-3 left-3 w-3 h-3 border-t-2 border-l-2 ${isManager ? "border-[#E52B50]" : "border-[#0ea5e9]"}`}></div>
+                      <div className={`absolute top-3 right-3 w-3 h-3 border-t-2 border-r-2 ${isManager ? "border-[#E52B50]" : "border-[#0ea5e9]"}`}></div>
+                      <div className={`absolute bottom-3 left-3 w-3 h-3 border-b-2 border-l-2 ${isManager ? "border-[#E52B50]" : "border-[#0ea5e9]"}`}></div>
+                      <div className={`absolute bottom-3 right-3 w-3 h-3 border-b-2 border-r-2 ${isManager ? "border-[#E52B50]" : "border-[#0ea5e9]"}`}></div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </main>
+        </div>
+      </section>
+
+      <div className="text-center mt-10">
+        <SignedOut>
+          <SignUpButton mode="modal" forceRedirectUrl="/dashboard">
+            <button className="bg-[#0284c7] hover:bg-[#0ea5e9] text-white font-bold py-4 px-12 rounded-full text-lg transition-all shadow-[0_0_20px_rgba(14,165,233,0.4)] hover:-translate-y-1">
+              Accedi al tuo AI Team →
+            </button>
+          </SignUpButton>
+        </SignedOut>
+        <SignedIn>
+          <button onClick={() => (window.location.href = "/dashboard")} className="bg-[#0284c7] hover:bg-[#0ea5e9] text-white font-bold py-4 px-12 rounded-full text-lg transition-all shadow-[0_0_20px_rgba(14,165,233,0.4)] hover:-translate-y-1">
+            Vai alla Dashboard →
+          </button>
+        </SignedIn>
       </div>
-    </section>
-  )
-}
+    </div>
+  </section>
+)
 
 const AssessmentCTA = () => (
   <section
@@ -608,7 +725,7 @@ export default function Home() {
         <Navbar isDark={isDark} toggleTheme={toggleTheme} />
         <main className="flex-grow">
           <Hero />
-          <LucaVoiceInterface />
+          <AgentShowcase />
           <AssessmentCTA />
         </main>
         <Footer />
