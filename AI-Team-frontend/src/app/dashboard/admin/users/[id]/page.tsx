@@ -911,7 +911,7 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
                       </g>
                     );
                   }
-                  return <g key={`wns-${payload.week}`} />;
+                  return <g key={`wns-${payload?.week ?? 'unknown'}`} />;
                 }}
                 yAxisId={1}
               />
