@@ -1,4 +1,8 @@
-import { PipeTransform, ArgumentMetadata, BadRequestException } from '@nestjs/common';
+import {
+  PipeTransform,
+  ArgumentMetadata,
+  BadRequestException,
+} from '@nestjs/common';
 import { ZodSchema, ZodError } from 'zod';
 
 /**
@@ -21,18 +25,18 @@ export class ZodValidationPipe implements PipeTransform {
     console.log('Metadata metatype:', metadata.metatype);
     console.log('Raw value type:', typeof value);
     console.log('Raw value:', value);
-    
+
     // If value is undefined or null, log it
     if (value === undefined || value === null) {
       console.log('Value is undefined or null');
     }
-    
+
     // Check if it's a Buffer or other special type
     if (Buffer.isBuffer(value)) {
       console.log('Value is a Buffer, converting to string');
       value = value.toString();
     }
-    
+
     // Log the exact string representation
     if (typeof value === 'string') {
       console.log('String length:', value.length);
@@ -40,13 +44,17 @@ export class ZodValidationPipe implements PipeTransform {
       console.log('String starts with {:', value.trim().startsWith('{'));
       console.log('String starts with ":', value.startsWith('"'));
     }
-    
+
     try {
       // Handle string values that might be JSON
       let valueToValidate = value;
-      
+
       // Only process Body arguments for potential JSON parsing
-      if (metadata.type === 'body' && typeof value === 'string' && value.trim()) {
+      if (
+        metadata.type === 'body' &&
+        typeof value === 'string' &&
+        value.trim()
+      ) {
         console.log('Attempting to parse string as JSON...');
         try {
           valueToValidate = JSON.parse(value);
@@ -62,7 +70,10 @@ export class ZodValidationPipe implements PipeTransform {
               console.log('String was double-quoted, unquoted to:', unquoted);
               if (typeof unquoted === 'string') {
                 valueToValidate = JSON.parse(unquoted);
-                console.log('Successfully parsed double-encoded JSON:', valueToValidate);
+                console.log(
+                  'Successfully parsed double-encoded JSON:',
+                  valueToValidate,
+                );
               }
             } catch (e2) {
               console.log('Double-decode attempt failed:', e2.message);
@@ -70,10 +81,10 @@ export class ZodValidationPipe implements PipeTransform {
           }
         }
       }
-      
+
       console.log('Final value to validate type:', typeof valueToValidate);
       console.log('Final value to validate:', valueToValidate);
-      
+
       // Attempt to parse and validate the value using the provided schema.
       const parsedValue = this.schema.parse(valueToValidate);
       console.log('Validation successful, parsed value:', parsedValue);

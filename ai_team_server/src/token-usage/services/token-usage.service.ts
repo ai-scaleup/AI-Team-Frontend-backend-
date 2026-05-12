@@ -65,7 +65,9 @@ export class TokenUsageService {
     });
 
     if (!user) {
-      throw new NotFoundException(`User with email "${normalizedEmail}" not found`);
+      throw new NotFoundException(
+        `User with email "${normalizedEmail}" not found`,
+      );
     }
 
     return user.oauthId;
@@ -76,28 +78,37 @@ export class TokenUsageService {
       where: { oauthId },
       include: {
         agents: { where: { isActive: true } },
-        groups: { where: { isActive: true }, include: { group: { include: { items: true } } } },
-        memberships: { where: { isActive: true }, include: { template: true } }
-      }
+        groups: {
+          where: { isActive: true },
+          include: { group: { include: { items: true } } },
+        },
+        memberships: { where: { isActive: true }, include: { template: true } },
+      },
     });
-    
-    if (!user) return { limit: 100000, cycleStart: new Date(new Date().setDate(1)), userId: null };
-    
+
+    if (!user)
+      return {
+        limit: 100000,
+        cycleStart: new Date(new Date().setDate(1)),
+        userId: null,
+      };
+
     let totalLimit = 0;
     let earliestStart = new Date();
     let hasAccess = false;
 
     // Check direct
-    const directAssigned = user.agents.find(a => a.agentName === agentName);
+    const directAssigned = user.agents.find((a) => a.agentName === agentName);
     if (directAssigned) {
       hasAccess = true;
       totalLimit += directAssigned.monthlyTokenLimit || 0;
-      if (directAssigned.startsAt < earliestStart) earliestStart = directAssigned.startsAt;
+      if (directAssigned.startsAt < earliestStart)
+        earliestStart = directAssigned.startsAt;
     }
 
     // Check groups
     for (const g of user.groups) {
-      if (g.group.items.some(i => i.agentName === agentName)) {
+      if (g.group.items.some((i) => i.agentName === agentName)) {
         hasAccess = true;
         totalLimit += g.monthlyTokenLimit || 0;
         if (g.startsAt < earliestStart) earliestStart = g.startsAt;
@@ -109,11 +120,14 @@ export class TokenUsageService {
       let grants = m.template.includedAgents.includes(agentName);
       if (!grants && m.template.includedGroupIds.length > 0) {
         const groupItems = await this.prisma.agentGroupItem.findMany({
-          where: { groupId: { in: m.template.includedGroupIds as string[] }, agentName }
+          where: {
+            groupId: { in: m.template.includedGroupIds },
+            agentName,
+          },
         });
         if (groupItems.length > 0) grants = true;
       }
-      
+
       if (grants) {
         hasAccess = true;
         totalLimit += m.template.monthlyTokenLimit;
@@ -123,25 +137,36 @@ export class TokenUsageService {
 
     // fallback to legacy limit if 0
     if (totalLimit === 0) {
-      const legacy = await this.prisma.userAgentTokenUsage.findUnique({ where: { oauthId_agentName: { oauthId, agentName} }});
+      const legacy = await this.prisma.userAgentTokenUsage.findUnique({
+        where: { oauthId_agentName: { oauthId, agentName } },
+      });
       if (legacy) totalLimit = legacy.totalTokensLeft;
       else totalLimit = 100000;
     }
 
     const MS_PER_DAY = 1000 * 60 * 60 * 24;
     const now = new Date();
-    let daysSince = Math.floor((now.getTime() - earliestStart.getTime()) / MS_PER_DAY);
+    let daysSince = Math.floor(
+      (now.getTime() - earliestStart.getTime()) / MS_PER_DAY,
+    );
     if (daysSince < 0) daysSince = 0;
     const cycles = Math.floor(daysSince / 30);
-    const cycleStart = new Date(earliestStart.getTime() + cycles * 30 * MS_PER_DAY);
+    const cycleStart = new Date(
+      earliestStart.getTime() + cycles * 30 * MS_PER_DAY,
+    );
 
     return { limit: totalLimit, cycleStart, userId: user.id };
   }
 
-  private async checkThresholds(userId: string, oauthId: string, used: number, limit: number) {
+  private async checkThresholds(
+    userId: string,
+    oauthId: string,
+    used: number,
+    limit: number,
+  ) {
     if (!userId || limit <= 0) return;
     const percent = used / limit;
-    
+
     let threshold = 0;
     if (percent >= 1.0) threshold = 100;
     else if (percent >= 0.9) threshold = 90;
@@ -152,15 +177,19 @@ export class TokenUsageService {
       const typeStr = `TOKEN_THRESHOLD_${threshold}`;
       // Check if we recently alerted this threshold to avoid spamming
       const existing = await this.prisma.userAlert.findFirst({
-         where: { userId, type: typeStr, createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } }
+        where: {
+          userId,
+          type: typeStr,
+          createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+        },
       });
       if (!existing) {
         await this.prisma.userAlert.create({
           data: {
             userId,
             type: typeStr,
-            message: `You have reached ${threshold}% of your monthly token limit.`
-          }
+            message: `You have reached ${threshold}% of your monthly token limit.`,
+          },
         });
       }
     }
@@ -169,19 +198,30 @@ export class TokenUsageService {
   async callClaude(opts: ClaudeCallOptions): Promise<Anthropic.Message> {
     const { oauthId, agentName, messages, system, maxTokens = 8096 } = opts;
 
-    const { limit, cycleStart, userId } = await this.calculateUserQuota(oauthId, agentName);
+    const { limit, cycleStart, userId } = await this.calculateUserQuota(
+      oauthId,
+      agentName,
+    );
 
     // Get current cycle usage
     const cycleUsages = await this.prisma.dailyTokenUsage.findMany({
-      where: { oauthId, agentName, date: { gte: cycleStart } }
+      where: { oauthId, agentName, date: { gte: cycleStart } },
     });
-    const totalCycleUsed = cycleUsages.reduce((sum, d) => sum + d.totalTokens, 0) + 1000; // add a buffer for estimation
+    const totalCycleUsed =
+      cycleUsages.reduce((sum, d) => sum + d.totalTokens, 0) + 1000; // add a buffer for estimation
 
     if (totalCycleUsed >= limit) {
       await this.prisma.tokenLimitStopLog.create({
-        data: { oauthId, agentName, reason: 'monthly limit reached', attemptedTokens: totalCycleUsed }
+        data: {
+          oauthId,
+          agentName,
+          reason: 'monthly limit reached',
+          attemptedTokens: totalCycleUsed,
+        },
       });
-      throw new ForbiddenException(`Token limit of ${limit} reached for agent ${agentName}`);
+      throw new ForbiddenException(
+        `Token limit of ${limit} reached for agent ${agentName}`,
+      );
     }
 
     let response: Anthropic.Message;
@@ -193,7 +233,9 @@ export class TokenUsageService {
         messages,
       });
     } catch (err) {
-      throw new InternalServerErrorException(`Claude API error: ${err?.message}`);
+      throw new InternalServerErrorException(
+        `Claude API error: ${err?.message}`,
+      );
     }
 
     const input = response.usage?.input_tokens ?? 0;
@@ -206,18 +248,33 @@ export class TokenUsageService {
 
     await this.prisma.dailyTokenUsage.upsert({
       where: { oauthId_agentName_date: { oauthId, agentName, date: today } },
-      create: { oauthId, agentName, date: today, inputTokens: input, outputTokens: output, totalTokens: totalNew },
+      create: {
+        oauthId,
+        agentName,
+        date: today,
+        inputTokens: input,
+        outputTokens: output,
+        totalTokens: totalNew,
+      },
       update: {
         inputTokens: { increment: input },
         outputTokens: { increment: output },
-        totalTokens: { increment: totalNew }
-      }
+        totalTokens: { increment: totalNew },
+      },
     });
 
     // Update legacy usage tracker just to keep it in sync for total overall
     await this.prisma.userAgentTokenUsage.upsert({
       where: { oauthId_agentName: { oauthId, agentName } },
-      create: { oauthId, agentName, totalUsedInputTokens: input, totalUsedOutputTokens: output, totalUsedTokens: totalNew, totalTokensLeft: limit, totalTokenLimit: limit },
+      create: {
+        oauthId,
+        agentName,
+        totalUsedInputTokens: input,
+        totalUsedOutputTokens: output,
+        totalUsedTokens: totalNew,
+        totalTokensLeft: limit,
+        totalTokenLimit: limit,
+      },
       update: {
         totalUsedInputTokens: { increment: input },
         totalUsedOutputTokens: { increment: output },
@@ -236,12 +293,21 @@ export class TokenUsageService {
     return response;
   }
 
-  async setTokenLimit(email: string, agentName: AgentName, totalTokenLimit: number) {
+  async setTokenLimit(
+    email: string,
+    agentName: AgentName,
+    totalTokenLimit: number,
+  ) {
     const oauthId = await this.resolveEmailToOauthId(email);
 
     return this.prisma.userAgentTokenUsage.upsert({
       where: { oauthId_agentName: { oauthId, agentName } },
-      create: { oauthId, agentName, totalTokenLimit, totalTokensLeft: totalTokenLimit },
+      create: {
+        oauthId,
+        agentName,
+        totalTokenLimit,
+        totalTokensLeft: totalTokenLimit,
+      },
       update: { totalTokenLimit, totalTokensLeft: totalTokenLimit },
     });
   }
@@ -273,7 +339,14 @@ export class TokenUsageService {
 
     await this.prisma.dailyTokenUsage.upsert({
       where: { oauthId_agentName_date: { oauthId, agentName, date: today } },
-      create: { oauthId, agentName, date: today, inputTokens, outputTokens, totalTokens },
+      create: {
+        oauthId,
+        agentName,
+        date: today,
+        inputTokens,
+        outputTokens,
+        totalTokens,
+      },
       update: { inputTokens, outputTokens, totalTokens },
     });
 
@@ -314,7 +387,9 @@ export class TokenUsageService {
         totalUsedTokens: tokenCount.input_tokens,
       };
     } catch (err) {
-      throw new InternalServerErrorException(`Claude token count error: ${err?.message}`);
+      throw new InternalServerErrorException(
+        `Claude token count error: ${err?.message}`,
+      );
     }
   }
 

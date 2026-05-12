@@ -11,6 +11,7 @@ import {
   HttpStatus,
   Logger,
   InternalServerErrorException,
+  Query,
 } from '@nestjs/common';
 import {
   ApiBody,
@@ -19,6 +20,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import { z } from 'zod';
@@ -26,6 +28,8 @@ import { UserService } from '../services/user.service';
 import {
   CreateUserDto,
   createUserSchema,
+  ListUsersQueryDto,
+  listUsersQuerySchema,
   UpdateUserDto,
   updateUserSchema,
 } from '../schemas/user.schema';
@@ -64,13 +68,60 @@ export class UserController {
   // Get all users
   @Get()
   @ApiOperation({ summary: 'List all users' })
-  @ApiOkResponse({ description: 'Users returned' })
-  async findAll() {
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    example: 1,
+    description: 'Page number, starting at 1',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    example: 10,
+    description: 'Users per page, max 100',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search by email, username, membership, group, or agent',
+  })
+  @ApiOkResponse({
+    description: 'Users returned',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: { type: 'object' },
+        },
+        meta: {
+          type: 'object',
+          properties: {
+            page: { type: 'integer', example: 1 },
+            limit: { type: 'integer', example: 10 },
+            total: { type: 'integer', example: 42 },
+            totalPages: { type: 'integer', example: 5 },
+            hasNextPage: { type: 'boolean', example: true },
+            hasPreviousPage: { type: 'boolean', example: false },
+          },
+        },
+      },
+    },
+  })
+  async findAll(
+    @Query(new ZodValidationPipe(listUsersQuerySchema))
+    query: ListUsersQueryDto,
+  ) {
     try {
-      return await this.userService.findAllUsers();
+      return await this.userService.findAllUsers(query);
     } catch (err: any) {
       this.logger.error('findAllUsers failed', err?.message, err?.stack);
-      throw new InternalServerErrorException(err?.message ?? 'Failed to fetch users');
+      throw new InternalServerErrorException(
+        err?.message ?? 'Failed to fetch users',
+      );
     }
   }
 
@@ -131,12 +182,20 @@ export class UserController {
   })
   @ApiOkResponse({ description: 'User synced' })
   sync(
-    @Body(new ZodValidationPipe(z.object({
-      oauthId: z.string().min(1),
-      email: z.string().email(),
-      username: z.string().optional(),
-    })))
-    body: { oauthId: string; email: string; username?: string },
+    @Body(
+      new ZodValidationPipe(
+        z.object({
+          oauthId: z.string().min(1),
+          email: z.string().email(),
+          username: z.string().optional(),
+        }),
+      ),
+    )
+    body: {
+      oauthId: string;
+      email: string;
+      username?: string;
+    },
   ) {
     return this.userService.syncUser(body.oauthId, body.email, body.username);
   }

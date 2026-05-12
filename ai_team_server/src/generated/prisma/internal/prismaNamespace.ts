@@ -1957,6 +1957,7 @@ export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof User
 export const UserPreferenceScalarFieldEnum = {
   id: 'id',
   oauthId: 'oauthId',
+  email: 'email',
   agentName: 'agentName',
   displayName: 'displayName',
   businessName: 'businessName',

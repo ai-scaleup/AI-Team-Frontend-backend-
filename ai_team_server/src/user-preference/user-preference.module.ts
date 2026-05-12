@@ -3,9 +3,9 @@ import { UserPreferenceController } from './controllers/user-preference.controll
 import { UserPreferenceService } from './services/user-preference.service';
 
 @Module({
-    imports: [],
-    controllers: [UserPreferenceController],
-    providers: [UserPreferenceService],
-    exports: [UserPreferenceService],
+  imports: [],
+  controllers: [UserPreferenceController],
+  providers: [UserPreferenceService],
+  exports: [UserPreferenceService],
 })
-export class UserPreferenceModule { }
+export class UserPreferenceModule {}

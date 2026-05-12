@@ -1,46 +1,46 @@
 // src/admin/schema/admin.schema.ts
-import { z } from "zod";
+import { z } from 'zod';
 
 /** ===== Prisma enum mirror (24 agenti, incl. test) ===== */
 export const AgentNameEnum = z.enum([
-  "JIM",
-  "ALEX",
-  "MIKE",
-  "TONY",
-  "LARA",
-  "VALENTINA",
-  "DANIELE",
-  "SIMONE",
-  "NIKO",
-  "ALADINO",
-  "LAURA",
-  "DAN",
-  "MAX",
-  "SOFIA",
-  "ROBERTA",
-  "SARA_AI",
-  "JENNIFER_AI",
-  "CHIARA_AI",
+  'JIM',
+  'ALEX',
+  'MIKE',
+  'TONY',
+  'LARA',
+  'VALENTINA',
+  'DANIELE',
+  'SIMONE',
+  'NIKO',
+  'ALADINO',
+  'LAURA',
+  'DAN',
+  'MAX',
+  'SOFIA',
+  'ROBERTA',
+  'SARA_AI',
+  'JENNIFER_AI',
+  'CHIARA_AI',
 
   // --- test agents ---
-  "TEST_JIM",
-  "TEST_ALEX",
-  "TEST_MIKE",
-  "TEST_TONY",
-  "TEST_LARA",
-  "TEST_VALENTINA",
-  "TEST_DANIELE",
-  "TEST_SIMONE",
-  "TEST_NIKO",
-  "TEST_ALADINO",
-  "TEST_LAURA",
-  "TEST_DAN",
-  "TEST_MAX",
-  "TEST_SOFIA",
-  "TEST_ROBERTA",
-  "TEST_SARA_AI",
-  "TEST_JENNIFER_AI",
-  "TEST_CHIARA_AI",
+  'TEST_JIM',
+  'TEST_ALEX',
+  'TEST_MIKE',
+  'TEST_TONY',
+  'TEST_LARA',
+  'TEST_VALENTINA',
+  'TEST_DANIELE',
+  'TEST_SIMONE',
+  'TEST_NIKO',
+  'TEST_ALADINO',
+  'TEST_LAURA',
+  'TEST_DAN',
+  'TEST_MAX',
+  'TEST_SOFIA',
+  'TEST_ROBERTA',
+  'TEST_SARA_AI',
+  'TEST_JENNIFER_AI',
+  'TEST_CHIARA_AI',
 ]);
 
 /** ===== Helpers ===== */
@@ -50,30 +50,43 @@ const Bool = z.boolean();
 const PositiveInt = z.number().int().positive();
 
 /** Coerce Date | string -> Date; "" -> undefined; also reject invalid dates */
-const CoercedDate = z.preprocess((v) => {
-  if (typeof v === "string" && v.trim() === "") return undefined;
-  if (typeof v === "string" || v instanceof Date) return new Date(v as any);
-  return v;
-}, z.date().refine((d) => !Number.isNaN(d.getTime()), { message: "Invalid date" }));
+const CoercedDate = z.preprocess(
+  (v) => {
+    if (typeof v === 'string' && v.trim() === '') return undefined;
+    if (typeof v === 'string' || v instanceof Date) return new Date(v as any);
+    return v;
+  },
+  z
+    .date()
+    .refine((d) => !Number.isNaN(d.getTime()), { message: 'Invalid date' }),
+);
 
 /** Coerce Date | string | null -> Date|null; "" -> undefined; null -> null */
-const CoercedDateOrNull = z.preprocess((v) => {
-  if (v === null) return null;
-  if (typeof v === "string" && v.trim() === "") return undefined;
-  if (typeof v === "string" || v instanceof Date) return new Date(v as any);
-  return v;
-}, z.date().nullable().refine((d) => d === null || !Number.isNaN(d.getTime()), { message: "Invalid date" }));
+const CoercedDateOrNull = z.preprocess(
+  (v) => {
+    if (v === null) return null;
+    if (typeof v === 'string' && v.trim() === '') return undefined;
+    if (typeof v === 'string' || v instanceof Date) return new Date(v as any);
+    return v;
+  },
+  z
+    .date()
+    .nullable()
+    .refine((d) => d === null || !Number.isNaN(d.getTime()), {
+      message: 'Invalid date',
+    }),
+);
 
 /** Accept number|string for ints (e.g., from forms) */
 const CoercedPositiveInt = z.preprocess((v) => {
-  if (typeof v === "string" && v.trim() === "") return undefined;
-  if (typeof v === "string") return Number(v);
+  if (typeof v === 'string' && v.trim() === '') return undefined;
+  if (typeof v === 'string') return Number(v);
   return v;
 }, PositiveInt);
 
 /** Coerce "true"/"false"/boolean -> boolean (for querystrings) */
 const BoolFromQuery = z.preprocess((v) => {
-  if (typeof v === "string") return v === "true";
+  if (typeof v === 'string') return v === 'true';
   return v;
 }, z.boolean());
 
@@ -109,8 +122,13 @@ export const ToggleAssignmentActiveSchema = z.object({
 export const ExtendAssignmentSchema = z.object({
   id: UUID,
   addDays: z
-    .preprocess((v) => (typeof v === "string" ? Number(v) : v), z.number().int())
-    .refine((n) => Math.abs(n) <= 3650, { message: "addDays must be within ±3650" }),
+    .preprocess(
+      (v) => (typeof v === 'string' ? Number(v) : v),
+      z.number().int(),
+    )
+    .refine((n) => Math.abs(n) <= 3650, {
+      message: 'addDays must be within ±3650',
+    }),
 });
 
 /** Lookups */
@@ -123,17 +141,23 @@ export const FindUserSchema = z
     oauthId: z.string().min(1).optional(),
   })
   .refine((o) => !!(o.id || o.email || o.oauthId), {
-    message: "Provide at least one of id | email | oauthId",
-    path: ["id"],
+    message: 'Provide at least one of id | email | oauthId',
+    path: ['id'],
   });
 
 export const QueryAssignmentsSchema = z
   .object({
     page: z
-      .preprocess((v) => (typeof v === "string" ? Number(v) : v), z.number().int().min(1))
+      .preprocess(
+        (v) => (typeof v === 'string' ? Number(v) : v),
+        z.number().int().min(1),
+      )
       .default(1),
     limit: z
-      .preprocess((v) => (typeof v === "string" ? Number(v) : v), z.number().int().min(1).max(100))
+      .preprocess(
+        (v) => (typeof v === 'string' ? Number(v) : v),
+        z.number().int().min(1).max(100),
+      )
       .default(20),
 
     userId: UUID.optional(),
@@ -144,12 +168,14 @@ export const QueryAssignmentsSchema = z
     activeOnly: Bool.optional(),
     expiredOnly: Bool.optional(),
 
-    sortBy: z.enum(["createdAt", "updatedAt", "startsAt", "expiresAt", "agentName"]).default("createdAt"),
-    sortOrder: z.enum(["asc", "desc"]).default("desc"),
+    sortBy: z
+      .enum(['createdAt', 'updatedAt', 'startsAt', 'expiresAt', 'agentName'])
+      .default('createdAt'),
+    sortOrder: z.enum(['asc', 'desc']).default('desc'),
   })
   .refine((o) => !(o.activeOnly && o.expiredOnly), {
-    message: "activeOnly and expiredOnly cannot both be true",
-    path: ["activeOnly"],
+    message: 'activeOnly and expiredOnly cannot both be true',
+    path: ['activeOnly'],
   });
 
 export const BulkUpsertAssignmentsSchema = z.object({
@@ -162,12 +188,10 @@ export const BulkUpsertAssignmentsSchema = z.object({
         expiresAt: CoercedDate.optional(),
         durationDays: CoercedPositiveInt.optional(),
         isActive: Bool.optional(),
-      })
+      }),
     )
     .min(1),
 });
-
-
 
 /* ===========================================================
  * Agent Groups (admin-defined groups of AgentName)
@@ -203,15 +227,21 @@ export const ReplaceGroupAgentsSchema = z.object({
 
 export const QueryAgentGroupsSchema = z.object({
   page: z
-    .preprocess((v) => (typeof v === "string" ? Number(v) : v), z.number().int().min(1))
+    .preprocess(
+      (v) => (typeof v === 'string' ? Number(v) : v),
+      z.number().int().min(1),
+    )
     .default(1),
   limit: z
-    .preprocess((v) => (typeof v === "string" ? Number(v) : v), z.number().int().min(1).max(100))
+    .preprocess(
+      (v) => (typeof v === 'string' ? Number(v) : v),
+      z.number().int().min(1).max(100),
+    )
     .default(20),
   nameContains: z.string().trim().optional(),
   isActive: BoolFromQuery.optional(),
-  sortBy: z.enum(["createdAt", "updatedAt", "name"]).default("createdAt"),
-  sortOrder: z.enum(["asc", "desc"]).default("desc"),
+  sortBy: z.enum(['createdAt', 'updatedAt', 'name']).default('createdAt'),
+  sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });
 
 /** Group selector (by id OR by unique name) */
@@ -221,8 +251,8 @@ export const GroupSelectorSchema = z
     groupName: z.string().trim().min(1).optional(),
   })
   .refine((o) => !!(o.groupId || o.groupName), {
-    message: "Provide groupId or groupName",
-    path: ["groupId"],
+    message: 'Provide groupId or groupName',
+    path: ['groupId'],
   });
 
 /** Assign all agents from ONE group to a user (by email) */
@@ -278,19 +308,23 @@ export const CreateGroupWithAgentsAndAssignByEmailSchema = z.object({
  * =========================================================== */
 export type CreateAssignedAgentDto = z.infer<typeof CreateAssignedAgentSchema>;
 export type UpdateAssignedAgentDto = z.infer<typeof UpdateAssignedAgentSchema>;
-export type ToggleAssignmentActiveDto = z.infer<typeof ToggleAssignmentActiveSchema>;
+export type ToggleAssignmentActiveDto = z.infer<
+  typeof ToggleAssignmentActiveSchema
+>;
 export type ExtendAssignmentDto = z.infer<typeof ExtendAssignmentSchema>;
 export type QueryAssignmentsDto = z.infer<typeof QueryAssignmentsSchema>;
-export type BulkUpsertAssignmentsDto = z.infer<typeof BulkUpsertAssignmentsSchema>;
+export type BulkUpsertAssignmentsDto = z.infer<
+  typeof BulkUpsertAssignmentsSchema
+>;
 export type FindUserDto = z.infer<typeof FindUserSchema>;
 export type AssignmentByIdDto = z.infer<typeof AssignmentByIdSchema>;
-
-
 
 export type CreateAgentGroupDto = z.infer<typeof CreateAgentGroupSchema>;
 export type UpdateAgentGroupDto = z.infer<typeof UpdateAgentGroupSchema>;
 export type AddAgentsToGroupDto = z.infer<typeof AddAgentsToGroupSchema>;
-export type RemoveAgentsFromGroupDto = z.infer<typeof RemoveAgentsFromGroupSchema>;
+export type RemoveAgentsFromGroupDto = z.infer<
+  typeof RemoveAgentsFromGroupSchema
+>;
 export type ReplaceGroupAgentsDto = z.infer<typeof ReplaceGroupAgentsSchema>;
 export type QueryAgentGroupsDto = z.infer<typeof QueryAgentGroupsSchema>;
 
@@ -298,7 +332,9 @@ export type GroupSelectorDto = z.infer<typeof GroupSelectorSchema>;
 export type AssignGroupByEmailDto = z.infer<typeof AssignGroupByEmailSchema>;
 export type AssignGroupsByEmailDto = z.infer<typeof AssignGroupsByEmailSchema>;
 
-export type CreateAgentGroupWithAgentsDto = z.infer<typeof CreateAgentGroupWithAgentsSchema>;
+export type CreateAgentGroupWithAgentsDto = z.infer<
+  typeof CreateAgentGroupWithAgentsSchema
+>;
 export type CreateGroupWithAgentsAndAssignByEmailDto = z.infer<
   typeof CreateGroupWithAgentsAndAssignByEmailSchema
 >;

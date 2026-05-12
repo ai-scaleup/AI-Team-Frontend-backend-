@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Param, Query, Patch } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Body,
+  Param,
+  Query,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import {
   ApiBody,
   ApiOkResponse,
@@ -14,51 +22,6 @@ import { AdminDashboardService } from './admin-dashboard.service';
 export class AdminDashboardController {
   constructor(private readonly dashboardService: AdminDashboardService) {}
 
-  @Post('memberships')
-  @ApiOperation({ summary: 'Create a membership template' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      additionalProperties: true,
-      example: {
-        name: 'Pro',
-        durationDays: 30,
-        monthlyTokenLimit: 100000,
-        includedAgents: ['JIM'],
-        includedGroupIds: [],
-      },
-    },
-  })
-  @ApiOkResponse({ description: 'Membership created' })
-  createMembership(@Body() body: any) {
-    return this.dashboardService.createMembership(body);
-  }
-
-  @Get('memberships')
-  @ApiOperation({ summary: 'List membership templates' })
-  @ApiOkResponse({ description: 'Memberships returned' })
-  listMemberships() {
-    return this.dashboardService.listMemberships();
-  }
-
-  @Post('memberships/assign')
-  @ApiOperation({ summary: 'Assign a membership template to a user' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      required: ['userId', 'membershipTemplateId'],
-      properties: {
-        userId: { type: 'string', format: 'uuid' },
-        membershipTemplateId: { type: 'string', format: 'uuid' },
-        durationOverride: { type: 'integer', example: 30 },
-      },
-    },
-  })
-  @ApiOkResponse({ description: 'Membership assigned' })
-  assignMembership(@Body() body: { userId: string; membershipTemplateId: string; durationOverride?: number }) {
-    return this.dashboardService.assignMembership(body.userId, body.membershipTemplateId, body.durationOverride);
-  }
-
   @Get('users')
   @ApiOperation({ summary: 'List dashboard users with usage details' })
   @ApiQuery({ name: 'search', required: false })
@@ -69,6 +32,34 @@ export class AdminDashboardController {
     return this.dashboardService.listUsersDetailed(search, daysLimit);
   }
 
+  @Get('recent-assignments')
+  @ApiOperation({ summary: 'List recent assignment activity for admin dashboard' })
+  @ApiQuery({ name: 'limit', required: false, example: 6 })
+  @ApiOkResponse({ description: 'Recent assignments returned' })
+  listRecentAssignments(@Query('limit') limit?: string) {
+    const parsedLimit = limit ? parseInt(limit, 10) : 6;
+    return this.dashboardService.listRecentAssignments(parsedLimit);
+  }
+
+  @Get('usage/agent-metrics')
+  @ApiOperation({
+    summary: 'Get system-wide daily token usage and top users by agent',
+  })
+  @ApiQuery({ name: 'days', required: false, example: 30 })
+  @ApiQuery({ name: 'topLimit', required: false, example: 5 })
+  @ApiOkResponse({ description: 'Agent usage metrics returned' })
+  getAgentUsageMetrics(
+    @Query('days') days?: string,
+    @Query('topLimit') topLimit?: string,
+  ) {
+    const parsedDays = days ? parseInt(days, 10) : 30;
+    const parsedTopLimit = topLimit ? parseInt(topLimit, 10) : 5;
+    return this.dashboardService.getAgentUsageMetrics(
+      parsedDays,
+      parsedTopLimit,
+    );
+  }
+
   @Get('users/:id')
   @ApiOperation({ summary: 'Get dashboard details for one user' })
   @ApiParam({ name: 'id', format: 'uuid' })
@@ -77,6 +68,15 @@ export class AdminDashboardController {
   getUserDetails(@Param('id') id: string, @Query('days') days?: string) {
     const daysLimit = days ? parseInt(days, 10) : 30;
     return this.dashboardService.getUserDetails(id, daysLimit);
+  }
+
+  @Post('usage/reset-all')
+  @ApiOperation({
+    summary: 'Reset token usage and quota stop counters for all users',
+  })
+  @ApiOkResponse({ description: 'All usage counters reset' })
+  resetAllUsage() {
+    return this.dashboardService.resetAllUsage();
   }
 
   @Patch('users/bulk')

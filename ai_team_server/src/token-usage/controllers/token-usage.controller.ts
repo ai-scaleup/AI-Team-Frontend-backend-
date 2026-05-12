@@ -1,4 +1,12 @@
-import { Body, Controller, Get, HttpCode, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import {
   ApiBody,
   ApiOkResponse,
@@ -79,7 +87,9 @@ export class TokenUsageController {
     schema: {
       type: 'object',
       required: ['totalTokenLimit'],
-      properties: { totalTokenLimit: { type: 'integer', minimum: 0, example: 100000 } },
+      properties: {
+        totalTokenLimit: { type: 'integer', minimum: 0, example: 100000 },
+      },
     },
   })
   @ApiOkResponse({ description: 'Token limit updated' })
@@ -88,7 +98,11 @@ export class TokenUsageController {
     @Param('agentName') agentName: AgentName,
     @Body('totalTokenLimit') totalTokenLimit: number,
   ) {
-    return this.tokenUsageService.setTokenLimit(email, agentName, totalTokenLimit);
+    return this.tokenUsageService.setTokenLimit(
+      email,
+      agentName,
+      totalTokenLimit,
+    );
   }
 
   @Patch(':email/:agentName/usage')
