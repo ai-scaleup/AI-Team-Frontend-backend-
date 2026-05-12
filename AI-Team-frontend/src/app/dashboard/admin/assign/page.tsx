@@ -23,47 +23,7 @@ const ALL_AGENTS = [
   "TEST_ROBERTA", "TEST_SARA_AI", "TEST_JENNIFER_AI", "TEST_CHIARA_AI",
 ];
 
-//ddd
-
-const MOCK_MEMBERSHIPS = [
-  { name: "1 year Sara AI", duration: 365, tokens: 500000 },
-  { name: "3 months Ai Team", duration: 90, tokens: 2000000 },
-  { name: "Starter Bundle", duration: 30, tokens: 100000 },
-  { name: "1 year Ai Team", duration: 365, tokens: 5000000 },
-  { name: "6 months Jennifer AI", duration: 180, tokens: 300000 },
-];
-
-// 30 days of stacked agent usage data
-const generateDailyUsage = () => {
-  const days = [];
-  for (let i = 1; i <= 30; i++) {
-    days.push({
-      date: `Oct ${i}`,
-      SARA_AI: Math.floor(Math.random() * 8000) + 2000,
-      JENNIFER_AI: Math.floor(Math.random() * 6000) + 1000,
-      CHIARA_AI: Math.floor(Math.random() * 5000) + 800,
-      JIM: Math.floor(Math.random() * 3000) + 500,
-      ALEX: Math.floor(Math.random() * 2500) + 300,
-      MIKE: Math.floor(Math.random() * 2000) + 200,
-    });
-  }
-  return days;
-};
-const MOCK_DAILY_USAGE = generateDailyUsage();
-
-// Aggregate daily data into 4 weeks
-const MOCK_WEEKLY_USAGE = [0, 1, 2, 3].map((w) => {
-  const slice = MOCK_DAILY_USAGE.slice(w * 7, w * 7 + 7);
-  return {
-    week: `Week ${w + 1}`,
-    SARA_AI:     slice.reduce((s, d) => s + d.SARA_AI,     0),
-    JENNIFER_AI: slice.reduce((s, d) => s + d.JENNIFER_AI, 0),
-    CHIARA_AI:   slice.reduce((s, d) => s + d.CHIARA_AI,   0),
-    JIM:         slice.reduce((s, d) => s + d.JIM,         0),
-    ALEX:        slice.reduce((s, d) => s + d.ALEX,        0),
-    MIKE:        slice.reduce((s, d) => s + d.MIKE,        0),
-  };
-});
+const DEFAULT_VISIBLE_AGENTS = ["SARA_AI", "JENNIFER_AI", "CHIARA_AI", "JIM"];
 
 const AGENT_COLORS: Record<string, string> = {
   SARA_AI: "#38bdf8",
@@ -74,52 +34,21 @@ const AGENT_COLORS: Record<string, string> = {
   MIKE: "#a78bfa",
 };
 
-// Top users broken down per agent
-const MOCK_TOP_USERS_BY_AGENT: Record<string, { name: string; email: string; tokens: number }[]> = {
-  SARA_AI: [
-    { name: "Mario Rossi", email: "mario@example.com", tokens: 145200 },
-    { name: "Giulia Bianchi", email: "giulia@example.com", tokens: 98700 },
-    { name: "Luca Moretti", email: "luca@example.com", tokens: 67300 },
-    { name: "Elena Conti", email: "elena@example.com", tokens: 45800 },
-    { name: "Marco Ferraro", email: "marco@example.com", tokens: 32100 },
-  ],
-  JENNIFER_AI: [
-    { name: "Luigi Verdi", email: "luigi@example.com", tokens: 112500 },
-    { name: "Sofia Romano", email: "sofia@example.com", tokens: 87200 },
-    { name: "Andrea Colombo", email: "andrea@example.com", tokens: 54300 },
-    { name: "Chiara Ricci", email: "chiara@example.com", tokens: 38700 },
-    { name: "Davide Galli", email: "davide@example.com", tokens: 21900 },
-  ],
-  CHIARA_AI: [
-    { name: "Anna Neri", email: "anna@example.com", tokens: 76400 },
-    { name: "Francesco Mancini", email: "francesco@example.com", tokens: 65200 },
-    { name: "Valentina Costa", email: "valentina@example.com", tokens: 43100 },
-    { name: "Roberto Esposito", email: "roberto@example.com", tokens: 29800 },
-  ],
-  JIM: [
-    { name: "Paolo Gialli", email: "paolo@example.com", tokens: 45600 },
-    { name: "Alessia Marino", email: "alessia@example.com", tokens: 34200 },
-    { name: "Simone Bruno", email: "simone@example.com", tokens: 21800 },
-  ],
-  ALEX: [
-    { name: "Giorgio Greco", email: "giorgio@example.com", tokens: 38900 },
-    { name: "Federica De Luca", email: "federica@example.com", tokens: 27400 },
-  ],
-  MIKE: [
-    { name: "Matteo Fontana", email: "matteo@example.com", tokens: 19200 },
-    { name: "Laura Pellegrini", email: "laura@example.com", tokens: 14800 },
-  ],
-};
-
-// Recent assignments log
-const MOCK_RECENT_ASSIGNMENTS = [
-  { user: "mario@example.com", type: "Membership", package: "1 year Sara AI", date: "Oct 28", tokens: 500000, duration: "365d" },
-  { user: "luigi@example.com", type: "Team", package: "Marketing Powerhouse", date: "Oct 27", tokens: 200000, duration: "90d" },
-  { user: "anna@example.com", type: "Agent", package: "CHIARA_AI", date: "Oct 26", tokens: 100000, duration: "30d" },
-  { user: "paolo@example.com", type: "Agent", package: "JIM", date: "Oct 25", tokens: 150000, duration: "60d" },
-  { user: "giulia@example.com", type: "Membership", package: "3 months Ai Team", date: "Oct 24", tokens: 2000000, duration: "90d" },
-  { user: "sofia@example.com", type: "Team", package: "Sales Closers", date: "Oct 23", tokens: 300000, duration: "180d" },
+const COLOR_PALETTE = [
+  "#38bdf8",
+  "#818cf8",
+  "#34d399",
+  "#f472b6",
+  "#fb923c",
+  "#a78bfa",
+  "#fbbf24",
+  "#fb7185",
+  "#22d3ee",
+  "#c084fc",
 ];
+
+const getAgentColor = (agent: string, index = 0) =>
+  AGENT_COLORS[agent] ?? COLOR_PALETTE[index % COLOR_PALETTE.length];
 
 /* ──────────────── CURRENCY HELPERS ──────────────── */
 
@@ -146,6 +75,50 @@ type AgentGroupListResponse = {
 
 type AgentGroupDetails = AgentGroupListItem & {
   agents?: string[];
+};
+
+type MembershipTemplate = {
+  id: string;
+  name: string;
+  durationDays: number;
+  monthlyTokenLimit: number;
+  includedAgents?: string[];
+  includedGroupIds?: string[];
+};
+
+type DashboardUser = {
+  id: string;
+  email: string;
+};
+
+type RecentAssignment = {
+  id: string;
+  user: string;
+  type: "Membership" | "Team" | "Agent";
+  package: string;
+  durationDays: number | null;
+  tokens: number;
+  assignedAt: string;
+};
+
+type AgentUsagePoint = {
+  date: string;
+  week?: string;
+  total?: number;
+  [agentName: string]: string | number | undefined;
+};
+
+type TopUserByAgent = {
+  name: string;
+  email: string;
+  tokens: number;
+};
+
+type AgentMetricsResponse = {
+  agents: string[];
+  dailyUsage: AgentUsagePoint[];
+  weeklyUsage: AgentUsagePoint[];
+  topUsersByAgent: Record<string, TopUserByAgent[]>;
 };
 
 const formatTokensAsCost = (tokens: number, currency: CurrencyMode): string => {
@@ -175,6 +148,9 @@ const formatAxisValue = (value: number, currency: CurrencyMode): string => {
   }
   return `$${usd.toFixed(2)}`;
 };
+
+const formatRecentAssignmentDate = (value: string) =>
+  new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(new Date(value));
 
 async function parseApiError(response: Response) {
   try {
@@ -232,15 +208,28 @@ function CurrencyToggle({
 export default function AssignAndMetricsPage() {
   const [assignType, setAssignType] = useState<"membership" | "team" | "agent">("membership");
   const [userEmail, setUserEmail] = useState("");
-  const [selectedAssignment, setSelectedAssignment] = useState(MOCK_MEMBERSHIPS[0].name);
-  const [durationDays, setDurationDays] = useState(MOCK_MEMBERSHIPS[0].duration);
-  const [monthlyTokenLimit, setMonthlyTokenLimit] = useState(MOCK_MEMBERSHIPS[0].tokens);
+  const [selectedAssignment, setSelectedAssignment] = useState("");
+  const [durationDays, setDurationDays] = useState(30);
+  const [monthlyTokenLimit, setMonthlyTokenLimit] = useState(100000);
+  const [memberships, setMemberships] = useState<MembershipTemplate[]>([]);
+  const [isLoadingMemberships, setIsLoadingMemberships] = useState(false);
   const [teams, setTeams] = useState<AgentTeam[]>([]);
   const [isLoadingTeams, setIsLoadingTeams] = useState(false);
+  const [recentAssignments, setRecentAssignments] = useState<RecentAssignment[]>([]);
+  const [isLoadingRecentAssignments, setIsLoadingRecentAssignments] = useState(false);
+  const [recentAssignmentsError, setRecentAssignmentsError] = useState<string | null>(null);
+  const [agentMetrics, setAgentMetrics] = useState<AgentMetricsResponse>({
+    agents: [],
+    dailyUsage: [],
+    weeklyUsage: [],
+    topUsersByAgent: {},
+  });
+  const [isLoadingAgentMetrics, setIsLoadingAgentMetrics] = useState(false);
+  const [agentMetricsError, setAgentMetricsError] = useState<string | null>(null);
   const [isAssigning, setIsAssigning] = useState(false);
   const [assignmentMessage, setAssignmentMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [selectedAgentTab, setSelectedAgentTab] = useState("SARA_AI");
-  const [visibleAgents, setVisibleAgents] = useState<string[]>(["SARA_AI", "JENNIFER_AI", "CHIARA_AI", "JIM"]);
+  const [visibleAgents, setVisibleAgents] = useState<string[]>(DEFAULT_VISIBLE_AGENTS);
   const [currency, setCurrency] = useState<CurrencyMode>("tokens");
 
   const toggleAgent = (agent: string) => {
@@ -253,6 +242,46 @@ export default function AssignAndMetricsPage() {
     Membership: "bg-emerald-500/20 text-emerald-400",
     Team: "bg-indigo-500/20 text-indigo-400",
     Agent: "bg-sky-500/20 text-sky-400",
+  };
+
+  const syncMembershipSelection = (templates: MembershipTemplate[]) => {
+    const selected = templates[0];
+    if (!selected) {
+      setSelectedAssignment("");
+      return;
+    }
+
+    setSelectedAssignment(selected.id);
+    setDurationDays(selected.durationDays);
+    setMonthlyTokenLimit(selected.monthlyTokenLimit);
+  };
+
+  const loadMemberships = async () => {
+    setIsLoadingMemberships(true);
+
+    try {
+      const response = await fetch(`${API_BASE}/admin/dashboard/memberships`, {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        throw new Error(await parseApiError(response));
+      }
+
+      const templates = (await response.json()) as MembershipTemplate[];
+      setMemberships(templates);
+      if (assignType === "membership" && !templates.some((template) => template.id === selectedAssignment)) {
+        syncMembershipSelection(templates);
+      }
+    } catch (error) {
+      setMemberships([]);
+      setAssignmentMessage({
+        type: "error",
+        text: error instanceof Error ? error.message : "Unable to load memberships.",
+      });
+    } finally {
+      setIsLoadingMemberships(false);
+    }
   };
 
   const loadTeams = async () => {
@@ -304,8 +333,76 @@ export default function AssignAndMetricsPage() {
     }
   };
 
+  const loadRecentAssignments = async () => {
+    setIsLoadingRecentAssignments(true);
+    setRecentAssignmentsError(null);
+
+    try {
+      const response = await fetch(`${API_BASE}/admin/dashboard/recent-assignments?limit=6`, {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        throw new Error(await parseApiError(response));
+      }
+
+      setRecentAssignments((await response.json()) as RecentAssignment[]);
+    } catch (error) {
+      setRecentAssignments([]);
+      setRecentAssignmentsError(error instanceof Error ? error.message : "Unable to load recent assignments.");
+    } finally {
+      setIsLoadingRecentAssignments(false);
+    }
+  };
+
+  const loadAgentMetrics = async () => {
+    setIsLoadingAgentMetrics(true);
+    setAgentMetricsError(null);
+
+    try {
+      const response = await fetch(`${API_BASE}/admin/dashboard/usage/agent-metrics?days=30&topLimit=5`, {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        throw new Error(await parseApiError(response));
+      }
+
+      const metrics = (await response.json()) as AgentMetricsResponse;
+      const agents = Array.isArray(metrics.agents) ? metrics.agents : [];
+      setAgentMetrics({
+        agents,
+        dailyUsage: Array.isArray(metrics.dailyUsage) ? metrics.dailyUsage : [],
+        weeklyUsage: Array.isArray(metrics.weeklyUsage) ? metrics.weeklyUsage : [],
+        topUsersByAgent: metrics.topUsersByAgent ?? {},
+      });
+
+      if (agents.length > 0) {
+        setSelectedAgentTab((current) => (agents.includes(current) ? current : agents[0]));
+        setVisibleAgents((current) => {
+          const stillVisible = current.filter((agent) => agents.includes(agent));
+          if (stillVisible.length > 0) return stillVisible;
+          return agents.slice(0, 6);
+        });
+      }
+    } catch (error) {
+      setAgentMetrics({
+        agents: [],
+        dailyUsage: [],
+        weeklyUsage: [],
+        topUsersByAgent: {},
+      });
+      setAgentMetricsError(error instanceof Error ? error.message : "Unable to load token usage metrics.");
+    } finally {
+      setIsLoadingAgentMetrics(false);
+    }
+  };
+
   useEffect(() => {
+    void loadMemberships();
     void loadTeams();
+    void loadRecentAssignments();
+    void loadAgentMetrics();
   }, []);
 
   const updateAssignType = (type: "membership" | "team" | "agent") => {
@@ -313,9 +410,7 @@ export default function AssignAndMetricsPage() {
     setAssignmentMessage(null);
 
     if (type === "membership") {
-      setSelectedAssignment(MOCK_MEMBERSHIPS[0].name);
-      setDurationDays(MOCK_MEMBERSHIPS[0].duration);
-      setMonthlyTokenLimit(MOCK_MEMBERSHIPS[0].tokens);
+      syncMembershipSelection(memberships);
       return;
     }
 
@@ -334,12 +429,32 @@ export default function AssignAndMetricsPage() {
     setSelectedAssignment(value);
 
     if (assignType === "membership") {
-      const membership = MOCK_MEMBERSHIPS.find((item) => item.name === value);
+      const membership = memberships.find((item) => item.id === value);
       if (membership) {
-        setDurationDays(membership.duration);
-        setMonthlyTokenLimit(membership.tokens);
+        setDurationDays(membership.durationDays);
+        setMonthlyTokenLimit(membership.monthlyTokenLimit);
       }
     }
+  };
+
+  const findUserIdByEmail = async (email: string) => {
+    const response = await fetch(`${API_BASE}/admin/dashboard/users?search=${encodeURIComponent(email)}`, {
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      throw new Error(await parseApiError(response));
+    }
+
+    const users = (await response.json()) as DashboardUser[];
+    const exactMatch = users.find((user) => user.email.toLowerCase() === email.toLowerCase());
+    const user = exactMatch ?? users[0];
+
+    if (!user) {
+      throw new Error(`No user found for ${email}.`);
+    }
+
+    return user.id;
   };
 
   const applyAssignment = async () => {
@@ -354,6 +469,14 @@ export default function AssignAndMetricsPage() {
       setAssignmentMessage({
         type: "error",
         text: "Select a team to assign.",
+      });
+      return;
+    }
+
+    if (assignType === "membership" && !selectedAssignment) {
+      setAssignmentMessage({
+        type: "error",
+        text: "Select a membership to assign.",
       });
       return;
     }
@@ -400,6 +523,8 @@ export default function AssignAndMetricsPage() {
           type: "success",
           text: `${selectedTeam?.name ?? "Team"} assigned to ${email} for ${durationDays} days.`,
         });
+        await loadRecentAssignments();
+        await loadAgentMetrics();
         return;
       }
 
@@ -421,13 +546,33 @@ export default function AssignAndMetricsPage() {
           type: "success",
           text: `${monthlyTokenLimit.toLocaleString()} tokens assigned to ${selectedAssignment} for ${email}.`,
         });
+        await loadRecentAssignments();
+        await loadAgentMetrics();
         return;
       }
 
-      setAssignmentMessage({
-        type: "error",
-        text: "Membership assignment is not connected yet.",
+      const selectedMembership = memberships.find((membership) => membership.id === selectedAssignment);
+      const userId = await findUserIdByEmail(email);
+      const response = await fetch(`${API_BASE}/admin/dashboard/memberships/assign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          membershipTemplateId: selectedAssignment,
+          durationOverride: durationDays,
+        }),
       });
+
+      if (!response.ok) {
+        throw new Error(await parseApiError(response));
+      }
+
+      setAssignmentMessage({
+        type: "success",
+        text: `${selectedMembership?.name ?? "Membership"} assigned to ${email} for ${durationDays} days.`,
+      });
+      await loadRecentAssignments();
+      await loadAgentMetrics();
     } catch (error) {
       setAssignmentMessage({
         type: "error",
@@ -437,6 +582,9 @@ export default function AssignAndMetricsPage() {
       setIsAssigning(false);
     }
   };
+
+  const metricAgents = agentMetrics.agents.length > 0 ? agentMetrics.agents : DEFAULT_VISIBLE_AGENTS;
+  const selectedTopUsers = agentMetrics.topUsersByAgent[selectedAgentTab] ?? [];
 
   return (
     <div className="p-8 max-w-[1600px] mx-auto">
@@ -513,11 +661,17 @@ export default function AssignAndMetricsPage() {
               <select
                 value={selectedAssignment}
                 onChange={(e) => handleAssignmentChange(e.target.value)}
-                disabled={assignType === "team" && isLoadingTeams}
+                disabled={(assignType === "team" && isLoadingTeams) || (assignType === "membership" && isLoadingMemberships)}
                 className="w-full rounded-xl border border-white/10 bg-[#111827] p-3 text-sm text-white outline-none transition focus:border-indigo-500 disabled:cursor-wait disabled:opacity-60"
                 style={{ colorScheme: "dark" }}
               >
-                {assignType === "membership" && MOCK_MEMBERSHIPS.map((m) => <option key={m.name} value={m.name}>{m.name} — {m.duration}d / {(m.tokens / 1000).toFixed(0)}k tokens</option>)}
+                {assignType === "membership" && (
+                  isLoadingMemberships
+                    ? <option value="">Loading memberships...</option>
+                    : memberships.length > 0
+                      ? memberships.map((m) => <option key={m.id} value={m.id}>{m.name} - {m.durationDays}d / {(m.monthlyTokenLimit / 1000).toFixed(0)}k tokens</option>)
+                      : <option value="">No memberships available</option>
+                )}
                 {assignType === "team" && (
                   isLoadingTeams
                     ? <option value="">Loading teams...</option>
@@ -554,7 +708,8 @@ export default function AssignAndMetricsPage() {
                       step={1}
                       value={monthlyTokenLimit}
                       onChange={(e) => setMonthlyTokenLimit(Number(e.target.value))}
-                      className="w-full rounded-xl border border-white/10 bg-white/5 p-3 pl-9 text-sm text-white outline-none focus:border-indigo-500 transition"
+                      readOnly={assignType === "membership"}
+                      className="w-full rounded-xl border border-white/10 bg-white/5 p-3 pl-9 text-sm text-white outline-none focus:border-indigo-500 transition read-only:text-white/60"
                     />
                   </div>
                 </div>
@@ -608,8 +763,32 @@ export default function AssignAndMetricsPage() {
                 </tr>
               </thead>
               <tbody>
-                {MOCK_RECENT_ASSIGNMENTS.map((a, idx) => (
-                  <tr key={idx} className="border-b border-white/5 hover:bg-white/[0.03] transition">
+                {isLoadingRecentAssignments && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-white/40">
+                      <span className="inline-flex items-center gap-2">
+                        <Loader2 size={14} className="animate-spin" />
+                        Loading recent assignments...
+                      </span>
+                    </td>
+                  </tr>
+                )}
+                {!isLoadingRecentAssignments && recentAssignmentsError && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-red-300/80">
+                      {recentAssignmentsError}
+                    </td>
+                  </tr>
+                )}
+                {!isLoadingRecentAssignments && !recentAssignmentsError && recentAssignments.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-white/40">
+                      No assignments found.
+                    </td>
+                  </tr>
+                )}
+                {!isLoadingRecentAssignments && !recentAssignmentsError && recentAssignments.map((a) => (
+                  <tr key={a.id} className="border-b border-white/5 hover:bg-white/[0.03] transition">
                     <td className="px-4 py-3.5 font-medium text-white/90">{a.user}</td>
                     <td className="px-4 py-3.5">
                       <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${typeColors[a.type]}`}>
@@ -617,11 +796,11 @@ export default function AssignAndMetricsPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3.5">{a.package}</td>
-                    <td className="px-4 py-3.5 font-mono text-xs">{a.duration}</td>
+                    <td className="px-4 py-3.5 font-mono text-xs">{a.durationDays ? `${a.durationDays}d` : "—"}</td>
                     <td className="px-4 py-3.5 font-mono text-xs text-sky-400">
                       {formatTokensAsCost(a.tokens, currency)}
                     </td>
-                    <td className="px-4 py-3.5 text-white/40">{a.date}</td>
+                    <td className="px-4 py-3.5 text-white/40">{formatRecentAssignmentDate(a.assignedAt)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -644,7 +823,7 @@ export default function AssignAndMetricsPage() {
             <CurrencyToggle currency={currency} onChange={setCurrency} size="small" />
             {/* Agent Toggle Chips */}
             <div className="flex flex-wrap gap-2">
-              {Object.keys(AGENT_COLORS).map((agent) => (
+              {metricAgents.map((agent, index) => (
                 <button
                   key={agent}
                   onClick={() => toggleAgent(agent)}
@@ -656,7 +835,7 @@ export default function AssignAndMetricsPage() {
                 >
                   <span
                     className="h-2 w-2 rounded-full transition-opacity"
-                    style={{ backgroundColor: AGENT_COLORS[agent], opacity: visibleAgents.includes(agent) ? 1 : 0.3 }}
+                    style={{ backgroundColor: getAgentColor(agent, index), opacity: visibleAgents.includes(agent) ? 1 : 0.3 }}
                   />
                   {agent}
                 </button>
@@ -665,16 +844,24 @@ export default function AssignAndMetricsPage() {
           </div>
         </div>
 
+        {agentMetricsError && (
+          <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+            {agentMetricsError}
+          </div>
+        )}
         <div className="h-[400px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={MOCK_DAILY_USAGE} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <AreaChart data={agentMetrics.dailyUsage} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <defs>
-                {Object.entries(AGENT_COLORS).map(([agent, color]) => (
+                {metricAgents.map((agent, index) => {
+                  const color = getAgentColor(agent, index);
+                  return (
                   <linearGradient key={agent} id={`grad-${agent}`} x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor={color} stopOpacity={0.6} />
                     <stop offset="95%" stopColor={color} stopOpacity={0.05} />
                   </linearGradient>
-                ))}
+                  );
+                })}
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
               <XAxis dataKey="date" stroke="#ffffff40" fontSize={10} tickMargin={8} interval={2} />
@@ -689,7 +876,9 @@ export default function AssignAndMetricsPage() {
                 formatter={(value, name) => [formatTokensAsCost(Number(value), currency), String(name)]}
                 labelStyle={{ color: "#ffffff80" }}
               />
-              {Object.entries(AGENT_COLORS).map(([agent, color]) =>
+              {metricAgents.map((agent, index) => {
+                const color = getAgentColor(agent, index);
+                return (
                 visibleAgents.includes(agent) ? (
                   <Area
                     key={agent}
@@ -701,7 +890,8 @@ export default function AssignAndMetricsPage() {
                     strokeWidth={1.5}
                   />
                 ) : null
-              )}
+                );
+              })}
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -719,7 +909,7 @@ export default function AssignAndMetricsPage() {
           <div className="flex items-center gap-4 flex-wrap">
             <CurrencyToggle currency={currency} onChange={setCurrency} size="small" />
             <div className="flex flex-wrap gap-2">
-              {Object.keys(AGENT_COLORS).map((agent) => (
+              {metricAgents.map((agent, index) => (
                 <button
                   key={agent}
                   onClick={() => toggleAgent(agent)}
@@ -731,7 +921,7 @@ export default function AssignAndMetricsPage() {
                 >
                   <span
                     className="h-2 w-2 rounded-full transition-opacity"
-                    style={{ backgroundColor: AGENT_COLORS[agent], opacity: visibleAgents.includes(agent) ? 1 : 0.3 }}
+                    style={{ backgroundColor: getAgentColor(agent, index), opacity: visibleAgents.includes(agent) ? 1 : 0.3 }}
                   />
                   {agent}
                 </button>
@@ -742,14 +932,17 @@ export default function AssignAndMetricsPage() {
 
         <div className="h-[360px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={MOCK_WEEKLY_USAGE} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <AreaChart data={agentMetrics.weeklyUsage} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <defs>
-                {Object.entries(AGENT_COLORS).map(([agent, color]) => (
+                {metricAgents.map((agent, index) => {
+                  const color = getAgentColor(agent, index);
+                  return (
                   <linearGradient key={agent} id={`wgrad-${agent}`} x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%"  stopColor={color} stopOpacity={0.65} />
                     <stop offset="95%" stopColor={color} stopOpacity={0.05} />
                   </linearGradient>
-                ))}
+                  );
+                })}
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
               <XAxis dataKey="week" stroke="#ffffff40" fontSize={11} tickMargin={8} />
@@ -764,7 +957,9 @@ export default function AssignAndMetricsPage() {
                 formatter={(value, name) => [formatTokensAsCost(Number(value), currency), String(name)]}
                 labelStyle={{ color: "#ffffff80" }}
               />
-              {Object.entries(AGENT_COLORS).map(([agent, color]) =>
+              {metricAgents.map((agent, index) => {
+                const color = getAgentColor(agent, index);
+                return (
                 visibleAgents.includes(agent) ? (
                   <Area
                     key={agent}
@@ -776,7 +971,8 @@ export default function AssignAndMetricsPage() {
                     strokeWidth={1.5}
                   />
                 ) : null
-              )}
+                );
+              })}
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -793,7 +989,7 @@ export default function AssignAndMetricsPage() {
 
         {/* Agent Tabs */}
         <div className="flex flex-wrap gap-2 mb-6 border-b border-white/10 pb-4">
-          {Object.keys(MOCK_TOP_USERS_BY_AGENT).map((agent) => (
+          {metricAgents.map((agent, index) => (
             <button
               key={agent}
               onClick={() => setSelectedAgentTab(agent)}
@@ -803,9 +999,9 @@ export default function AssignAndMetricsPage() {
                   : "bg-white/5 text-white/50 hover:bg-white/10 hover:text-white"
               }`}
             >
-              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: AGENT_COLORS[agent] || "#94a3b8" }} />
+              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: getAgentColor(agent, index) }} />
               {agent}
-              <span className="ml-1 text-[10px] text-white/30">({MOCK_TOP_USERS_BY_AGENT[agent].length})</span>
+              <span className="ml-1 text-[10px] text-white/30">({agentMetrics.topUsersByAgent[agent]?.length ?? 0})</span>
             </button>
           ))}
         </div>
@@ -825,9 +1021,33 @@ export default function AssignAndMetricsPage() {
               </tr>
             </thead>
             <tbody>
-              {MOCK_TOP_USERS_BY_AGENT[selectedAgentTab]?.map((user, idx) => {
-                const agentTotal = MOCK_TOP_USERS_BY_AGENT[selectedAgentTab].reduce((s, u) => s + u.tokens, 0);
-                const pct = (user.tokens / agentTotal) * 100;
+              {isLoadingAgentMetrics && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-white/40">
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 size={14} className="animate-spin" />
+                      Loading token usage metrics...
+                    </span>
+                  </td>
+                </tr>
+              )}
+              {!isLoadingAgentMetrics && agentMetricsError && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-red-300/80">
+                    {agentMetricsError}
+                  </td>
+                </tr>
+              )}
+              {!isLoadingAgentMetrics && !agentMetricsError && selectedTopUsers.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-white/40">
+                    No token usage found for {selectedAgentTab}.
+                  </td>
+                </tr>
+              )}
+              {!isLoadingAgentMetrics && !agentMetricsError && selectedTopUsers.map((user, idx) => {
+                const agentTotal = selectedTopUsers.reduce((s, u) => s + u.tokens, 0);
+                const pct = agentTotal > 0 ? (user.tokens / agentTotal) * 100 : 0;
                 return (
                   <tr key={idx} className="border-b border-white/5 hover:bg-white/[0.03] transition group">
                     <td className="px-4 py-3.5">
@@ -851,7 +1071,7 @@ export default function AssignAndMetricsPage() {
                     <td className="px-4 py-3.5 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <div className="w-20 h-1.5 rounded-full bg-white/5 overflow-hidden">
-                          <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: AGENT_COLORS[selectedAgentTab] || "#38bdf8" }} />
+                          <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: getAgentColor(selectedAgentTab) }} />
                         </div>
                         <span className="text-xs text-white/40 font-mono w-10 text-right">{pct.toFixed(0)}%</span>
                       </div>

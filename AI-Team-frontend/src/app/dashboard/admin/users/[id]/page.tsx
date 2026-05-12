@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useRef, useEffect } from "react";
+import { use, useState, useRef, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   ArrowLeft, User as UserIcon, Calendar, Activity, CreditCard,
@@ -17,10 +17,12 @@ import {
 
 const USD_PER_TOKEN = 0.00003;
 const EUR_RATE = 0.92;
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "https://ai-team-server.onrender.com";
 
 type CurrencyMode = "tokens" | "USD" | "EUR";
 
 const formatTokensAsCost = (tokens: number, currency: CurrencyMode): string => {
+  if (tokens === 0) return "0";
   if (currency === "tokens") {
     if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)}M`;
     return `${(tokens / 1000).toFixed(1)}k`;
@@ -87,56 +89,349 @@ function CurrencyToggle({
 
 /* ─────────────────── MOCK DATA ─────────────────── */
 
-const MOCK_USER = {
-  name: "Mario Rossi",
-  email: "mario@example.com",
-  oauthId: "oauth_abc123",
-  joinedDate: "2023-06-15",
-  subscription: {
-    plan: "1 year Sara AI & JIM",
-    type: "Membership",
-    duration: 365,
-    startsAt: "2024-01-01",
-    expiration: "2024-12-31",
-    monthlyLimit: 150000,
-    usedThisCycle: 145200,
-    status: "Active",
-    agents: ["SARA_AI", "JIM"],
-  },
+type ApiAssignment = {
+  agentName?: string;
+  startsAt?: string | null;
+  expiresAt?: string | null;
+  durationDays?: number | null;
+  monthlyTokenLimit?: number | null;
+  isActive?: boolean;
+};
+
+type ApiGroupAssignment = Omit<ApiAssignment, "agentName"> & {
+  group?: {
+    name?: string | null;
+    items?: { agentName?: string }[];
+  } | null;
+};
+
+type ApiMembershipAssignment = {
+  startsAt?: string | null;
+  expiresAt?: string | null;
+  isActive?: boolean;
+  template?: {
+    name?: string | null;
+    durationDays?: number | null;
+    monthlyTokenLimit?: number | null;
+    includedAgents?: string[] | null;
+  } | null;
+};
+
+type ApiTokenUsage = {
+  agentName?: string;
+  totalTokenLimit?: number | null;
+  totalTokensLeft?: number | null;
+  totalUsedInputTokens?: number | null;
+  totalUsedOutputTokens?: number | null;
+  totalUsedTokens?: number | null;
+};
+
+type ApiDailyUsage = {
+  agentName?: string;
+  date?: string;
+  totalTokens?: number | null;
+};
+
+type ApiUserDetails = {
+  user: {
+    email: string;
+    oauthId: string;
+    username?: string | null;
+    createdAt?: string | null;
+    agents?: ApiAssignment[];
+    groups?: ApiGroupAssignment[];
+    memberships?: ApiMembershipAssignment[];
+    tokenUsage?: ApiTokenUsage[];
+    stopLogs?: unknown[];
+  };
+  dailyUsage?: ApiDailyUsage[];
+};
+
+type DisplaySubscription = {
+  plan: string;
+  duration: number;
+  startsAt: string;
+  expiration: string;
+  monthlyLimit: number;
+  usedThisCycle: number;
+  status: "Active" | "Expired";
+  agents: string[];
+};
+
+const formatDate = (value?: string | null) => {
+  if (!value) return "No expiry";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "No expiry";
+  return date.toISOString().slice(0, 10);
+};
+
+const isActiveAssignment = (item?: { isActive?: boolean; expiresAt?: string | null }) => {
+  if (!item || item.isActive === false) return false;
+  if (!item.expiresAt) return true;
+  const expiry = new Date(item.expiresAt);
+  return Number.isNaN(expiry.getTime()) || expiry > new Date();
+};
+
+const buildSubscription = (details: ApiUserDetails | null): DisplaySubscription => {
+  const activeMemberships = (details?.user.memberships ?? []).filter(isActiveAssignment);
+  const activeGroups = (details?.user.groups ?? []).filter(isActiveAssignment);
+  const activeAgents = (details?.user.agents ?? []).filter(isActiveAssignment);
+  const primaryMembership = activeMemberships[0];
+  const primaryGroup = activeGroups[0];
+  const primaryAgent = activeAgents[0];
+
+  const assignedAgents = new Set<string>();
+  activeAgents.forEach((agent) => agent.agentName && assignedAgents.add(agent.agentName));
+  activeGroups.forEach((assignment) => {
+    assignment.group?.items?.forEach((item) => item.agentName && assignedAgents.add(item.agentName));
+  });
+  activeMemberships.forEach((assignment) => {
+    assignment.template?.includedAgents?.forEach((agentName) => assignedAgents.add(agentName));
+  });
+
+  const usedThisCycle = (details?.dailyUsage ?? []).reduce(
+    (sum, item) => sum + (item.totalTokens ?? 0),
+    0,
+  );
+  const legacyTokenLimit = (details?.user.tokenUsage ?? []).reduce(
+    (sum, item) => sum + (item.totalTokenLimit ?? 0),
+    0,
+  );
+  const legacyTokenUsage = (details?.user.tokenUsage ?? []).reduce(
+    (sum, item) => sum + (item.totalUsedTokens ?? 0),
+    0,
+  );
+
+  const assignmentMonthlyLimit =
+    primaryMembership?.template?.monthlyTokenLimit ||
+    primaryGroup?.monthlyTokenLimit ||
+    primaryAgent?.monthlyTokenLimit ||
+    0;
+
+  return {
+    plan:
+      primaryMembership?.template?.name ??
+      primaryGroup?.group?.name ??
+      (activeAgents.length > 0
+        ? activeAgents.map((agent) => agent.agentName).filter(Boolean).join(" & ")
+        : "No active plan"),
+    duration:
+      primaryMembership?.template?.durationDays ??
+      primaryGroup?.durationDays ??
+      primaryAgent?.durationDays ??
+      0,
+    startsAt: formatDate(primaryMembership?.startsAt ?? primaryGroup?.startsAt ?? primaryAgent?.startsAt),
+    expiration: formatDate(primaryMembership?.expiresAt ?? primaryGroup?.expiresAt ?? primaryAgent?.expiresAt),
+    monthlyLimit: assignmentMonthlyLimit || legacyTokenLimit,
+    usedThisCycle:
+      usedThisCycle ||
+      legacyTokenUsage,
+    status: primaryMembership || primaryGroup || primaryAgent ? "Active" : "Expired",
+    agents: Array.from(assignedAgents),
+  };
+};
+
+const TOKEN_USAGE_COLORS = [
+  "#38bdf8",
+  "#f472b6",
+  "#34d399",
+  "#fbbf24",
+  "#a78bfa",
+  "#fb7185",
+  "#60a5fa",
+  "#f97316",
+  "#22d3ee",
+  "#c084fc",
+];
+
+type AgentTokenUsageRow = {
+  name: string;
+  limit: number;
+  used: number;
+  left: number;
+  input: number;
+  output: number;
+  color: string;
+};
+
+type DailyUsagePoint = {
+  date: string;
+  total: number;
+  stops: number;
+  [agentName: string]: string | number;
+};
+
+type AgentUsageSeries = {
+  name: string;
+  color: string;
+};
+
+type StopDotProps = {
+  cx?: number;
+  cy?: number;
+  payload?: {
+    date?: string;
+    week?: string;
+    stops?: number;
+  };
+};
+
+const buildAgentTokenUsage = (details: ApiUserDetails | null): AgentTokenUsageRow[] => {
+  const rows = details?.user.tokenUsage ?? [];
+
+  return rows
+    .map((item, index) => {
+      const limit = item.totalTokenLimit ?? 0;
+      const used = item.totalUsedTokens ?? 0;
+      const left = item.totalTokensLeft ?? Math.max(0, limit - used);
+
+      return {
+        name: item.agentName ?? "UNKNOWN_AGENT",
+        limit,
+        used,
+        left,
+        input: item.totalUsedInputTokens ?? 0,
+        output: item.totalUsedOutputTokens ?? 0,
+        color: TOKEN_USAGE_COLORS[index % TOKEN_USAGE_COLORS.length],
+      };
+    })
+    .filter((item) => item.limit > 0 || item.used > 0)
+    .sort((a, b) => b.used - a.used);
 };
 
 const generateDailyData = () => {
-  const agents = ["SARA_AI", "JIM"];
-  const days: any[] = [];
+  const days: DailyUsagePoint[] = [];
   for (let i = 1; i <= 30; i++) {
-    const d: any = { date: `Oct ${i}` };
-    let dayTotal = 0;
-    agents.forEach((a) => {
-      const val = Math.floor(Math.random() * 6000) + 1000;
-      d[a] = val;
-      dayTotal += val;
-    });
-    d.total = dayTotal;
-    d.stops = dayTotal > 10000 ? Math.ceil(Math.random() * 3) : 0;
-    days.push(d);
+    days.push({ date: `Day ${i}`, total: 0, stops: 0 });
   }
   return days;
 };
 const MOCK_DAILY_USAGE = generateDailyData();
 
-const MOCK_WEEKLY_USAGE = [
-  { week: "Week 1", SARA_AI: 25000, JIM: 12000, stops: 1 },
-  { week: "Week 2", SARA_AI: 35000, JIM: 8000,  stops: 3 },
-  { week: "Week 3", SARA_AI: 40000, JIM: 15000, stops: 5 },
-  { week: "Week 4", SARA_AI: 18000, JIM: 5000,  stops: 0 },
+const MOCK_WEEKLY_USAGE: DailyUsagePoint[] = [
+  { date: "Week 1", week: "Week 1", total: 0, stops: 0 },
+  { date: "Week 2", week: "Week 2", total: 0, stops: 0 },
+  { date: "Week 3", week: "Week 3", total: 0, stops: 0 },
+  { date: "Week 4", week: "Week 4", total: 0, stops: 0 },
 ];
 
 const MOCK_AGENT_USAGE = [
-  { name: "SARA_AI", value: 118000, color: "#38bdf8" },
-  { name: "JIM",     value: 40200,  color: "#f472b6" },
+  { name: "SARA_AI", value: 0, color: "#38bdf8" },
+  { name: "JIM",     value: 0, color: "#f472b6" },
 ];
 
 const totalStops = MOCK_DAILY_USAGE.reduce((s, d) => s + d.stops, 0);
+
+const formatUsageDate = (value?: string) => {
+  if (!value) return "Unknown";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+};
+
+const buildUsedAgentSeries = (
+  details: ApiUserDetails | null,
+  agentTokenUsage: AgentTokenUsageRow[],
+): AgentUsageSeries[] => {
+  const agentNames = new Set<string>();
+
+  agentTokenUsage.forEach((agent) => {
+    if (agent.used > 0) agentNames.add(agent.name);
+  });
+
+  (details?.dailyUsage ?? []).forEach((item) => {
+    if (item.agentName && (item.totalTokens ?? 0) > 0) {
+      agentNames.add(item.agentName);
+    }
+  });
+
+  return Array.from(agentNames).map((name, index) => ({
+    name,
+    color:
+      agentTokenUsage.find((agent) => agent.name === name)?.color ??
+      TOKEN_USAGE_COLORS[index % TOKEN_USAGE_COLORS.length],
+  }));
+};
+
+const buildDailyUsageData = (
+  details: ApiUserDetails | null,
+  series: AgentUsageSeries[],
+  agentTokenUsage: AgentTokenUsageRow[],
+): DailyUsagePoint[] => {
+  const seriesNames = new Set(series.map((item) => item.name));
+  const rows = (details?.dailyUsage ?? []).filter(
+    (item) => item.agentName && seriesNames.has(item.agentName),
+  );
+
+  if (!rows.length) {
+    if (!series.length) return MOCK_DAILY_USAGE;
+
+    const totalPoint: DailyUsagePoint = { date: "Total", total: 0, stops: 0 };
+    series.forEach((agent) => {
+      const used = agentTokenUsage.find((item) => item.name === agent.name)?.used ?? 0;
+      totalPoint[agent.name] = used;
+      totalPoint.total = Number(totalPoint.total) + used;
+    });
+
+    return [totalPoint];
+  }
+
+  const grouped = new Map<string, DailyUsagePoint>();
+
+  rows.forEach((item) => {
+    if (!item.date || !item.agentName) return;
+
+    const dateKey = item.date.slice(0, 10);
+    const tokens = item.totalTokens ?? 0;
+    const current = grouped.get(dateKey) ?? {
+      date: formatUsageDate(item.date),
+      total: 0,
+      stops: 0,
+    };
+
+    current[item.agentName] = Number(current[item.agentName] ?? 0) + tokens;
+    current.total = Number(current.total) + tokens;
+    grouped.set(dateKey, current);
+  });
+
+  return Array.from(grouped.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([, value]) => value);
+};
+
+const buildWeeklyUsageData = (
+  dailyUsage: DailyUsagePoint[],
+  series: AgentUsageSeries[],
+): DailyUsagePoint[] => {
+  if (!series.length) return MOCK_WEEKLY_USAGE;
+
+  const grouped = new Map<number, DailyUsagePoint>();
+
+  dailyUsage.forEach((day, index) => {
+    const weekIndex = Math.floor(index / 7);
+    const current = grouped.get(weekIndex) ?? {
+      date: `Week ${weekIndex + 1}`,
+      week: `Week ${weekIndex + 1}`,
+      total: 0,
+      stops: 0,
+    };
+
+    series.forEach((agent) => {
+      current[agent.name] =
+        Number(current[agent.name] ?? 0) + Number(day[agent.name] ?? 0);
+    });
+    current.total = Number(current.total) + Number(day.total ?? 0);
+    current.stops = Number(current.stops) + Number(day.stops ?? 0);
+    grouped.set(weekIndex, current);
+  });
+
+  return Array.from(grouped.values());
+};
 
 /* ─────── TIMEFRAME PRESETS ─────── */
 const PRESETS = [
@@ -159,6 +454,9 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
   const [customTo, setCustomTo] = useState("");
   const [showPicker, setShowPicker] = useState(false);
   const [currency, setCurrency] = useState<CurrencyMode>("tokens");
+  const [details, setDetails] = useState<ApiUserDetails | null>(null);
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const [userError, setUserError] = useState<string | null>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -170,6 +468,37 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const loadUserDetails = async () => {
+      setIsLoadingUser(true);
+      setUserError(null);
+
+      try {
+        const response = await fetch(`${API_BASE}/admin/dashboard/users/${resolvedParams.id}?days=30`, {
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error(`User details request failed with ${response.status}`);
+        }
+
+        setDetails((await response.json()) as ApiUserDetails);
+      } catch (err) {
+        if ((err as Error).name !== "AbortError") {
+          setUserError((err as Error).message || "Failed to load user details");
+          setDetails(null);
+        }
+      } finally {
+        if (!controller.signal.aborted) setIsLoadingUser(false);
+      }
+    };
+
+    loadUserDetails();
+    return () => controller.abort();
+  }, [resolvedParams.id]);
 
   const activeLabel = (() => {
     if (customFrom && customTo) return `${customFrom} → ${customTo}`;
@@ -193,8 +522,37 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
     if (customFrom && customTo) { setSelectedPreset(""); setCustomDays(""); setShowPicker(false); }
   };
 
-  const usagePercent = (MOCK_USER.subscription.usedThisCycle / MOCK_USER.subscription.monthlyLimit) * 100;
-  const daysRemaining = Math.max(0, Math.ceil((new Date(MOCK_USER.subscription.expiration).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+  const subscription = useMemo(() => buildSubscription(details), [details]);
+  const agentTokenUsage = useMemo(() => buildAgentTokenUsage(details), [details]);
+  const usageSeries = useMemo(
+    () => buildUsedAgentSeries(details, agentTokenUsage),
+    [details, agentTokenUsage],
+  );
+  const dailyUsageData = useMemo(
+    () => buildDailyUsageData(details, usageSeries, agentTokenUsage),
+    [details, usageSeries, agentTokenUsage],
+  );
+  const weeklyUsageData = useMemo(
+    () => buildWeeklyUsageData(dailyUsageData, usageSeries),
+    [dailyUsageData, usageSeries],
+  );
+  const tokenUsageChartData = agentTokenUsage.map((agent) => ({
+    name: agent.name,
+    value: agent.used,
+    color: agent.color,
+  }));
+  const displayName = details?.user.username || details?.user.email?.split("@")[0] || (isLoadingUser ? "Loading user..." : "Unknown user");
+  const displayEmail = details?.user.email ?? "";
+  const displayOauthId = details?.user.oauthId ?? "";
+  const joinedDate = formatDate(details?.user.createdAt);
+  const usagePercent = subscription.monthlyLimit > 0
+    ? (subscription.usedThisCycle / subscription.monthlyLimit) * 100
+    : 0;
+  const expiryTime = new Date(subscription.expiration).getTime();
+  const daysRemaining = Number.isNaN(expiryTime)
+    ? 0
+    : Math.max(0, Math.ceil((expiryTime - Date.now()) / (1000 * 60 * 60 * 24)));
+  const stopCount = details?.user.stopLogs?.length ?? totalStops;
 
   return (
     <div className="p-8 max-w-[1600px] mx-auto">
@@ -202,6 +560,11 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
       <Link href="/dashboard/admin/users" className="mb-6 inline-flex items-center gap-2 text-sm text-sky-400 hover:text-sky-300 transition">
         <ArrowLeft size={16} /> Back to Users
       </Link>
+      {userError && (
+        <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          {userError}
+        </div>
+      )}
 
       {/* ──────── HEADER ROW ──────── */}
       <div className="mb-8 flex flex-col lg:flex-row lg:items-start justify-between gap-6">
@@ -211,11 +574,11 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
             <UserIcon size={36} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">{MOCK_USER.name}</h1>
+            <h1 className="text-2xl font-bold tracking-tight">{displayName}</h1>
             <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/50">
-              <span className="flex items-center gap-1"><Mail size={13} /> {MOCK_USER.email}</span>
-              <span className="flex items-center gap-1"><Hash size={13} /> {MOCK_USER.oauthId}</span>
-              <span className="flex items-center gap-1"><Calendar size={13} /> Joined {MOCK_USER.joinedDate}</span>
+              <span className="flex items-center gap-1"><Mail size={13} /> {displayEmail}</span>
+              <span className="flex items-center gap-1"><Hash size={13} /> {displayOauthId}</span>
+              <span className="flex items-center gap-1"><Calendar size={13} /> Joined {joinedDate}</span>
             </div>
           </div>
         </div>
@@ -284,23 +647,25 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
         {/* Plan */}
         <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
           <p className="text-[10px] uppercase tracking-wider text-white/35 mb-1.5 flex items-center gap-1"><CreditCard size={11} /> Active Plan</p>
-          <p className="font-semibold text-sm leading-snug">{MOCK_USER.subscription.plan}</p>
-          <span className="mt-2 inline-block rounded-md bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-400 uppercase tracking-wider">
-            {MOCK_USER.subscription.status}
+          <p className="font-semibold text-sm leading-snug">{subscription.plan}</p>
+          <span className={`mt-2 inline-block rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+            subscription.status === "Active" ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
+          }`}>
+            {subscription.status}
           </span>
         </div>
 
         {/* Duration */}
         <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
           <p className="text-[10px] uppercase tracking-wider text-white/35 mb-1.5 flex items-center gap-1"><Clock size={11} /> Duration</p>
-          <p className="font-semibold text-sm">{MOCK_USER.subscription.duration} days</p>
-          <p className="text-[11px] text-white/40 mt-1">{MOCK_USER.subscription.startsAt} → {MOCK_USER.subscription.expiration}</p>
+          <p className="font-semibold text-sm">{subscription.duration} days</p>
+          <p className="text-[11px] text-white/40 mt-1">{subscription.startsAt} → {subscription.expiration}</p>
         </div>
 
         {/* Expiration */}
         <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
           <p className="text-[10px] uppercase tracking-wider text-white/35 mb-1.5 flex items-center gap-1"><Calendar size={11} /> Expiration</p>
-          <p className="font-semibold text-sm">{MOCK_USER.subscription.expiration}</p>
+          <p className="font-semibold text-sm">{subscription.expiration}</p>
           <p className="text-[11px] text-amber-400/70 mt-1">{daysRemaining} days remaining</p>
         </div>
 
@@ -308,7 +673,7 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
         <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
           <p className="text-[10px] uppercase tracking-wider text-white/35 mb-1.5">Monthly Limit</p>
           <p className="font-mono text-lg text-sky-400">
-            {formatTokensAsCost(MOCK_USER.subscription.monthlyLimit, currency)}
+            {formatTokensAsCost(subscription.monthlyLimit, currency)}
           </p>
           <div className="mt-2 h-1.5 rounded-full bg-white/5 overflow-hidden">
             <div className="h-full rounded-full bg-sky-500 transition-all" style={{ width: `${Math.min(usagePercent, 100)}%` }} />
@@ -319,10 +684,10 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
         <div className={`rounded-xl border p-4 ${usagePercent >= 90 ? "border-red-500/30 bg-red-500/[0.04]" : "border-white/10 bg-white/[0.03]"}`}>
           <p className={`text-[10px] uppercase tracking-wider mb-1.5 ${usagePercent >= 90 ? "text-red-400/60" : "text-white/35"}`}>Used This Cycle</p>
           <p className={`font-mono text-lg ${usagePercent >= 90 ? "text-red-400" : "text-white"}`}>
-            {formatTokensAsCost(MOCK_USER.subscription.usedThisCycle, currency)}
+            {formatTokensAsCost(subscription.usedThisCycle, currency)}
           </p>
           <p className={`text-[10px] mt-1 uppercase tracking-wider ${usagePercent >= 90 ? "text-red-400/50" : "text-white/30"}`}>
-            {usagePercent.toFixed(1)}% used · {totalStops} stops
+            {usagePercent.toFixed(1)}% used · {stopCount} stops
           </p>
         </div>
       </div>
@@ -331,12 +696,64 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
       <div className="mb-8 rounded-xl border border-white/10 bg-white/[0.03] p-4">
         <p className="text-[10px] uppercase tracking-wider text-white/35 mb-3 flex items-center gap-1"><Shield size={11} /> Assigned Agents</p>
         <div className="flex flex-wrap gap-2">
-          {MOCK_USER.subscription.agents.map((a) => (
+          {subscription.agents.length > 0 ? subscription.agents.map((a) => (
             <span key={a} className="flex items-center gap-1.5 rounded-lg bg-sky-500/10 px-3 py-1.5 text-xs font-medium text-sky-400 ring-1 ring-sky-500/20">
               <Bot size={13} /> {a}
             </span>
-          ))}
+          )) : <span className="text-xs text-white/35">No assigned agents</span>}
         </div>
+      </div>
+
+      {/* Agent token usage from backend records */}
+      <div className="mb-8 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+        <p className="text-[10px] uppercase tracking-wider text-white/35 mb-3 flex items-center gap-1"><Bot size={11} /> Agent Token Usage</p>
+        {agentTokenUsage.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-white/10 text-[10px] uppercase tracking-wider text-white/35">
+                  <th className="pb-3 font-medium">Agent Name</th>
+                  <th className="pb-3 font-medium">Total Limit</th>
+                  <th className="pb-3 font-medium">Total Usage</th>
+                  <th className="pb-3 font-medium">Tokens Left</th>
+                  <th className="pb-3 font-medium">Input</th>
+                  <th className="pb-3 font-medium">Output</th>
+                </tr>
+              </thead>
+              <tbody>
+                {agentTokenUsage.map((agent) => {
+                  const percent = agent.limit > 0 ? Math.min(100, (agent.used / agent.limit) * 100) : 0;
+
+                  return (
+                    <tr key={agent.name} className="border-b border-white/5 last:border-0">
+                      <td className="py-3">
+                        <span className="inline-flex items-center gap-2 font-semibold text-sky-300">
+                          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: agent.color }} />
+                          {agent.name}
+                        </span>
+                      </td>
+                      <td className="py-3 font-mono text-white/80">{agent.limit.toLocaleString()}</td>
+                      <td className="py-3">
+                        <div className="flex items-center gap-3">
+                          <span className="min-w-[90px] font-mono text-white">{agent.used.toLocaleString()}</span>
+                          <div className="h-1.5 w-28 overflow-hidden rounded-full bg-white/5">
+                            <div className="h-full rounded-full bg-sky-500" style={{ width: `${percent}%` }} />
+                          </div>
+                          <span className="text-[11px] text-white/35">{percent.toFixed(1)}%</span>
+                        </div>
+                      </td>
+                      <td className="py-3 font-mono text-emerald-300">{agent.left.toLocaleString()}</td>
+                      <td className="py-3 font-mono text-white/60">{agent.input.toLocaleString()}</td>
+                      <td className="py-3 font-mono text-white/60">{agent.output.toLocaleString()}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <span className="text-xs text-white/35">No token usage records found for this user.</span>
+        )}
       </div>
 
       {/* ──────── ANALYTICS SECTION HEADER ──────── */}
@@ -357,25 +774,27 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
             <Activity size={16} className="text-sky-400" />
             {currency === "tokens" ? "Token Usage by Days" : `Cost by Days — ${currency === "USD" ? "$ USD" : "€ EUR"}`}
           </h3>
-          <div className="flex items-center gap-4 text-[11px] text-white/50">
-            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-sky-400" /> SARA_AI</span>
-            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-pink-400" /> JIM</span>
+          <div className="flex flex-wrap items-center gap-4 text-[11px] text-white/50">
+            {usageSeries.map((agent) => (
+              <span key={agent.name} className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: agent.color }} />
+                {agent.name}
+              </span>
+            ))}
             <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-red-500" /> Stops</span>
           </div>
         </div>
 
         <div className="h-[320px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={MOCK_DAILY_USAGE} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <ComposedChart data={dailyUsageData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <defs>
-                <linearGradient id="gradSaraDay" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#38bdf8" stopOpacity={0.75} />
-                  <stop offset="95%" stopColor="#38bdf8" stopOpacity={0.25} />
-                </linearGradient>
-                <linearGradient id="gradJimDay" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#f472b6" stopOpacity={0.75} />
-                  <stop offset="95%" stopColor="#f472b6" stopOpacity={0.25} />
-                </linearGradient>
+                {usageSeries.map((agent, index) => (
+                  <linearGradient key={agent.name} id={`gradDay${index}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={agent.color} stopOpacity={0.75} />
+                    <stop offset="95%" stopColor={agent.color} stopOpacity={0.25} />
+                  </linearGradient>
+                ))}
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
               <XAxis dataKey="date" stroke="#ffffff40" fontSize={10} tickMargin={8} interval={2} />
@@ -383,19 +802,29 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
               <Tooltip
                 contentStyle={{ backgroundColor: "#0f172a", borderColor: "#ffffff15", borderRadius: "10px", fontSize: "12px" }}
                 itemStyle={{ color: "#fff" }}
-                formatter={((value: number, name: string) => [formatTokensAsCost(value, currency), name]) as any}
+                formatter={(value, name) => [formatTokensAsCost(Number(value), currency), String(name)]}
                 labelStyle={{ color: "#ffffff80" }}
               />
-              <Area type="monotone" dataKey="JIM"     stackId="1" stroke="#f472b6" strokeWidth={1.5} fill="url(#gradJimDay)"  dot={false} />
-              <Area type="monotone" dataKey="SARA_AI" stackId="1" stroke="#38bdf8" strokeWidth={1.5} fill="url(#gradSaraDay)" dot={false} />
+              {usageSeries.map((agent, index) => (
+                <Area
+                  key={agent.name}
+                  type="monotone"
+                  dataKey={agent.name}
+                  stackId="1"
+                  stroke={agent.color}
+                  strokeWidth={1.5}
+                  fill={`url(#gradDay${index})`}
+                  dot={false}
+                />
+              ))}
 
               <Line
                 type="monotone"
                 dataKey="stops"
                 stroke="none"
-                dot={(props: any) => {
-                  const { cx, cy, payload } = props;
-                  if (payload.stops > 0) {
+                dot={(props: unknown) => {
+                  const { cx, payload } = props as StopDotProps;
+                  if (cx !== undefined && payload?.stops && payload.stops > 0) {
                     return (
                       <g key={`stop-${payload.date}`}>
                         <circle cx={cx} cy={20} r={8} fill="#ef444440" />
@@ -421,37 +850,49 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
             <Calendar size={16} className="text-emerald-400" />
             {currency === "tokens" ? "Token Usage by Weeks" : `Cost by Weeks — ${currency === "USD" ? "$ USD" : "€ EUR"}`}
           </h3>
-          <div className="flex items-center gap-4 text-[11px] text-white/50">
-            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-sky-400" /> SARA_AI</span>
-            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-pink-400" /> JIM</span>
+          <div className="flex flex-wrap items-center gap-4 text-[11px] text-white/50">
+            {usageSeries.map((agent) => (
+              <span key={agent.name} className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: agent.color }} />
+                {agent.name}
+              </span>
+            ))}
             <span className="flex items-center gap-1.5"><OctagonAlert size={11} className="text-red-400" /> Stops</span>
           </div>
         </div>
 
         <div className="h-[300px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={MOCK_WEEKLY_USAGE} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+            <ComposedChart data={weeklyUsageData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
               <XAxis dataKey="week" stroke="#ffffff40" fontSize={12} tickMargin={10} />
               <YAxis stroke="#ffffff40" fontSize={12} tickFormatter={(v) => formatAxisValue(v, currency)} />
               <Tooltip
                 contentStyle={{ backgroundColor: "#0f172a", borderColor: "#ffffff15", borderRadius: "10px", fontSize: "12px" }}
                 cursor={{ fill: "#ffffff05" }}
-                formatter={((value: number, name: string) => [formatTokensAsCost(value, currency), name]) as any}
+                formatter={(value, name) => [formatTokensAsCost(Number(value), currency), String(name)]}
               />
               <Legend iconType="circle" />
               <defs>
-                <linearGradient id="gradSaraWeek" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#38bdf8" stopOpacity={0.75} />
-                  <stop offset="95%" stopColor="#38bdf8" stopOpacity={0.25} />
-                </linearGradient>
-                <linearGradient id="gradJimWeek" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#f472b6" stopOpacity={0.75} />
-                  <stop offset="95%" stopColor="#f472b6" stopOpacity={0.25} />
-                </linearGradient>
+                {usageSeries.map((agent, index) => (
+                  <linearGradient key={agent.name} id={`gradWeek${index}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={agent.color} stopOpacity={0.75} />
+                    <stop offset="95%" stopColor={agent.color} stopOpacity={0.25} />
+                  </linearGradient>
+                ))}
               </defs>
-              <Area type="monotone" dataKey="JIM"     stackId="1" stroke="#f472b6" strokeWidth={1.5} fill="url(#gradJimWeek)"  dot={false} />
-              <Area type="monotone" dataKey="SARA_AI" stackId="1" stroke="#38bdf8" strokeWidth={1.5} fill="url(#gradSaraWeek)" dot={false} />
+              {usageSeries.map((agent, index) => (
+                <Area
+                  key={agent.name}
+                  type="monotone"
+                  dataKey={agent.name}
+                  stackId="1"
+                  stroke={agent.color}
+                  strokeWidth={1.5}
+                  fill={`url(#gradWeek${index})`}
+                  dot={false}
+                />
+              ))}
 
               <Line
                 type="monotone"
@@ -459,9 +900,9 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
                 stroke="#ef4444"
                 strokeWidth={2}
                 strokeDasharray="4 4"
-                dot={(props: any) => {
-                  const { cx, cy, payload } = props;
-                  if (payload.stops > 0) {
+                dot={(props: unknown) => {
+                  const { cx, cy, payload } = props as StopDotProps;
+                  if (cx !== undefined && cy !== undefined && payload?.stops && payload.stops > 0) {
                     return (
                       <g key={`ws-${payload.week}`}>
                         <circle cx={cx} cy={cy} r={10} fill="#ef444420" />
@@ -489,20 +930,20 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
           <div className="h-[220px] w-full max-w-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={MOCK_AGENT_USAGE} innerRadius={55} outerRadius={85} paddingAngle={4} dataKey="value">
-                  {MOCK_AGENT_USAGE.map((entry, i) => (
+                <Pie data={tokenUsageChartData.length ? tokenUsageChartData : MOCK_AGENT_USAGE} innerRadius={55} outerRadius={85} paddingAngle={4} dataKey="value">
+                  {(tokenUsageChartData.length ? tokenUsageChartData : MOCK_AGENT_USAGE).map((entry, i) => (
                     <Cell key={`cell-${i}`} fill={entry.color} stroke="transparent" />
                   ))}
                 </Pie>
                 <Tooltip
                   contentStyle={{ backgroundColor: "#0f172a", borderColor: "#ffffff15", borderRadius: "10px", fontSize: "12px" }}
-                  formatter={(value: any) => [formatTokensAsCost(Number(value), currency), ""]}
+                  formatter={(value) => [formatTokensAsCost(Number(value), currency), ""]}
                 />
               </PieChart>
             </ResponsiveContainer>
           </div>
           <div className="space-y-3 flex-1">
-            {MOCK_AGENT_USAGE.map((a) => (
+            {(tokenUsageChartData.length ? tokenUsageChartData : MOCK_AGENT_USAGE).map((a) => (
               <div key={a.name} className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
                   <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: a.color }} />
@@ -522,7 +963,7 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="rounded-xl bg-red-500/10 p-4 text-center">
-            <p className="text-3xl font-bold text-red-400">{totalStops}</p>
+            <p className="text-3xl font-bold text-red-400">{stopCount}</p>
             <p className="text-[11px] text-red-400/60 mt-1 uppercase tracking-wider">Total Stops Applied</p>
           </div>
           <div className="rounded-xl bg-white/5 p-4 text-center">

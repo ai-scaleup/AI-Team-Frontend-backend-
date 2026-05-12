@@ -14,11 +14,7 @@ const SINGLE_AGENTS = [
   "LARA", "VALENTINA", "DANIELE", "SIMONE", "NIKO", "ALADINO", "LAURA", "DAN"
 ];
 
-const MOCK_MEMBERSHIPS = [
-  { id: 1, name: "1 year Sara AI", durationDays: 365, tokens: 500000, items: ["SARA_AI"] },
-  { id: 2, name: "3 months Ai Team", durationDays: 90, tokens: 2000000, items: ["Marketing Powerhouse", "Sales Closers"] },
-  { id: 3, name: "Starter Bundle", durationDays: 30, tokens: 100000, items: ["JIM", "ALEX", "MIKE"] },
-];
+const MOCK_MEMBERSHIPS: { id: number; name: string; durationDays: number; tokens: number; items: string[] }[] = [];
 
 // Default per-agent limits (mock)
 const DEFAULT_PER_AGENT_LIMITS: Record<string, number> = {
@@ -68,6 +64,15 @@ interface AgentGroupDetails extends AgentGroupListItem {
   agents?: string[];
 }
 
+interface MembershipTemplate {
+  id: string;
+  name: string;
+  durationDays: number;
+  monthlyTokenLimit: number;
+  includedAgents?: string[];
+  includedGroupIds?: string[];
+}
+
 const DEFAULT_ALERTS: AlertThreshold[] = [
   { id: "a1", percentage: 50, level: "info", message: "You've used 50% of your conversation tokens. Consider wrapping up soon." },
   { id: "a2", percentage: 75, level: "warning", message: "⚠️ 75% of conversation tokens used. You're approaching the limit." },
@@ -97,6 +102,17 @@ export default function AgentsAndTeamsPage() {
   const [isUpdatingTeam, setIsUpdatingTeam] = useState(false);
   const [teamMessage, setTeamMessage] = useState<string | null>(null);
   const [teamError, setTeamError] = useState<string | null>(null);
+  const [memberships, setMemberships] = useState<MembershipTemplate[]>([]);
+  const [isLoadingMemberships, setIsLoadingMemberships] = useState(true);
+  const [isMembershipCreateOpen, setIsMembershipCreateOpen] = useState(false);
+  const [membershipName, setMembershipName] = useState("");
+  const [membershipDurationDays, setMembershipDurationDays] = useState(30);
+  const [membershipTokenLimit, setMembershipTokenLimit] = useState(100000);
+  const [membershipAgents, setMembershipAgents] = useState<string[]>([]);
+  const [membershipGroupIds, setMembershipGroupIds] = useState<string[]>([]);
+  const [isCreatingMembership, setIsCreatingMembership] = useState(false);
+  const [membershipMessage, setMembershipMessage] = useState<string | null>(null);
+  const [membershipError, setMembershipError] = useState<string | null>(null);
 
   // Conversation Limits state
   const [globalMode, setGlobalMode] = useState(true);
@@ -107,6 +123,41 @@ export default function AgentsAndTeamsPage() {
   const [alerts, setAlerts] = useState<AlertThreshold[]>([...DEFAULT_ALERTS]);
 
   const filteredAgents = SINGLE_AGENTS.filter(a => a.toLowerCase().includes(searchTerm.toLowerCase()));
+
+  const parseApiError = async (response: Response) => {
+    try {
+      const payload = await response.json();
+      if (typeof payload?.message === "string") return payload.message;
+      if (Array.isArray(payload?.message)) return payload.message.join(", ");
+    } catch {
+      // Fall back to text below.
+    }
+
+    const text = await response.text().catch(() => "");
+    return text || response.statusText || "Request failed.";
+  };
+
+  const loadMemberships = async () => {
+    setIsLoadingMemberships(true);
+    setMembershipError(null);
+
+    try {
+      const response = await fetch(`${API_BASE}/admin/dashboard/memberships`, {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        throw new Error(await parseApiError(response));
+      }
+
+      setMemberships((await response.json()) as MembershipTemplate[]);
+    } catch (error) {
+      setMembershipError(error instanceof Error ? error.message : "Unable to load memberships.");
+      setMemberships([]);
+    } finally {
+      setIsLoadingMemberships(false);
+    }
+  };
 
   const loadTeams = async () => {
     setIsLoadingTeams(true);
@@ -155,6 +206,7 @@ export default function AgentsAndTeamsPage() {
   };
 
   useEffect(() => {
+    void loadMemberships();
     void loadTeams();
   }, []);
 
@@ -174,10 +226,30 @@ export default function AgentsAndTeamsPage() {
     );
   };
 
+  const toggleMembershipAgent = (agent: string) => {
+    setMembershipAgents(prev =>
+      prev.includes(agent) ? prev.filter(item => item !== agent) : [...prev, agent],
+    );
+  };
+
+  const toggleMembershipGroup = (groupId: string) => {
+    setMembershipGroupIds(prev =>
+      prev.includes(groupId) ? prev.filter(item => item !== groupId) : [...prev, groupId],
+    );
+  };
+
   const resetCreateTeamForm = () => {
     setTeamName("");
     setTeamDescription("");
     setSelectedTeamAgents([]);
+  };
+
+  const resetCreateMembershipForm = () => {
+    setMembershipName("");
+    setMembershipDurationDays(30);
+    setMembershipTokenLimit(100000);
+    setMembershipAgents([]);
+    setMembershipGroupIds([]);
   };
 
   const startEditingTeam = (team: AgentTeam) => {
@@ -249,6 +321,62 @@ export default function AgentsAndTeamsPage() {
       setTeamError(error instanceof Error ? error.message : "Unable to create team.");
     } finally {
       setIsCreatingTeam(false);
+    }
+  };
+
+  const createMembership = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setMembershipError(null);
+    setMembershipMessage(null);
+
+    if (!membershipName.trim()) {
+      setMembershipError("Membership name is required.");
+      return;
+    }
+
+    if (!Number.isInteger(membershipDurationDays) || membershipDurationDays < 1) {
+      setMembershipError("Duration must be at least 1 day.");
+      return;
+    }
+
+    if (!Number.isInteger(membershipTokenLimit) || membershipTokenLimit < 0) {
+      setMembershipError("Monthly token limit must be a non-negative integer.");
+      return;
+    }
+
+    if (membershipAgents.length === 0 && membershipGroupIds.length === 0) {
+      setMembershipError("Select at least one agent or team.");
+      return;
+    }
+
+    setIsCreatingMembership(true);
+
+    try {
+      const response = await fetch(`${API_BASE}/admin/dashboard/memberships`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: membershipName.trim(),
+          durationDays: membershipDurationDays,
+          monthlyTokenLimit: membershipTokenLimit,
+          includedAgents: membershipAgents,
+          includedGroupIds: membershipGroupIds,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(await parseApiError(response));
+      }
+
+      const created = (await response.json()) as MembershipTemplate;
+      setMemberships(prev => [created, ...prev]);
+      setMembershipMessage(`Created "${created.name}".`);
+      resetCreateMembershipForm();
+      setIsMembershipCreateOpen(false);
+    } catch (error) {
+      setMembershipError(error instanceof Error ? error.message : "Unable to create membership.");
+    } finally {
+      setIsCreatingMembership(false);
     }
   };
 
@@ -602,12 +730,174 @@ export default function AgentsAndTeamsPage() {
               <h2 className="text-lg font-semibold flex items-center gap-2">
                 <CreditCard size={20} className="text-emerald-400" /> Predefined Memberships
               </h2>
-              <button className="flex items-center gap-2 rounded-xl bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-400 transition hover:bg-emerald-500/20">
-                <Plus size={16} /> Create Membership
+              <button
+                onClick={() => {
+                  setIsMembershipCreateOpen(prev => !prev);
+                  setMembershipError(null);
+                  setMembershipMessage(null);
+                }}
+                className="flex items-center gap-2 rounded-xl bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-400 transition hover:bg-emerald-500/20"
+              >
+                {isMembershipCreateOpen ? <X size={16} /> : <Plus size={16} />}
+                {isMembershipCreateOpen ? "Close" : "Create Membership"}
               </button>
             </div>
 
+            {isMembershipCreateOpen && (
+              <form
+                onSubmit={createMembership}
+                className="mb-6 rounded-xl border border-emerald-400/20 bg-emerald-500/[0.04] p-4"
+              >
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                  <div>
+                    <label className="mb-1.5 block text-xs text-white/50">Membership name</label>
+                    <input
+                      value={membershipName}
+                      onChange={(event) => setMembershipName(event.target.value)}
+                      placeholder="1 year Sara AI"
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-emerald-400/60"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs text-white/50">Duration days</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={membershipDurationDays}
+                      onChange={(event) => setMembershipDurationDays(Number(event.target.value))}
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-emerald-400/60"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs text-white/50">Tokens per month</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={membershipTokenLimit}
+                      onChange={(event) => setMembershipTokenLimit(Number(event.target.value))}
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-emerald-400/60"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <label className="mb-2 block text-xs text-white/50">Included agents</label>
+                  <div className="flex flex-wrap gap-2">
+                    {SINGLE_AGENTS.map(agent => {
+                      const isSelected = membershipAgents.includes(agent);
+                      return (
+                        <button
+                          key={agent}
+                          type="button"
+                          onClick={() => toggleMembershipAgent(agent)}
+                          className={`rounded-lg border px-2.5 py-1.5 text-xs transition ${
+                            isSelected
+                              ? "border-emerald-400/60 bg-emerald-500/20 text-emerald-200"
+                              : "border-white/10 bg-white/5 text-white/55 hover:border-white/20 hover:text-white/80"
+                          }`}
+                        >
+                          {agent}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <label className="mb-2 block text-xs text-white/50">Included teams</label>
+                  <div className="flex flex-wrap gap-2">
+                    {teams.length === 0 && (
+                      <span className="text-xs text-white/35">No teams available.</span>
+                    )}
+                    {teams.map(team => {
+                      const isSelected = membershipGroupIds.includes(team.id);
+                      return (
+                        <button
+                          key={team.id}
+                          type="button"
+                          onClick={() => toggleMembershipGroup(team.id)}
+                          className={`rounded-lg border px-2.5 py-1.5 text-xs transition ${
+                            isSelected
+                              ? "border-sky-400/60 bg-sky-500/20 text-sky-200"
+                              : "border-white/10 bg-white/5 text-white/55 hover:border-white/20 hover:text-white/80"
+                          }`}
+                        >
+                          {team.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="mt-4 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={isCreatingMembership}
+                    className="flex items-center gap-2 rounded-xl bg-emerald-600/90 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isCreatingMembership ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
+                    Create Membership
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {(membershipError || membershipMessage) && (
+              <div
+                className={`mb-4 rounded-xl border px-4 py-3 text-sm ${
+                  membershipError
+                    ? "border-red-400/20 bg-red-500/10 text-red-200"
+                    : "border-emerald-400/20 bg-emerald-500/10 text-emerald-200"
+                }`}
+              >
+                {membershipError ?? membershipMessage}
+              </div>
+            )}
+
             <div className="space-y-3">
+              {isLoadingMemberships && (
+                <div className="flex items-center justify-center gap-2 rounded-xl border border-white/5 bg-white/5 p-6 text-sm text-white/45">
+                  <Loader2 size={16} className="animate-spin" />
+                  Loading memberships...
+                </div>
+              )}
+
+              {!isLoadingMemberships && memberships.length === 0 && (
+                <div className="rounded-xl border border-white/5 bg-white/5 p-6 text-center text-sm text-white/35">
+                  No memberships found.
+                </div>
+              )}
+
+              {!isLoadingMemberships && memberships.map(membership => {
+                const chips = [
+                  ...(membership.includedAgents ?? []),
+                  ...(membership.includedGroupIds ?? []).map(groupId => teams.find(team => team.id === groupId)?.name ?? groupId),
+                ];
+
+                return (
+                  <div key={membership.id} className="flex items-center justify-between rounded-xl border border-white/5 bg-white/5 p-4">
+                    <div>
+                      <h3 className="font-semibold text-white/90">{membership.name}</h3>
+                      <div className="mt-1 flex items-center gap-3 text-xs text-white/50">
+                        <span>{membership.durationDays} Days</span>
+                        <span>-</span>
+                        <span>{(membership.monthlyTokenLimit / 1000).toFixed(0)}k Tokens/mo</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      <button className="text-white/40 hover:text-white"><MoreVertical size={16} /></button>
+                      <div className="flex flex-wrap justify-end gap-1">
+                        {chips.map(item => (
+                          <span key={item} className="rounded bg-sky-500/20 px-2 py-0.5 text-[10px] text-sky-300">
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
               {MOCK_MEMBERSHIPS.map(membership => (
                 <div key={membership.id} className="flex items-center justify-between rounded-xl border border-white/5 bg-white/5 p-4">
                   <div>

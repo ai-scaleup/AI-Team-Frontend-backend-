@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Search, Calendar, MoreVertical, Edit2, Trash2,
-  ChevronDown, Users, Download, CreditCard, Clock, X,
+  ChevronDown, Users, Download, CreditCard, X,
   Activity, DollarSign, Euro
 } from "lucide-react";
 
@@ -12,6 +12,7 @@ import {
 
 const USD_PER_TOKEN = 0.00003;
 const EUR_RATE = 0.92;
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "https://ai-team-server.onrender.com";
 
 type CurrencyMode = "tokens" | "USD" | "EUR";
 
@@ -68,34 +69,132 @@ function CurrencyToggle({
   );
 }
 
-/* ──────────────────────────── MOCK DATA ──────────────────────────── */
+/* ──────────────────────────── DATA MAPPING ──────────────────────────── */
 
-const MOCK_USERS = [
-  { id: "101", name: "Mario Rossi",       email: "mario@example.com",     assigned: ["SARA_AI", "JIM"],          membership: "1 year Sara AI",         duration: 365, expiration: "2024-10-01", monthlyUsage: 145200, weeklyUsage: 32400, dailyUsage: 4628, status: "active" },
-  { id: "102", name: "Luigi Verdi",        email: "luigi@example.com",     assigned: ["Marketing Powerhouse"],   membership: "3 months Ai Team",       duration: 90,  expiration: "2023-12-15", monthlyUsage: 98700,  weeklyUsage: 21300, dailyUsage: 3043, status: "active" },
-  { id: "103", name: "Anna Neri",          email: "anna@example.com",      assigned: ["CHIARA_AI"],              membership: "Starter Bundle",          duration: 30,  expiration: "2023-11-01", monthlyUsage: 76400,  weeklyUsage: 18200, dailyUsage: 2600, status: "expiring" },
-  { id: "104", name: "Paolo Gialli",       email: "paolo@example.com",     assigned: ["Sales Closers"],          membership: "1 year Ai Team",          duration: 365, expiration: "2024-05-20", monthlyUsage: 45600,  weeklyUsage: 10800, dailyUsage: 1543, status: "active" },
-  { id: "105", name: "Giulia Bianchi",     email: "giulia@example.com",    assigned: ["JENNIFER_AI"],            membership: "6 months Jennifer AI",    duration: 180, expiration: "2024-03-30", monthlyUsage: 112500, weeklyUsage: 28600, dailyUsage: 4086, status: "active" },
-  { id: "106", name: "Luca Moretti",       email: "luca@example.com",      assigned: ["SARA_AI", "ALEX"],        membership: "1 year Sara AI",          duration: 365, expiration: "2024-08-12", monthlyUsage: 67300,  weeklyUsage: 15200, dailyUsage: 2171, status: "active" },
-  { id: "107", name: "Sofia Romano",       email: "sofia@example.com",     assigned: ["JENNIFER_AI", "MIKE"],    membership: "3 months Ai Team",        duration: 90,  expiration: "2023-11-30", monthlyUsage: 87200,  weeklyUsage: 19800, dailyUsage: 2829, status: "expiring" },
-  { id: "108", name: "Andrea Colombo",     email: "andrea@example.com",    assigned: ["Content Creators"],       membership: "Starter Bundle",          duration: 30,  expiration: "2023-10-28", monthlyUsage: 54300,  weeklyUsage: 12100, dailyUsage: 1729, status: "expired" },
-  { id: "109", name: "Elena Conti",        email: "elena@example.com",     assigned: ["SARA_AI"],                membership: "1 year Sara AI",          duration: 365, expiration: "2024-11-15", monthlyUsage: 45800,  weeklyUsage: 9600,  dailyUsage: 1371, status: "active" },
-  { id: "110", name: "Marco Ferraro",      email: "marco@example.com",     assigned: ["JIM", "ALEX", "TONY"],   membership: "1 year Ai Team",          duration: 365, expiration: "2024-06-01", monthlyUsage: 32100,  weeklyUsage: 7400,  dailyUsage: 1057, status: "active" },
-  { id: "111", name: "Chiara Ricci",       email: "chiara@example.com",    assigned: ["CHIARA_AI", "LARA"],     membership: "3 months Ai Team",        duration: 90,  expiration: "2024-01-10", monthlyUsage: 38700,  weeklyUsage: 8900,  dailyUsage: 1271, status: "active" },
-  { id: "112", name: "Francesco Mancini",  email: "francesco@example.com", assigned: ["Customer Support Tier 1"], membership: "Starter Bundle",        duration: 30,  expiration: "2023-11-05", monthlyUsage: 65200,  weeklyUsage: 14300, dailyUsage: 2043, status: "expiring" },
-  { id: "113", name: "Valentina Costa",    email: "valentina@example.com", assigned: ["VALENTINA", "DANIELE"],  membership: "6 months Jennifer AI",    duration: 180, expiration: "2024-04-20", monthlyUsage: 43100,  weeklyUsage: 9100,  dailyUsage: 1300, status: "active" },
-  { id: "114", name: "Davide Galli",       email: "davide@example.com",    assigned: ["JENNIFER_AI"],            membership: "Starter Bundle",          duration: 30,  expiration: "2023-10-25", monthlyUsage: 21900,  weeklyUsage: 4800,  dailyUsage: 686,  status: "expired" },
-  { id: "115", name: "Roberto Esposito",   email: "roberto@example.com",   assigned: ["CHIARA_AI", "SARA_AI"],  membership: "1 year Ai Team",          duration: 365, expiration: "2024-09-18", monthlyUsage: 29800,  weeklyUsage: 6200,  dailyUsage: 886,  status: "active" },
-];
+type ApiAssignment = {
+  agentName?: string;
+  durationDays?: number | null;
+  expiresAt?: string | null;
+  startsAt?: string | null;
+  isActive?: boolean;
+};
+
+type ApiGroupAssignment = ApiAssignment & {
+  group?: { name?: string | null };
+};
+
+type ApiMembershipAssignment = {
+  startsAt?: string | null;
+  expiresAt?: string | null;
+  isActive?: boolean;
+  template?: {
+    name?: string;
+    durationDays?: number;
+    includedAgents?: string[];
+  };
+};
+
+type ApiUser = {
+  id: string;
+  email: string;
+  username?: string | null;
+  agents?: ApiAssignment[];
+  groups?: ApiGroupAssignment[];
+  memberships?: ApiMembershipAssignment[];
+  usage?: {
+    monthly?: number;
+    weekly?: number;
+    daily?: number;
+  };
+};
+
+type UsersResponse = {
+  data: ApiUser[];
+  meta?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+};
+
+type UserRow = {
+  id: string;
+  name: string;
+  email: string;
+  assigned: string[];
+  membership: string;
+  duration: number;
+  expiration: string;
+  monthlyUsage: number;
+  weeklyUsage: number;
+  dailyUsage: number;
+  status: "active" | "expiring" | "expired";
+};
+
+type SortableUserField = keyof Pick<
+  UserRow,
+  "duration" | "monthlyUsage" | "weeklyUsage" | "dailyUsage"
+>;
+
+const formatDate = (value?: string | null) => {
+  if (!value) return "No expiry";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "No expiry";
+  return date.toISOString().slice(0, 10);
+};
+
+const getStatus = (expiresAt?: string | null, isActive = true): UserRow["status"] => {
+  if (!isActive) return "expired";
+  if (!expiresAt) return "active";
+  const expiry = new Date(expiresAt);
+  if (Number.isNaN(expiry.getTime())) return "active";
+  const now = new Date();
+  if (expiry <= now) return "expired";
+  const daysLeft = (expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+  return daysLeft <= 14 ? "expiring" : "active";
+};
+
+const mapUser = (user: ApiUser): UserRow => {
+  const activeAgents = (user.agents ?? []).filter((item) => item.isActive !== false);
+  const activeGroups = (user.groups ?? []).filter((item) => item.isActive !== false);
+  const activeMemberships = (user.memberships ?? []).filter((item) => item.isActive !== false);
+  const primaryMembership = activeMemberships[0];
+  const primaryTimedAssignment = activeGroups[0] ?? activeAgents[0];
+  const hasActiveAccess = Boolean(primaryMembership || primaryTimedAssignment);
+  const assignedGroups = activeGroups.map((item) => item.group?.name).filter(Boolean) as string[];
+  const assignedAgents = activeAgents.map((item) => item.agentName).filter(Boolean) as string[];
+  const assigned = assignedGroups.length > 0 ? assignedGroups : assignedAgents;
+
+  if (assigned.length === 0 && primaryMembership?.template?.includedAgents?.length) {
+    assigned.push(...primaryMembership.template.includedAgents);
+  }
+
+  return {
+    id: user.id,
+    name: user.username || user.email.split("@")[0] || "Unnamed user",
+    email: user.email,
+    assigned: Array.from(new Set(assigned)),
+    membership: primaryMembership?.template?.name ?? "No membership",
+    duration: primaryMembership?.template?.durationDays ?? primaryTimedAssignment?.durationDays ?? 0,
+    expiration: formatDate(primaryMembership?.expiresAt ?? primaryTimedAssignment?.expiresAt),
+    monthlyUsage: user.usage?.monthly ?? 0,
+    weeklyUsage: user.usage?.weekly ?? 0,
+    dailyUsage: user.usage?.daily ?? 0,
+    status: hasActiveAccess
+      ? getStatus(
+          primaryMembership?.expiresAt ?? primaryTimedAssignment?.expiresAt,
+          (primaryMembership?.isActive ?? primaryTimedAssignment?.isActive) !== false,
+        )
+      : "expired",
+  };
+};
 
 const TIMEFRAME_PRESETS = [
   "Today", "Yesterday", "Last 7 Days", "This Week", "Last Week",
   "This Month", "Last Month"
-];
-
-const MEMBERSHIP_OPTIONS = [
-  "All Memberships", "1 year Sara AI", "3 months Ai Team", "Starter Bundle",
-  "1 year Ai Team", "6 months Jennifer AI"
 ];
 
 const STATUS_OPTIONS = ["All", "Active", "Expiring", "Expired"];
@@ -113,9 +212,59 @@ export default function AllUsersPage() {
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [showBulkModal, setShowBulkModal] = useState(false);
-  const [sortField, setSortField] = useState<string>("monthlyUsage");
+  const [sortField, setSortField] = useState<SortableUserField>("monthlyUsage");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [currency, setCurrency] = useState<CurrencyMode>("tokens");
+  const [users, setUsers] = useState<UserRow[]>([]);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<UsersResponse["meta"]>(undefined);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const loadUsers = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const params = new URLSearchParams();
+        params.set("page", String(page));
+        params.set("limit", "10");
+        if (searchTerm.trim()) params.set("search", searchTerm.trim());
+        const response = await fetch(`${API_BASE}/users?${params.toString()}`, {
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Users request failed with ${response.status}`);
+        }
+
+        const data = (await response.json()) as UsersResponse;
+        setUsers(Array.isArray(data.data) ? data.data.map(mapUser) : []);
+        setPagination(data.meta);
+      } catch (err) {
+        if ((err as Error).name !== "AbortError") {
+          setError((err as Error).message || "Failed to load users");
+          setUsers([]);
+          setPagination(undefined);
+        }
+      } finally {
+        if (!controller.signal.aborted) setIsLoading(false);
+      }
+    };
+
+    const timer = window.setTimeout(loadUsers, 250);
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [page, searchTerm]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm]);
 
   const toggleUser = (id: string) => {
     setSelectedUsers((prev) => prev.includes(id) ? prev.filter((u) => u !== id) : [...prev, id]);
@@ -125,27 +274,24 @@ export default function AllUsersPage() {
     else setSelectedUsers(filteredUsers.map((u) => u.id));
   };
 
-  const filteredUsers = MOCK_USERS
+  const membershipOptions = useMemo(
+    () => ["All Memberships", ...Array.from(new Set(users.map((u) => u.membership).filter(Boolean)))],
+    [users],
+  );
+
+  const filteredUsers = users
     .filter((u) => {
-      const matchesSearch =
-        u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        u.assigned.some((a) => a.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        u.membership.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesMembership = membershipFilter === "All Memberships" || u.membership === membershipFilter;
       const matchesStatus = statusFilter === "All" || u.status === statusFilter.toLowerCase();
-      return matchesSearch && matchesMembership && matchesStatus;
+      return matchesMembership && matchesStatus;
     })
     .sort((a, b) => {
-      const aVal = (a as any)[sortField];
-      const bVal = (b as any)[sortField];
-      if (typeof aVal === "number" && typeof bVal === "number") {
-        return sortDir === "desc" ? bVal - aVal : aVal - bVal;
-      }
-      return 0;
+      const aVal = a[sortField];
+      const bVal = b[sortField];
+      return sortDir === "desc" ? bVal - aVal : aVal - bVal;
     });
 
-  const handleSort = (field: string) => {
+  const handleSort = (field: SortableUserField) => {
     if (sortField === field) setSortDir((d) => (d === "desc" ? "asc" : "desc"));
     else { setSortField(field); setSortDir("desc"); }
   };
@@ -165,8 +311,7 @@ export default function AllUsersPage() {
     return map[status] || "";
   };
 
-  const totalUsers = filteredUsers.length;
-  const activeUsers = filteredUsers.filter((u) => u.status === "active").length;
+  const totalUsers = pagination?.total ?? filteredUsers.length;
   const totalMonthlyTokens = filteredUsers.reduce((s, u) => s + u.monthlyUsage, 0);
 
   const usageColLabel = (base: string) => {
@@ -183,7 +328,7 @@ export default function AllUsersPage() {
       </div>
 
       {/* ──────── SUMMARY CARDS ──────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 flex items-center gap-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sky-500/15 text-sky-400">
             <Users size={20} />
@@ -191,15 +336,6 @@ export default function AllUsersPage() {
           <div>
             <p className="text-[10px] uppercase tracking-wider text-white/35">Total Users</p>
             <p className="text-xl font-bold">{totalUsers}</p>
-          </div>
-        </div>
-        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 flex items-center gap-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400">
-            <Clock size={20} />
-          </div>
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-white/35">Active</p>
-            <p className="text-xl font-bold text-emerald-400">{activeUsers} <span className="text-xs text-white/30 font-normal">/ {totalUsers}</span></p>
           </div>
         </div>
         <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 flex items-center gap-4">
@@ -238,7 +374,7 @@ export default function AllUsersPage() {
             onChange={(e) => setMembershipFilter(e.target.value)}
             className="rounded-xl border border-white/10 bg-[#0F172A] py-2.5 px-3 text-sm text-white/70 outline-none hover:bg-white/5 transition appearance-none pr-8"
           >
-            {MEMBERSHIP_OPTIONS.map((m) => <option key={m}>{m}</option>)}
+            {membershipOptions.map((m) => <option key={m}>{m}</option>)}
           </select>
 
           {/* Status Filter */}
@@ -381,7 +517,17 @@ export default function AllUsersPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredUsers.map((user) => (
+              {isLoading && (
+                <tr>
+                  <td colSpan={11} className="px-4 py-12 text-center text-white/40">Loading real users...</td>
+                </tr>
+              )}
+              {!isLoading && error && (
+                <tr>
+                  <td colSpan={11} className="px-4 py-12 text-center text-red-300">{error}</td>
+                </tr>
+              )}
+              {!isLoading && !error && filteredUsers.map((user) => (
                 <tr key={user.id} className="border-b border-white/5 hover:bg-white/[0.03] transition group">
                   <td className="px-4 py-4 text-center">
                     <input
@@ -393,15 +539,18 @@ export default function AllUsersPage() {
                   </td>
                   <td className="px-4 py-4">
                     <Link href={`/dashboard/admin/users/${user.id}`} className="flex flex-col hover:text-sky-400 transition">
-                      <span className="font-medium text-white">{user.name}</span>
-                      <span className="text-[11px] text-white/40">{user.email}</span>
+                      <span className="font-medium text-white">{user.email}</span>
                     </Link>
                   </td>
                   <td className="px-4 py-4">
                     <div className="flex gap-1 flex-wrap max-w-[200px]">
-                      {user.assigned.map((a) => (
-                        <span key={a} className="rounded bg-indigo-500/20 px-1.5 py-0.5 text-[10px] font-medium text-indigo-300">{a}</span>
-                      ))}
+                      {user.assigned.length > 0 ? (
+                        user.assigned.map((a) => (
+                          <span key={a} className="rounded bg-indigo-500/20 px-1.5 py-0.5 text-[10px] font-medium text-indigo-300">{a}</span>
+                        ))
+                      ) : (
+                        <span className="text-[11px] text-white/30">No access</span>
+                      )}
                     </div>
                   </td>
                   <td className="px-4 py-4">
@@ -428,7 +577,7 @@ export default function AllUsersPage() {
                   </td>
                 </tr>
               ))}
-              {filteredUsers.length === 0 && (
+              {!isLoading && !error && filteredUsers.length === 0 && (
                 <tr>
                   <td colSpan={11} className="px-4 py-12 text-center text-white/40">No users found matching your criteria.</td>
                 </tr>
@@ -439,10 +588,31 @@ export default function AllUsersPage() {
 
         {/* Table Footer */}
         <div className="flex items-center justify-between border-t border-white/10 px-4 py-3 text-xs text-white/40">
-          <span>Showing {filteredUsers.length} of {MOCK_USERS.length} users</span>
-          <button className="flex items-center gap-1.5 text-white/50 hover:text-white transition">
-            <Download size={13} /> Export CSV
-          </button>
+          <span>
+            Showing {filteredUsers.length} of {pagination?.total ?? users.length} users
+            {pagination ? ` - Page ${pagination.page} of ${Math.max(pagination.totalPages, 1)}` : ""}
+          </span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <button
+                disabled={!pagination?.hasPreviousPage || isLoading}
+                onClick={() => setPage((current) => Math.max(current - 1, 1))}
+                className="rounded-md border border-white/10 px-2 py-1 text-white/50 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Previous
+              </button>
+              <button
+                disabled={!pagination?.hasNextPage || isLoading}
+                onClick={() => setPage((current) => current + 1)}
+                className="rounded-md border border-white/10 px-2 py-1 text-white/50 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
+            <button className="flex items-center gap-1.5 text-white/50 hover:text-white transition">
+              <Download size={13} /> Export CSV
+            </button>
+          </div>
         </div>
       </div>
     </div>

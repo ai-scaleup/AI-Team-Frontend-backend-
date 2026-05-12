@@ -332,6 +332,8 @@ export default function App() {
   const [isPrefsOpen, setIsPrefsOpen] = useState(false)
   const [userPrefs, setUserPrefs] = useState<UserPreference | null>(null)
   const { user } = useUser()
+  const userEmail = user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || ""
+  const preferenceUserIdentifier = userEmail || user?.id || ""
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [sidebarVisible, setSidebarVisible] = useState(true)
@@ -357,6 +359,30 @@ export default function App() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
 
   const [pendingFileContents, setPendingFileContents] = useState<{ fileName: string; content: string }[]>([])
+
+  const syncUserToBackend = async () => {
+    if (!user?.id || !userEmail) return
+
+    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ''
+
+    try {
+      const response = await fetch(`${API_BASE}/users/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          oauthId: user.id,
+          email: userEmail,
+          username: user.username ?? undefined,
+        }),
+      })
+
+      if (!response.ok) {
+        console.warn("⚠️ Alex AI: User sync failed before preferences:", response.status, await response.text())
+      }
+    } catch (error) {
+      console.warn("⚠️ Alex AI: User sync request failed before preferences:", error)
+    }
+  }
 
   // --- TYPES ---
   interface Message {
@@ -711,6 +737,8 @@ export default function App() {
 
     const loadConversations = async () => {
       try {
+        await syncUserToBackend()
+
         // First, migrate any localStorage chats (runs only once)
         await migrateLocalStorageChats(user.id)
 
@@ -773,7 +801,13 @@ export default function App() {
     }
 
     loadConversations()
-    userPreferenceService.getOrCreate(user.id, "JIM").then((prefs) => {
+
+    const loadPreferences = async () => {
+      if (!preferenceUserIdentifier) return
+
+      await syncUserToBackend()
+
+      const prefs = await userPreferenceService.getOrCreate(preferenceUserIdentifier, "ALEX")
       if (prefs) {
         setUserPrefs(prefs)
         if (prefs.oauthId) {
@@ -781,8 +815,10 @@ export default function App() {
           CURRENT_NAMESPACE.current = prefs.oauthId
         }
       }
-    })
-  }, [user?.id])
+    }
+
+    loadPreferences()
+  }, [user?.id, userEmail, preferenceUserIdentifier])
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -2221,16 +2257,17 @@ export default function App() {
         onClose={() => setIsPrefsOpen(false)}
         onComplete={() => {
           setIsPrefsOpen(false)
-          if (user?.id) {
+          if (preferenceUserIdentifier) {
             console.log('🔄 Alex AI [PREFERENCES]: Reloading preferences...')
-            userPreferenceService.getOrCreate(user.id, 'JIM')
+            syncUserToBackend()
+              .then(() => userPreferenceService.getOrCreate(preferenceUserIdentifier, 'ALEX'))
               .then((prefs) => {
                 if (prefs) setUserPrefs(prefs)
               })
           }
         }}
-        userId={user?.id || ""}
-        agentName="JIM"
+        userId={preferenceUserIdentifier}
+        agentName="ALEX"
       />
     </>
   )
