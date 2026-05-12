@@ -9,4 +9,3 @@ import { UserModule } from '../user/user.module'; // Import UserModule to get ac
   providers: [ClerkService],
 })
 export class ClerkModule {}
-

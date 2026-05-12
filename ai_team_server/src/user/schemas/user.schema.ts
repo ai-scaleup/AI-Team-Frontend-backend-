@@ -7,9 +7,7 @@ export const createUserSchema = z.object({
     .min(1, { message: 'Email is required.' })
     .email({ message: 'A valid email address is required.' })
     .trim(),
-  oauthId: z
-    .string()
-    .min(1, { message: 'OAuth ID is required.' }),
+  oauthId: z.string().min(1, { message: 'OAuth ID is required.' }),
   username: z
     .string()
     .min(3, { message: 'Username must be at least 3 characters.' })
@@ -25,8 +23,13 @@ export const updateUserSchema = z.object({
     .optional(),
 });
 
+export const listUsersQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(10),
+  search: z.string().trim().optional(),
+});
+
 // We infer our TypeScript types directly from the schemas for type safety.
 export type CreateUserDto = z.infer<typeof createUserSchema>;
 export type UpdateUserDto = z.infer<typeof updateUserSchema>;
-
-
+export type ListUsersQueryDto = z.infer<typeof listUsersQuerySchema>;

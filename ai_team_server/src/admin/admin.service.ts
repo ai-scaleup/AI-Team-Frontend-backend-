@@ -61,7 +61,7 @@ type ListGroupsParams = {
 export class AdminService {
   private readonly logger = new Logger(AdminService.name);
 
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   /* ------------------------------- helpers ------------------------------- */
 
@@ -95,7 +95,8 @@ export class AdminService {
   /** Fetch user by email; ALWAYS error if not found (no auto-create). */
   private async getUserByEmail(email: string): Promise<User> {
     const user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user) throw new NotFoundException(`User with email "${email}" not found`);
+    if (!user)
+      throw new NotFoundException(`User with email "${email}" not found`);
     return user;
   }
 
@@ -108,7 +109,8 @@ export class AdminService {
     durationDays?: number | null;
     isActive?: boolean;
   }): Promise<AssignedAgent> {
-    const { userId, agentName, startsAt, expiresAt, durationDays, isActive } = params;
+    const { userId, agentName, startsAt, expiresAt, durationDays, isActive } =
+      params;
 
     const existingActive = await this.prisma.assignedAgent.findFirst({
       where: { userId, agentName, isActive: true },
@@ -148,7 +150,8 @@ export class AdminService {
     durationDays?: number | null;
     isActive?: boolean;
   }): Promise<AssignedGroup> {
-    const { userId, groupId, startsAt, expiresAt, durationDays, isActive } = params;
+    const { userId, groupId, startsAt, expiresAt, durationDays, isActive } =
+      params;
 
     const existingActive = await this.prisma.assignedGroup.findFirst({
       where: { userId, groupId, isActive: true },
@@ -206,7 +209,9 @@ export class AdminService {
         where: { id: { in: expiredAgents.map((a) => a.id) } },
         data: { isActive: false },
       });
-      this.logger.debug(`Auto-deactivated ${expiredAgents.length} AssignedAgent records`);
+      this.logger.debug(
+        `Auto-deactivated ${expiredAgents.length} AssignedAgent records`,
+      );
     }
 
     // 2) GROUP-LEVEL: delete expired group assignments
@@ -222,15 +227,20 @@ export class AdminService {
       await this.prisma.assignedGroup.deleteMany({
         where: { id: { in: expiredGroups.map((g) => g.id) } },
       });
-      this.logger.debug(`Auto-deleted ${expiredGroups.length} AssignedGroup records`);
+      this.logger.debug(
+        `Auto-deleted ${expiredGroups.length} AssignedGroup records`,
+      );
     }
   }
 
   /* --------------------------- helper: list group agents --------------------------- */
 
   async listGroupAgents(groupId: string) {
-    const group = await this.prisma.agentGroup.findUnique({ where: { id: groupId } });
-    if (!group) throw new NotFoundException(`AgentGroup "${groupId}" not found`);
+    const group = await this.prisma.agentGroup.findUnique({
+      where: { id: groupId },
+    });
+    if (!group)
+      throw new NotFoundException(`AgentGroup "${groupId}" not found`);
 
     const items = await this.prisma.agentGroupItem.findMany({
       where: { groupId },
@@ -308,7 +318,9 @@ export class AdminService {
               ...(opts.durationDays !== undefined
                 ? { durationDays: opts.durationDays }
                 : {}),
-              ...(typeof opts.isActive === 'boolean' ? { isActive: opts.isActive } : {}),
+              ...(typeof opts.isActive === 'boolean'
+                ? { isActive: opts.isActive }
+                : {}),
             },
           });
           results.push(updated);
@@ -322,7 +334,8 @@ export class AdminService {
               ...(opts.durationDays !== undefined
                 ? { durationDays: opts.durationDays }
                 : {}),
-              isActive: typeof opts.isActive === 'boolean' ? opts.isActive : true,
+              isActive:
+                typeof opts.isActive === 'boolean' ? opts.isActive : true,
             },
           });
           results.push(created);
@@ -334,13 +347,18 @@ export class AdminService {
   }
 
   /** Deactivate an active assignment for a user by email. */
-  async deactivateAgentByEmail(email: string, agentName: AgentName): Promise<AssignedAgent> {
+  async deactivateAgentByEmail(
+    email: string,
+    agentName: AgentName,
+  ): Promise<AssignedAgent> {
     const user = await this.getUserByEmail(email.trim());
     const existingActive = await this.prisma.assignedAgent.findFirst({
       where: { userId: user.id, agentName, isActive: true },
     });
     if (!existingActive) {
-      throw new NotFoundException(`Active assignment for ${agentName} not found for ${email}`);
+      throw new NotFoundException(
+        `Active assignment for ${agentName} not found for ${email}`,
+      );
     }
     return this.prisma.assignedAgent.update({
       where: { id: existingActive.id },
@@ -349,7 +367,10 @@ export class AdminService {
   }
 
   /** List assignments for a user by email. */
-  async listAssignmentsByEmail(email: string, activeOnly = false): Promise<AssignedAgent[]> {
+  async listAssignmentsByEmail(
+    email: string,
+    activeOnly = false,
+  ): Promise<AssignedAgent[]> {
     const user = await this.getUserByEmail(email.trim());
     const now = new Date();
 
@@ -404,7 +425,9 @@ export class AdminService {
       });
     } catch (e: any) {
       if (e?.code === 'P2002') {
-        throw new ConflictException(`AgentGroup name "${input.name}" already exists`);
+        throw new ConflictException(
+          `AgentGroup name "${input.name}" already exists`,
+        );
       }
       throw e;
     }
@@ -420,8 +443,12 @@ export class AdminService {
         where: { id },
         data: {
           ...(input.name ? { name: input.name.trim() } : {}),
-          ...(input.description !== undefined ? { description: input.description } : {}),
-          ...(typeof input.isActive === 'boolean' ? { isActive: input.isActive } : {}),
+          ...(input.description !== undefined
+            ? { description: input.description }
+            : {}),
+          ...(typeof input.isActive === 'boolean'
+            ? { isActive: input.isActive }
+            : {}),
         },
       });
     } catch (e: any) {
@@ -429,7 +456,9 @@ export class AdminService {
         throw new NotFoundException(`AgentGroup "${id}" not found`);
       }
       if (e?.code === 'P2002') {
-        throw new ConflictException(`AgentGroup name "${input.name}" already exists`);
+        throw new ConflictException(
+          `AgentGroup name "${input.name}" already exists`,
+        );
       }
       throw e;
     }
@@ -455,18 +484,22 @@ export class AdminService {
   }
 
   /** List groups with basic filters + pagination. */
-  async listAgentGroups(params: ListGroupsParams = {}): Promise<Paginated<AgentGroup>> {
+  async listAgentGroups(
+    params: ListGroupsParams = {},
+  ): Promise<Paginated<AgentGroup>> {
     const page = Math.max(1, params.page ?? 1);
     const limit = Math.min(100, Math.max(1, params.limit ?? 20));
     const where: Prisma.AgentGroupWhereInput = {
       ...(params.nameContains
         ? { name: { contains: params.nameContains, mode: 'insensitive' } }
         : {}),
-      ...(typeof params.isActive === 'boolean' ? { isActive: params.isActive } : {}),
+      ...(typeof params.isActive === 'boolean'
+        ? { isActive: params.isActive }
+        : {}),
     };
 
     const orderBy: Prisma.AgentGroupOrderByWithRelationInput = {
-      [(params.sortBy ?? 'createdAt')]: params.sortOrder ?? 'desc',
+      [params.sortBy ?? 'createdAt']: params.sortOrder ?? 'desc',
     };
 
     const [total, data] = await this.prisma.$transaction([
@@ -489,7 +522,9 @@ export class AdminService {
   }
 
   /** Get a single group by ID (with agents count). */
-  async getAgentGroupById(id: string): Promise<AgentGroup & { agentsCount: number; agents: AgentName[] }> {
+  async getAgentGroupById(
+    id: string,
+  ): Promise<AgentGroup & { agentsCount: number; agents: AgentName[] }> {
     const group = await this.prisma.agentGroup.findUnique({ where: { id } });
     if (!group) throw new NotFoundException(`AgentGroup "${id}" not found`);
 
@@ -507,10 +542,16 @@ export class AdminService {
   }
 
   /** Add agents to a group (deduped, createMany skipDuplicates). */
-  async addAgentsToGroup(groupId: string, agentNames: AgentName[]): Promise<{ count: number }> {
+  async addAgentsToGroup(
+    groupId: string,
+    agentNames: AgentName[],
+  ): Promise<{ count: number }> {
     // ensure group exists
-    const group = await this.prisma.agentGroup.findUnique({ where: { id: groupId } });
-    if (!group) throw new NotFoundException(`AgentGroup "${groupId}" not found`);
+    const group = await this.prisma.agentGroup.findUnique({
+      where: { id: groupId },
+    });
+    if (!group)
+      throw new NotFoundException(`AgentGroup "${groupId}" not found`);
 
     // dedupe incoming
     const unique = Array.from(new Set(agentNames));
@@ -530,8 +571,11 @@ export class AdminService {
     agentNames: AgentName[],
   ): Promise<{ count: number }> {
     // ensure group exists
-    const group = await this.prisma.agentGroup.findUnique({ where: { id: groupId } });
-    if (!group) throw new NotFoundException(`AgentGroup "${groupId}" not found`);
+    const group = await this.prisma.agentGroup.findUnique({
+      where: { id: groupId },
+    });
+    if (!group)
+      throw new NotFoundException(`AgentGroup "${groupId}" not found`);
 
     if (!agentNames.length) return { count: 0 };
 
@@ -546,10 +590,16 @@ export class AdminService {
    * Replace a group's agents with the provided set (transactional).
    * Passing an empty array clears the group.
    */
-  async replaceGroupAgents(groupId: string, agentNames: AgentName[]): Promise<void> {
+  async replaceGroupAgents(
+    groupId: string,
+    agentNames: AgentName[],
+  ): Promise<void> {
     // ensure group exists
-    const group = await this.prisma.agentGroup.findUnique({ where: { id: groupId } });
-    if (!group) throw new NotFoundException(`AgentGroup "${groupId}" not found`);
+    const group = await this.prisma.agentGroup.findUnique({
+      where: { id: groupId },
+    });
+    if (!group)
+      throw new NotFoundException(`AgentGroup "${groupId}" not found`);
 
     const next = Array.from(new Set(agentNames)); // dedupe
 
@@ -583,7 +633,10 @@ export class AdminService {
     selector: GroupSelector,
     agentNames: AgentName[],
     opts: BaseAssignOpts = {},
-  ): Promise<{ addedToGroup: { count: number }; assignments: AssignedAgent[] }> {
+  ): Promise<{
+    addedToGroup: { count: number };
+    assignments: AssignedAgent[];
+  }> {
     if (!email?.trim()) throw new BadRequestException('email is required');
     if (!Array.isArray(agentNames) || agentNames.length === 0) {
       throw new BadRequestException('agentNames must be a non-empty array');
@@ -613,7 +666,11 @@ export class AdminService {
     });
 
     // 4. Assign the agents to the user
-    const assignments = await this.assignAgentsByEmail(email.trim(), agentNames, opts);
+    const assignments = await this.assignAgentsByEmail(
+      email.trim(),
+      agentNames,
+      opts,
+    );
 
     return { addedToGroup, assignments };
   }
@@ -623,13 +680,23 @@ export class AdminService {
   /** Resolve a group by id or unique name and return its id. */
   private async resolveGroupId(sel: GroupSelector): Promise<string> {
     if (sel.groupId) {
-      const g = await this.prisma.agentGroup.findUnique({ where: { id: sel.groupId } });
-      if (!g) throw new NotFoundException(`AgentGroup with id "${sel.groupId}" not found`);
+      const g = await this.prisma.agentGroup.findUnique({
+        where: { id: sel.groupId },
+      });
+      if (!g)
+        throw new NotFoundException(
+          `AgentGroup with id "${sel.groupId}" not found`,
+        );
       return g.id;
     }
     if (sel.groupName) {
-      const g = await this.prisma.agentGroup.findUnique({ where: { name: sel.groupName } });
-      if (!g) throw new NotFoundException(`AgentGroup with name "${sel.groupName}" not found`);
+      const g = await this.prisma.agentGroup.findUnique({
+        where: { name: sel.groupName },
+      });
+      if (!g)
+        throw new NotFoundException(
+          `AgentGroup with name "${sel.groupName}" not found`,
+        );
       return g.id;
     }
     throw new BadRequestException('Provide groupId or groupName');
@@ -703,7 +770,9 @@ export class AdminService {
   ): Promise<AssignedAgent[]> {
     if (!email?.trim()) throw new BadRequestException('email is required');
     if (!Array.isArray(selectors) || selectors.length === 0) {
-      throw new BadRequestException('selectors must be a non-empty array of group identifiers');
+      throw new BadRequestException(
+        'selectors must be a non-empty array of group identifiers',
+      );
     }
     const user = await this.getUserByEmail(email.trim());
 
@@ -756,26 +825,30 @@ export class AdminService {
     }
 
     try {
-      return await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-        const group = await tx.agentGroup.create({
-          data: {
-            name: input.name.trim(),
-            description: input.description,
-            isActive: input.isActive ?? true,
-          },
-        });
+      return await this.prisma.$transaction(
+        async (tx: Prisma.TransactionClient) => {
+          const group = await tx.agentGroup.create({
+            data: {
+              name: input.name.trim(),
+              description: input.description,
+              isActive: input.isActive ?? true,
+            },
+          });
 
-        const unique = Array.from(new Set(input.agentNames));
-        const res = await tx.agentGroupItem.createMany({
-          data: unique.map((a) => ({ groupId: group.id, agentName: a })),
-          skipDuplicates: true,
-        });
+          const unique = Array.from(new Set(input.agentNames));
+          const res = await tx.agentGroupItem.createMany({
+            data: unique.map((a) => ({ groupId: group.id, agentName: a })),
+            skipDuplicates: true,
+          });
 
-        return { group, itemsCount: res.count };
-      });
+          return { group, itemsCount: res.count };
+        },
+      );
     } catch (e: any) {
       if (e?.code === 'P2002') {
-        throw new ConflictException(`AgentGroup name "${input.name}" already exists`);
+        throw new ConflictException(
+          `AgentGroup name "${input.name}" already exists`,
+        );
       }
       throw e;
     }
@@ -828,7 +901,10 @@ export class AdminService {
     selector: GroupSelector,
     opts: BaseAssignOpts = {},
     alsoAssignAgents = true,
-  ): Promise<{ groupAssignment: AssignedGroup; agentAssignments?: AssignedAgent[] }> {
+  ): Promise<{
+    groupAssignment: AssignedGroup;
+    agentAssignments?: AssignedAgent[];
+  }> {
     if (!email?.trim()) throw new BadRequestException('email is required');
     const user = await this.getUserByEmail(email.trim());
 
@@ -851,7 +927,11 @@ export class AdminService {
     if (!alsoAssignAgents) return { groupAssignment };
 
     const agentNames = await this.getGroupAgentNames(groupId);
-    const agentAssignments = await this.assignAgentsByEmail(email.trim(), agentNames, opts);
+    const agentAssignments = await this.assignAgentsByEmail(
+      email.trim(),
+      agentNames,
+      opts,
+    );
 
     return { groupAssignment, agentAssignments };
   }
@@ -861,7 +941,12 @@ export class AdminService {
     activeOnly = false,
   ): Promise<
     (AssignedGroup & {
-      group: { id: string; name: string; description: string | null; agents: AgentName[] };
+      group: {
+        id: string;
+        name: string;
+        description: string | null;
+        agents: AgentName[];
+      };
     })[]
   > {
     const user = await this.getUserByEmail(email.trim());
@@ -912,7 +997,9 @@ export class AdminService {
       where: { userId: user.id, groupId, isActive: true },
     });
     if (!existing) {
-      throw new NotFoundException(`Active group assignment not found for ${email}`);
+      throw new NotFoundException(
+        `Active group assignment not found for ${email}`,
+      );
     }
     return this.prisma.assignedGroup.update({
       where: { id: existing.id },
@@ -976,7 +1063,9 @@ export class AdminService {
         ...(updates.durationDays !== undefined
           ? { durationDays: updates.durationDays }
           : {}),
-        ...(typeof updates.isActive === 'boolean' ? { isActive: updates.isActive } : {}),
+        ...(typeof updates.isActive === 'boolean'
+          ? { isActive: updates.isActive }
+          : {}),
       },
     });
   }
@@ -1050,7 +1139,9 @@ export class AdminService {
     // If group selector is provided, filter by that group
     if (selector) {
       const groupId = await this.resolveGroupId(selector);
-      const group = await this.prisma.agentGroup.findUnique({ where: { id: groupId } });
+      const group = await this.prisma.agentGroup.findUnique({
+        where: { id: groupId },
+      });
       if (!group) throw new NotFoundException(`AgentGroup not found`);
 
       // Get agents in this group
@@ -1065,7 +1156,9 @@ export class AdminService {
         userId: user.id,
         agentName: { in: Array.from(groupAgentNames) },
         ...(activeOnly ? { isActive: true } : {}),
-        ...(activeOnly ? { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] } : {}),
+        ...(activeOnly
+          ? { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] }
+          : {}),
       };
 
       const assignments = await this.prisma.assignedAgent.findMany({
@@ -1089,7 +1182,9 @@ export class AdminService {
     const where: Prisma.AssignedAgentWhereInput = {
       userId: user.id,
       ...(activeOnly ? { isActive: true } : {}),
-      ...(activeOnly ? { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] } : {}),
+      ...(activeOnly
+        ? { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] }
+        : {}),
     };
 
     const assignments = await this.prisma.assignedAgent.findMany({
@@ -1143,17 +1238,29 @@ export class AdminService {
     });
 
     const totalConversations = conversations.length;
-    const totalMessages = conversations.reduce((s, c) => s + c._count.messages, 0);
+    const totalMessages = conversations.reduce(
+      (s, c) => s + c._count.messages,
+      0,
+    );
 
     // Group by agentId
-    const agentMap = new Map<string, { agentId: string; conversations: number; messages: number }>();
+    const agentMap = new Map<
+      string,
+      { agentId: string; conversations: number; messages: number }
+    >();
     for (const c of conversations) {
-      const entry = agentMap.get(c.agentId) ?? { agentId: c.agentId, conversations: 0, messages: 0 };
+      const entry = agentMap.get(c.agentId) ?? {
+        agentId: c.agentId,
+        conversations: 0,
+        messages: 0,
+      };
       entry.conversations += 1;
       entry.messages += c._count.messages;
       agentMap.set(c.agentId, entry);
     }
-    const byAgent = Array.from(agentMap.values()).sort((a, b) => b.messages - a.messages);
+    const byAgent = Array.from(agentMap.values()).sort(
+      (a, b) => b.messages - a.messages,
+    );
 
     const lastActivity = conversations[0]?.lastUpdated ?? null;
 

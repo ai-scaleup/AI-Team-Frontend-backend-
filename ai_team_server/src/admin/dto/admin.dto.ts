@@ -27,7 +27,9 @@ const toNumber = ({ value }: { value: any }) => {
 };
 
 const toDate = ({ value }: { value: any }) =>
-  value === '' || value === undefined || value === null ? undefined : new Date(value);
+  value === '' || value === undefined || value === null
+    ? undefined
+    : new Date(value);
 
 /** Accept Date | string | null | undefined; maps '' -> undefined, null -> null */
 const toDateOrNull = ({ value }: { value: any }) => {

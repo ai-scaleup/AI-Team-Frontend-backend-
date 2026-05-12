@@ -457,7 +457,7 @@ class GetAgentsByEmailQuery {
 @ApiTags('admin')
 @Controller('admin')
 export class AdminController {
-  constructor(private readonly admin: AdminService) { }
+  constructor(private readonly admin: AdminService) {}
 
   /**
    * Get agents for a user by email, optionally filtered by a specific group.
@@ -487,15 +487,15 @@ export class AdminController {
     );
   }
 
-
-
   /**
    * Assign all agents from a single group (identified by id or name) to a user by email.
    * Service also UPSERTS an AssignedGroup for (user, group) automatically.
    * Response is AssignedAgent[] (materialized per-agent assignments).
    */
   @Post('assign/group')
-  @ApiOperation({ summary: 'Assign all agents from one group to a user by email' })
+  @ApiOperation({
+    summary: 'Assign all agents from one group to a user by email',
+  })
   @ApiBody({
     schema: {
       type: 'object',
@@ -511,11 +511,15 @@ export class AdminController {
   assignGroup(@Body() dto: AssignGroupByEmailDto) {
     const { selector } = dto;
     if (!selector?.groupId && !selector?.groupName) {
-      throw new BadRequestException('Provide selector.groupId or selector.groupName');
+      throw new BadRequestException(
+        'Provide selector.groupId or selector.groupName',
+      );
     }
     return this.admin.assignAgentGroupByEmail(
       dto.email,
-      selector.groupId ? { groupId: selector.groupId } : { groupName: selector.groupName! },
+      selector.groupId
+        ? { groupId: selector.groupId }
+        : { groupName: selector.groupName! },
       {
         startsAt: dto.startsAt,
         expiresAt: dto.expiresAt,
@@ -527,7 +531,9 @@ export class AdminController {
 
   /** Assign all agents from multiple groups (merge & dedupe) to a user by email */
   @Post('assign/groups')
-  @ApiOperation({ summary: 'Assign all agents from multiple groups to a user by email' })
+  @ApiOperation({
+    summary: 'Assign all agents from multiple groups to a user by email',
+  })
   @ApiBody({
     schema: {
       type: 'object',
@@ -543,7 +549,9 @@ export class AdminController {
   assignGroups(@Body() dto: AssignGroupsByEmailDto) {
     const selectors = dto.selectors.map((s) => {
       if (!s.groupId && !s.groupName) {
-        throw new BadRequestException('Each selector must have groupId or groupName');
+        throw new BadRequestException(
+          'Each selector must have groupId or groupName',
+        );
       }
       return s.groupId ? { groupId: s.groupId } : { groupName: s.groupName! };
     });
@@ -618,7 +626,11 @@ export class AdminController {
   @ApiQuery({ name: 'limit', required: false, example: 20 })
   @ApiQuery({ name: 'nameContains', required: false })
   @ApiQuery({ name: 'isActive', required: false })
-  @ApiQuery({ name: 'sortBy', required: false, enum: ['createdAt', 'updatedAt', 'name'] })
+  @ApiQuery({
+    name: 'sortBy',
+    required: false,
+    enum: ['createdAt', 'updatedAt', 'name'],
+  })
   @ApiQuery({ name: 'sortOrder', required: false, enum: ['asc', 'desc'] })
   @ApiOkResponse({ description: 'Groups returned' })
   listGroups(@Query() q: ListGroupsQuery) {
@@ -696,11 +708,15 @@ export class AdminController {
   addAgentsToGroupAndAssign(@Body() dto: AddAgentsToGroupAndAssignDto) {
     const { selector } = dto;
     if (!selector?.groupId && !selector?.groupName) {
-      throw new BadRequestException('Provide selector.groupId or selector.groupName');
+      throw new BadRequestException(
+        'Provide selector.groupId or selector.groupName',
+      );
     }
     return this.admin.addAgentsToGroupAndAssignByEmail(
       dto.email,
-      selector.groupId ? { groupId: selector.groupId } : { groupName: selector.groupName! },
+      selector.groupId
+        ? { groupId: selector.groupId }
+        : { groupName: selector.groupName! },
       dto.agentNames,
       {
         startsAt: dto.startsAt,
@@ -739,7 +755,9 @@ export class AdminController {
 
   /** Create a group with agents and assign that group to a user by email (agent-level materialization) */
   @Post('groups-with-agents/assign')
-  @ApiOperation({ summary: 'Create a group with agents and assign it to a user' })
+  @ApiOperation({
+    summary: 'Create a group with agents and assign it to a user',
+  })
   @ApiBody({
     schema: {
       type: 'object',
@@ -762,7 +780,9 @@ export class AdminController {
     },
   })
   @ApiOkResponse({ description: 'Group created and assigned' })
-  createGroupWithAgentsAndAssign(@Body() dto: CreateGroupWithAgentsAndAssignDto) {
+  createGroupWithAgentsAndAssign(
+    @Body() dto: CreateGroupWithAgentsAndAssignDto,
+  ) {
     return this.admin.createGroupWithAgentsAndAssignByEmail(
       dto.email,
       {
@@ -801,11 +821,15 @@ export class AdminController {
   assignGroupToUser(@Body() dto: AssignGroupToUserByEmailDto) {
     const { selector } = dto;
     if (!selector?.groupId && !selector?.groupName) {
-      throw new BadRequestException('Provide selector.groupId or selector.groupName');
+      throw new BadRequestException(
+        'Provide selector.groupId or selector.groupName',
+      );
     }
     return this.admin.assignGroupToUserByEmail(
       dto.email,
-      selector.groupId ? { groupId: selector.groupId } : { groupName: selector.groupName! },
+      selector.groupId
+        ? { groupId: selector.groupId }
+        : { groupName: selector.groupName! },
       {
         startsAt: dto.startsAt,
         expiresAt: dto.expiresAt,
@@ -823,7 +847,10 @@ export class AdminController {
   @ApiQuery({ name: 'activeOnly', required: false, example: false })
   @ApiOkResponse({ description: 'Group assignments returned' })
   listGroupAssignments(@Query() q: ListGroupAssignmentsQuery) {
-    return this.admin.listGroupAssignmentsByEmail(q.email, q.activeOnly ?? false);
+    return this.admin.listGroupAssignmentsByEmail(
+      q.email,
+      q.activeOnly ?? false,
+    );
   }
 
   /** Admin: deactivate a GROUP assignment for a user */
@@ -843,11 +870,15 @@ export class AdminController {
   deactivateGroupAssignment(@Body() dto: DeactivateGroupByEmailDto) {
     const { selector } = dto;
     if (!selector?.groupId && !selector?.groupName) {
-      throw new BadRequestException('Provide selector.groupId or selector.groupName');
+      throw new BadRequestException(
+        'Provide selector.groupId or selector.groupName',
+      );
     }
     return this.admin.deactivateGroupByEmail(
       dto.email,
-      selector.groupId ? { groupId: selector.groupId } : { groupName: selector.groupName! },
+      selector.groupId
+        ? { groupId: selector.groupId }
+        : { groupName: selector.groupName! },
     );
   }
 
@@ -868,11 +899,15 @@ export class AdminController {
   deleteGroupAssignment(@Body() dto: DeactivateGroupByEmailDto) {
     const { selector } = dto;
     if (!selector?.groupId && !selector?.groupName) {
-      throw new BadRequestException('Provide selector.groupId or selector.groupName');
+      throw new BadRequestException(
+        'Provide selector.groupId or selector.groupName',
+      );
     }
     return this.admin.deleteGroupAssignmentByEmail(
       dto.email,
-      selector.groupId ? { groupId: selector.groupId } : { groupName: selector.groupName! },
+      selector.groupId
+        ? { groupId: selector.groupId }
+        : { groupName: selector.groupName! },
     );
   }
 
@@ -896,11 +931,15 @@ export class AdminController {
   updateMyGroupAssignment(@Body() dto: UpdateMyGroupAssignmentDto) {
     const { selector } = dto;
     if (!selector?.groupId && !selector?.groupName) {
-      throw new BadRequestException('Provide selector.groupId or selector.groupName');
+      throw new BadRequestException(
+        'Provide selector.groupId or selector.groupName',
+      );
     }
     return this.admin.updateMyGroupAssignmentByEmail(
       dto.email,
-      selector.groupId ? { groupId: selector.groupId } : { groupName: selector.groupName! },
+      selector.groupId
+        ? { groupId: selector.groupId }
+        : { groupName: selector.groupName! },
       {
         startsAt: dto.startsAt,
         expiresAt: dto.expiresAt,
@@ -920,7 +959,12 @@ export class AdminController {
       properties: {
         email: { type: 'string', format: 'email' },
         selector: groupSelectorSchema,
-        addDays: { type: 'integer', minimum: -3650, maximum: 3650, example: 30 },
+        addDays: {
+          type: 'integer',
+          minimum: -3650,
+          maximum: 3650,
+          example: 30,
+        },
       },
     },
   })
@@ -928,11 +972,15 @@ export class AdminController {
   extendMyGroupAssignment(@Body() dto: ExtendMyGroupAssignmentDto) {
     const { selector } = dto;
     if (!selector?.groupId && !selector?.groupName) {
-      throw new BadRequestException('Provide selector.groupId or selector.groupName');
+      throw new BadRequestException(
+        'Provide selector.groupId or selector.groupName',
+      );
     }
     return this.admin.extendMyGroupAssignmentByEmail(
       dto.email,
-      selector.groupId ? { groupId: selector.groupId } : { groupName: selector.groupName! },
+      selector.groupId
+        ? { groupId: selector.groupId }
+        : { groupName: selector.groupName! },
       dto.addDays,
     );
   }
@@ -954,11 +1002,15 @@ export class AdminController {
   deactivateMyGroupAssignment(@Body() dto: DeactivateMyGroupAssignmentDto) {
     const { selector } = dto;
     if (!selector?.groupId && !selector?.groupName) {
-      throw new BadRequestException('Provide selector.groupId or selector.groupName');
+      throw new BadRequestException(
+        'Provide selector.groupId or selector.groupName',
+      );
     }
     return this.admin.deactivateMyGroupAssignmentByEmail(
       dto.email,
-      selector.groupId ? { groupId: selector.groupId } : { groupName: selector.groupName! },
+      selector.groupId
+        ? { groupId: selector.groupId }
+        : { groupName: selector.groupName! },
     );
   }
 

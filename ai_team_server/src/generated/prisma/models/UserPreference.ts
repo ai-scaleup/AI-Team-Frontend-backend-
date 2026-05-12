@@ -37,6 +37,7 @@ export type UserPreferenceSumAggregateOutputType = {
 export type UserPreferenceMinAggregateOutputType = {
   id: string | null
   oauthId: string | null
+  email: string | null
   agentName: $Enums.AgentName | null
   displayName: string | null
   businessName: string | null
@@ -60,6 +61,7 @@ export type UserPreferenceMinAggregateOutputType = {
 export type UserPreferenceMaxAggregateOutputType = {
   id: string | null
   oauthId: string | null
+  email: string | null
   agentName: $Enums.AgentName | null
   displayName: string | null
   businessName: string | null
@@ -83,6 +85,7 @@ export type UserPreferenceMaxAggregateOutputType = {
 export type UserPreferenceCountAggregateOutputType = {
   id: number
   oauthId: number
+  email: number
   agentName: number
   displayName: number
   businessName: number
@@ -116,6 +119,7 @@ export type UserPreferenceSumAggregateInputType = {
 export type UserPreferenceMinAggregateInputType = {
   id?: true
   oauthId?: true
+  email?: true
   agentName?: true
   displayName?: true
   businessName?: true
@@ -139,6 +143,7 @@ export type UserPreferenceMinAggregateInputType = {
 export type UserPreferenceMaxAggregateInputType = {
   id?: true
   oauthId?: true
+  email?: true
   agentName?: true
   displayName?: true
   businessName?: true
@@ -162,6 +167,7 @@ export type UserPreferenceMaxAggregateInputType = {
 export type UserPreferenceCountAggregateInputType = {
   id?: true
   oauthId?: true
+  email?: true
   agentName?: true
   displayName?: true
   businessName?: true
@@ -272,6 +278,7 @@ export type UserPreferenceGroupByArgs<ExtArgs extends runtime.Types.Extensions.I
 export type UserPreferenceGroupByOutputType = {
   id: string
   oauthId: string
+  email: string
   agentName: $Enums.AgentName
   displayName: string | null
   businessName: string | null
@@ -318,6 +325,7 @@ export type UserPreferenceWhereInput = {
   NOT?: Prisma.UserPreferenceWhereInput | Prisma.UserPreferenceWhereInput[]
   id?: Prisma.StringFilter<"UserPreference"> | string
   oauthId?: Prisma.StringFilter<"UserPreference"> | string
+  email?: Prisma.StringFilter<"UserPreference"> | string
   agentName?: Prisma.EnumAgentNameFilter<"UserPreference"> | $Enums.AgentName
   displayName?: Prisma.StringNullableFilter<"UserPreference"> | string | null
   businessName?: Prisma.StringNullableFilter<"UserPreference"> | string | null
@@ -342,6 +350,7 @@ export type UserPreferenceWhereInput = {
 export type UserPreferenceOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   oauthId?: Prisma.SortOrder
+  email?: Prisma.SortOrder
   agentName?: Prisma.SortOrder
   displayName?: Prisma.SortOrderInput | Prisma.SortOrder
   businessName?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -370,6 +379,7 @@ export type UserPreferenceWhereUniqueInput = Prisma.AtLeast<{
   OR?: Prisma.UserPreferenceWhereInput[]
   NOT?: Prisma.UserPreferenceWhereInput | Prisma.UserPreferenceWhereInput[]
   oauthId?: Prisma.StringFilter<"UserPreference"> | string
+  email?: Prisma.StringFilter<"UserPreference"> | string
   agentName?: Prisma.EnumAgentNameFilter<"UserPreference"> | $Enums.AgentName
   displayName?: Prisma.StringNullableFilter<"UserPreference"> | string | null
   businessName?: Prisma.StringNullableFilter<"UserPreference"> | string | null
@@ -394,6 +404,7 @@ export type UserPreferenceWhereUniqueInput = Prisma.AtLeast<{
 export type UserPreferenceOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   oauthId?: Prisma.SortOrder
+  email?: Prisma.SortOrder
   agentName?: Prisma.SortOrder
   displayName?: Prisma.SortOrderInput | Prisma.SortOrder
   businessName?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -425,6 +436,7 @@ export type UserPreferenceScalarWhereWithAggregatesInput = {
   NOT?: Prisma.UserPreferenceScalarWhereWithAggregatesInput | Prisma.UserPreferenceScalarWhereWithAggregatesInput[]
   id?: Prisma.StringWithAggregatesFilter<"UserPreference"> | string
   oauthId?: Prisma.StringWithAggregatesFilter<"UserPreference"> | string
+  email?: Prisma.StringWithAggregatesFilter<"UserPreference"> | string
   agentName?: Prisma.EnumAgentNameWithAggregatesFilter<"UserPreference"> | $Enums.AgentName
   displayName?: Prisma.StringNullableWithAggregatesFilter<"UserPreference"> | string | null
   businessName?: Prisma.StringNullableWithAggregatesFilter<"UserPreference"> | string | null
@@ -447,6 +459,7 @@ export type UserPreferenceScalarWhereWithAggregatesInput = {
 
 export type UserPreferenceCreateInput = {
   id?: string
+  email: string
   agentName: $Enums.AgentName
   displayName?: string | null
   businessName?: string | null
@@ -471,6 +484,7 @@ export type UserPreferenceCreateInput = {
 export type UserPreferenceUncheckedCreateInput = {
   id?: string
   oauthId: string
+  email: string
   agentName: $Enums.AgentName
   displayName?: string | null
   businessName?: string | null
@@ -493,6 +507,7 @@ export type UserPreferenceUncheckedCreateInput = {
 
 export type UserPreferenceUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
   agentName?: Prisma.EnumAgentNameFieldUpdateOperationsInput | $Enums.AgentName
   displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   businessName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -517,6 +532,7 @@ export type UserPreferenceUpdateInput = {
 export type UserPreferenceUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   oauthId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
   agentName?: Prisma.EnumAgentNameFieldUpdateOperationsInput | $Enums.AgentName
   displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   businessName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -540,6 +556,7 @@ export type UserPreferenceUncheckedUpdateInput = {
 export type UserPreferenceCreateManyInput = {
   id?: string
   oauthId: string
+  email: string
   agentName: $Enums.AgentName
   displayName?: string | null
   businessName?: string | null
@@ -562,6 +579,7 @@ export type UserPreferenceCreateManyInput = {
 
 export type UserPreferenceUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
   agentName?: Prisma.EnumAgentNameFieldUpdateOperationsInput | $Enums.AgentName
   displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   businessName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -585,6 +603,7 @@ export type UserPreferenceUpdateManyMutationInput = {
 export type UserPreferenceUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   oauthId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
   agentName?: Prisma.EnumAgentNameFieldUpdateOperationsInput | $Enums.AgentName
   displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   businessName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -623,6 +642,7 @@ export type UserPreferenceOauthIdAgentNameCompoundUniqueInput = {
 export type UserPreferenceCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   oauthId?: Prisma.SortOrder
+  email?: Prisma.SortOrder
   agentName?: Prisma.SortOrder
   displayName?: Prisma.SortOrder
   businessName?: Prisma.SortOrder
@@ -650,6 +670,7 @@ export type UserPreferenceAvgOrderByAggregateInput = {
 export type UserPreferenceMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   oauthId?: Prisma.SortOrder
+  email?: Prisma.SortOrder
   agentName?: Prisma.SortOrder
   displayName?: Prisma.SortOrder
   businessName?: Prisma.SortOrder
@@ -673,6 +694,7 @@ export type UserPreferenceMaxOrderByAggregateInput = {
 export type UserPreferenceMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   oauthId?: Prisma.SortOrder
+  email?: Prisma.SortOrder
   agentName?: Prisma.SortOrder
   displayName?: Prisma.SortOrder
   businessName?: Prisma.SortOrder
@@ -797,6 +819,7 @@ export type IntFieldUpdateOperationsInput = {
 
 export type UserPreferenceCreateWithoutUserInput = {
   id?: string
+  email: string
   agentName: $Enums.AgentName
   displayName?: string | null
   businessName?: string | null
@@ -819,6 +842,7 @@ export type UserPreferenceCreateWithoutUserInput = {
 
 export type UserPreferenceUncheckedCreateWithoutUserInput = {
   id?: string
+  email: string
   agentName: $Enums.AgentName
   displayName?: string | null
   businessName?: string | null
@@ -871,6 +895,7 @@ export type UserPreferenceScalarWhereInput = {
   NOT?: Prisma.UserPreferenceScalarWhereInput | Prisma.UserPreferenceScalarWhereInput[]
   id?: Prisma.StringFilter<"UserPreference"> | string
   oauthId?: Prisma.StringFilter<"UserPreference"> | string
+  email?: Prisma.StringFilter<"UserPreference"> | string
   agentName?: Prisma.EnumAgentNameFilter<"UserPreference"> | $Enums.AgentName
   displayName?: Prisma.StringNullableFilter<"UserPreference"> | string | null
   businessName?: Prisma.StringNullableFilter<"UserPreference"> | string | null
@@ -893,6 +918,7 @@ export type UserPreferenceScalarWhereInput = {
 
 export type UserPreferenceCreateManyUserInput = {
   id?: string
+  email: string
   agentName: $Enums.AgentName
   displayName?: string | null
   businessName?: string | null
@@ -915,6 +941,7 @@ export type UserPreferenceCreateManyUserInput = {
 
 export type UserPreferenceUpdateWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
   agentName?: Prisma.EnumAgentNameFieldUpdateOperationsInput | $Enums.AgentName
   displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   businessName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -937,6 +964,7 @@ export type UserPreferenceUpdateWithoutUserInput = {
 
 export type UserPreferenceUncheckedUpdateWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
   agentName?: Prisma.EnumAgentNameFieldUpdateOperationsInput | $Enums.AgentName
   displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   businessName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -959,6 +987,7 @@ export type UserPreferenceUncheckedUpdateWithoutUserInput = {
 
 export type UserPreferenceUncheckedUpdateManyWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
   agentName?: Prisma.EnumAgentNameFieldUpdateOperationsInput | $Enums.AgentName
   displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   businessName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -984,6 +1013,7 @@ export type UserPreferenceUncheckedUpdateManyWithoutUserInput = {
 export type UserPreferenceSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   oauthId?: boolean
+  email?: boolean
   agentName?: boolean
   displayName?: boolean
   businessName?: boolean
@@ -1008,6 +1038,7 @@ export type UserPreferenceSelect<ExtArgs extends runtime.Types.Extensions.Intern
 export type UserPreferenceSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   oauthId?: boolean
+  email?: boolean
   agentName?: boolean
   displayName?: boolean
   businessName?: boolean
@@ -1032,6 +1063,7 @@ export type UserPreferenceSelectCreateManyAndReturn<ExtArgs extends runtime.Type
 export type UserPreferenceSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   oauthId?: boolean
+  email?: boolean
   agentName?: boolean
   displayName?: boolean
   businessName?: boolean
@@ -1056,6 +1088,7 @@ export type UserPreferenceSelectUpdateManyAndReturn<ExtArgs extends runtime.Type
 export type UserPreferenceSelectScalar = {
   id?: boolean
   oauthId?: boolean
+  email?: boolean
   agentName?: boolean
   displayName?: boolean
   businessName?: boolean
@@ -1076,7 +1109,7 @@ export type UserPreferenceSelectScalar = {
   updatedAt?: boolean
 }
 
-export type UserPreferenceOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "oauthId" | "agentName" | "displayName" | "businessName" | "contentLanguage" | "responseLanguage" | "toneOfVoice" | "marketingKnowledge" | "responseLength" | "emojiUsage" | "proactivityLevel" | "questionStyle" | "decisionHelpStyle" | "learningPreference" | "marketComparison" | "onboardingCompleted" | "onboardingStep" | "createdAt" | "updatedAt", ExtArgs["result"]["userPreference"]>
+export type UserPreferenceOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "oauthId" | "email" | "agentName" | "displayName" | "businessName" | "contentLanguage" | "responseLanguage" | "toneOfVoice" | "marketingKnowledge" | "responseLength" | "emojiUsage" | "proactivityLevel" | "questionStyle" | "decisionHelpStyle" | "learningPreference" | "marketComparison" | "onboardingCompleted" | "onboardingStep" | "createdAt" | "updatedAt", ExtArgs["result"]["userPreference"]>
 export type UserPreferenceInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }
@@ -1095,6 +1128,7 @@ export type $UserPreferencePayload<ExtArgs extends runtime.Types.Extensions.Inte
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
     oauthId: string
+    email: string
     agentName: $Enums.AgentName
     displayName: string | null
     businessName: string | null
@@ -1539,6 +1573,7 @@ export interface Prisma__UserPreferenceClient<T, Null = never, ExtArgs extends r
 export interface UserPreferenceFieldRefs {
   readonly id: Prisma.FieldRef<"UserPreference", 'String'>
   readonly oauthId: Prisma.FieldRef<"UserPreference", 'String'>
+  readonly email: Prisma.FieldRef<"UserPreference", 'String'>
   readonly agentName: Prisma.FieldRef<"UserPreference", 'AgentName'>
   readonly displayName: Prisma.FieldRef<"UserPreference", 'String'>
   readonly businessName: Prisma.FieldRef<"UserPreference", 'String'>

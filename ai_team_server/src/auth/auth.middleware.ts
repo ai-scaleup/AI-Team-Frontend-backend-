@@ -3,7 +3,11 @@
 // This file remains the same. Its job is to verify the JWT and attach the user's
 // auth claims to the request object.
 // ===================================================
-import { Injectable, NestMiddleware, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NestMiddleware,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { Clerk } from '@clerk/clerk-sdk-node';
 
@@ -23,7 +27,6 @@ export class AuthMiddleware implements NestMiddleware {
   async use(req: Request, res: Response, next: NextFunction) {
     const authHeader = req.headers.authorization;
 
-
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       throw new UnauthorizedException('Bearer token is missing or invalid.');
     }
@@ -40,6 +43,3 @@ export class AuthMiddleware implements NestMiddleware {
     }
   }
 }
-
-
-

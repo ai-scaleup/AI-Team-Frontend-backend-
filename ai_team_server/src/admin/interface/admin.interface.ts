@@ -2,44 +2,44 @@
 
 /** Mirror of Prisma enum AgentName (30 values, incl. test agents) */
 export enum AgentName {
-  JIM = "JIM",
-  ALEX = "ALEX",
-  MIKE = "MIKE",
-  TONY = "TONY",
-  LARA = "LARA",
-  VALENTINA = "VALENTINA",
-  DANIELE = "DANIELE",
-  SIMONE = "SIMONE",
-  NIKO = "NIKO",
-  ALADINO = "ALADINO",
-  LAURA = "LAURA",
-  DAN = "DAN",
-  MAX = "MAX",
-  SOFIA = "SOFIA",
-  ROBERTA = "ROBERTA",
-  SARA_AI = "SARA_AI",
-  JENNIFER_AI = "JENNIFER_AI",
-  CHIARA_AI = "CHIARA_AI",
+  JIM = 'JIM',
+  ALEX = 'ALEX',
+  MIKE = 'MIKE',
+  TONY = 'TONY',
+  LARA = 'LARA',
+  VALENTINA = 'VALENTINA',
+  DANIELE = 'DANIELE',
+  SIMONE = 'SIMONE',
+  NIKO = 'NIKO',
+  ALADINO = 'ALADINO',
+  LAURA = 'LAURA',
+  DAN = 'DAN',
+  MAX = 'MAX',
+  SOFIA = 'SOFIA',
+  ROBERTA = 'ROBERTA',
+  SARA_AI = 'SARA_AI',
+  JENNIFER_AI = 'JENNIFER_AI',
+  CHIARA_AI = 'CHIARA_AI',
 
   // --- test agents ---
-  TEST_JIM = "TEST_JIM",
-  TEST_ALEX = "TEST_ALEX",
-  TEST_MIKE = "TEST_MIKE",
-  TEST_TONY = "TEST_TONY",
-  TEST_LARA = "TEST_LARA",
-  TEST_VALENTINA = "TEST_VALENTINA",
-  TEST_DANIELE = "TEST_DANIELE",
-  TEST_SIMONE = "TEST_SIMONE",
-  TEST_NIKO = "TEST_NIKO",
-  TEST_ALADINO = "TEST_ALADINO",
-  TEST_LAURA = "TEST_LAURA",
-  TEST_DAN = "TEST_DAN",
-  TEST_MAX = "TEST_MAX",
-  TEST_SOFIA = "TEST_SOFIA",
-  TEST_ROBERTA = "TEST_ROBERTA",
-  TEST_SARA_AI = "TEST_SARA_AI",
-  TEST_JENNIFER_AI = "TEST_JENNIFER_AI",
-  TEST_CHIARA_AI = "TEST_CHIARA_AI",
+  TEST_JIM = 'TEST_JIM',
+  TEST_ALEX = 'TEST_ALEX',
+  TEST_MIKE = 'TEST_MIKE',
+  TEST_TONY = 'TEST_TONY',
+  TEST_LARA = 'TEST_LARA',
+  TEST_VALENTINA = 'TEST_VALENTINA',
+  TEST_DANIELE = 'TEST_DANIELE',
+  TEST_SIMONE = 'TEST_SIMONE',
+  TEST_NIKO = 'TEST_NIKO',
+  TEST_ALADINO = 'TEST_ALADINO',
+  TEST_LAURA = 'TEST_LAURA',
+  TEST_DAN = 'TEST_DAN',
+  TEST_MAX = 'TEST_MAX',
+  TEST_SOFIA = 'TEST_SOFIA',
+  TEST_ROBERTA = 'TEST_ROBERTA',
+  TEST_SARA_AI = 'TEST_SARA_AI',
+  TEST_JENNIFER_AI = 'TEST_JENNIFER_AI',
+  TEST_CHIARA_AI = 'TEST_CHIARA_AI',
 }
 
 /** Utility: allow Date or ISO string */
@@ -282,13 +282,13 @@ export interface FindUserParams {
 }
 
 export type AssignmentSortField =
-  | "createdAt"
-  | "updatedAt"
-  | "startsAt"
-  | "expiresAt"
-  | "agentName";
+  | 'createdAt'
+  | 'updatedAt'
+  | 'startsAt'
+  | 'expiresAt'
+  | 'agentName';
 
-export type SortOrder = "asc" | "desc";
+export type SortOrder = 'asc' | 'desc';
 
 export interface QueryAssignmentsParams {
   page?: number; // default 1
@@ -308,7 +308,7 @@ export interface QueryAssignmentsParams {
   sortOrder?: SortOrder;
 }
 
-export type AgentGroupSortField = "createdAt" | "updatedAt" | "name";
+export type AgentGroupSortField = 'createdAt' | 'updatedAt' | 'name';
 
 export interface QueryAgentGroupsParams {
   page?: number; // default 1

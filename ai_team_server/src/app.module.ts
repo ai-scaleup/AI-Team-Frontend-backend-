@@ -12,14 +12,24 @@ import { JenniferModule } from './jennifer/jennifer.module';
 import { ChiaraModule } from './chiara/chiara.module';
 import { TagsModule } from './tags/tags.module';
 import { TokenUsageModule } from './token-usage/token-usage.module';
+import { MembershipModule } from './membership/membership.module';
 
 @Module({
-  imports: [PrismaModule, UserModule, ClerkModule, AdminModule, ConversationModule, UserPreferenceModule, SaraAiModule, JenniferModule, ChiaraModule, TagsModule, TokenUsageModule],
+  imports: [
+    PrismaModule,
+    UserModule,
+    ClerkModule,
+    AdminModule,
+    ConversationModule,
+    UserPreferenceModule,
+    SaraAiModule,
+    JenniferModule,
+    ChiaraModule,
+    TagsModule,
+    TokenUsageModule,
+    MembershipModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
-
-
-
-
+export class AppModule {}

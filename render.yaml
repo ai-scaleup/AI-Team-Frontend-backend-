@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: ai-team-server
+    runtime: node
+    rootDir: ai_team_server
+    buildCommand: npm ci && npm run prisma:migrate:deploy && npm run build
+    startCommand: npm run start:prod
+    healthCheckPath: /
+    autoDeploy: true

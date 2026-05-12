@@ -156,6 +156,7 @@ model User {
 model UserPreference {
   id                  String             @id @default(uuid())
   oauthId             String // User's OAuth ID
+  email               String // User's email, denormalized for lookup/display
   agentName           AgentName // Each agent has its own preferences per user
   // ── SECTION: IDENTITY ──
   displayName         String? // What user wants to be called
@@ -185,6 +186,7 @@ model UserPreference {
 
   @@unique([oauthId, agentName], map: "uniq_preference_per_user_agent")
   @@index([oauthId])
+  @@index([email])
   @@index([agentName])
 }
 
