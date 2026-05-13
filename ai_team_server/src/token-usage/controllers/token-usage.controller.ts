@@ -79,6 +79,43 @@ export class TokenUsageController {
     return this.tokenUsageService.getAgentUsage(email, agentName);
   }
 
+  @Get(':email/:agentName/daily-usage/:date')
+  @ApiOperation({
+    summary: 'Get daily token usage for a user and agent by date',
+  })
+  @ApiParam({ name: 'email', example: 'user@example.com' })
+  @ApiParam({ name: 'agentName', enum: AgentName })
+  @ApiParam({
+    name: 'date',
+    example: '2026-05-13',
+    description: 'Daily usage date in YYYY-MM-DD format',
+  })
+  @ApiOkResponse({
+    description: 'Daily token usage returned',
+    schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', nullable: true },
+        oauthId: { type: 'string' },
+        agentName: { enum: Object.values(AgentName) },
+        date: { type: 'string', format: 'date-time' },
+        inputTokens: { type: 'integer', example: 1200 },
+        outputTokens: { type: 'integer', example: 1300 },
+        totalTokens: { type: 'integer', example: 2500 },
+        createdAt: { type: 'string', format: 'date-time', nullable: true },
+        updatedAt: { type: 'string', format: 'date-time', nullable: true },
+        recordExists: { type: 'boolean', example: true },
+      },
+    },
+  })
+  getDailyTokenUsage(
+    @Param('email') email: string,
+    @Param('agentName') agentName: AgentName,
+    @Param('date') date: string,
+  ) {
+    return this.tokenUsageService.getDailyTokenUsage(email, agentName, date);
+  }
+
   @Patch(':email/:agentName/limit')
   @ApiOperation({ summary: 'Set token limit for a user and agent' })
   @ApiParam({ name: 'email', example: 'user@example.com' })
@@ -106,7 +143,7 @@ export class TokenUsageController {
   }
 
   @Patch(':email/:agentName/usage')
-  @ApiOperation({ summary: 'Set token usage for a user and agent' })
+  @ApiOperation({ summary: 'Record token usage for a user and agent' })
   @ApiParam({ name: 'email', example: 'user@example.com' })
   @ApiParam({ name: 'agentName', enum: AgentName })
   @ApiBody({
@@ -130,5 +167,45 @@ export class TokenUsageController {
     },
   ) {
     return this.tokenUsageService.setTokenUsage(email, agentName, body);
+  }
+
+  @Patch(':email/:agentName/daily-usage/:date')
+  @ApiOperation({
+    summary: 'Record daily token usage for a user and agent by date',
+  })
+  @ApiParam({ name: 'email', example: 'user@example.com' })
+  @ApiParam({ name: 'agentName', enum: AgentName })
+  @ApiParam({
+    name: 'date',
+    example: '2026-05-13',
+    description: 'Daily usage date in YYYY-MM-DD format',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['inputTokens', 'outputTokens'],
+      properties: {
+        inputTokens: { type: 'integer', minimum: 0, example: 1200 },
+        outputTokens: { type: 'integer', minimum: 0, example: 1300 },
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Daily token usage updated' })
+  setDailyTokenUsage(
+    @Param('email') email: string,
+    @Param('agentName') agentName: AgentName,
+    @Param('date') date: string,
+    @Body()
+    body: {
+      inputTokens: number;
+      outputTokens: number;
+    },
+  ) {
+    return this.tokenUsageService.setDailyTokenUsage(
+      email,
+      agentName,
+      date,
+      body,
+    );
   }
 }

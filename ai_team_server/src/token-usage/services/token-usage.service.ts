@@ -36,6 +36,11 @@ export interface SetTokenUsageInput {
   totalUsedOutputTokens: number;
 }
 
+export interface SetDailyTokenUsageInput {
+  inputTokens: number;
+  outputTokens: number;
+}
+
 @Injectable()
 export class TokenUsageService {
   private readonly anthropic: Anthropic;
@@ -71,6 +76,25 @@ export class TokenUsageService {
     }
 
     return user.oauthId;
+  }
+
+  private parseDateParam(date: string): Date {
+    const normalizedDate = date?.trim();
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) {
+      throw new BadRequestException('date must be in YYYY-MM-DD format');
+    }
+
+    const parsedDate = new Date(`${normalizedDate}T00:00:00Z`);
+
+    if (
+      Number.isNaN(parsedDate.getTime()) ||
+      parsedDate.toISOString().slice(0, 10) !== normalizedDate
+    ) {
+      throw new BadRequestException('date must be a valid calendar date');
+    }
+
+    return parsedDate;
   }
 
   private async calculateUserQuota(oauthId: string, agentName: AgentName) {
@@ -337,37 +361,130 @@ export class TokenUsageService {
     const todayStr = new Date().toISOString().split('T')[0];
     const today = new Date(`${todayStr}T00:00:00Z`);
 
-    await this.prisma.dailyTokenUsage.upsert({
-      where: { oauthId_agentName_date: { oauthId, agentName, date: today } },
-      create: {
-        oauthId,
-        agentName,
-        date: today,
-        inputTokens,
-        outputTokens,
-        totalTokens,
-      },
-      update: { inputTokens, outputTokens, totalTokens },
+    const existingUsage = await this.prisma.userAgentTokenUsage.findUnique({
+      where: { oauthId_agentName: { oauthId, agentName } },
+      select: { totalTokenLimit: true, totalUsedTokens: true },
     });
 
-    return this.prisma.userAgentTokenUsage.upsert({
+    const totalTokenLimit = existingUsage?.totalTokenLimit ?? 100000;
+    const nextTotalUsedTokens =
+      (existingUsage?.totalUsedTokens ?? 0) + totalTokens;
+    const totalTokensLeft = Math.max(0, totalTokenLimit - nextTotalUsedTokens);
+
+    const [, tokenUsage] = await this.prisma.$transaction([
+      this.prisma.dailyTokenUsage.upsert({
+        where: { oauthId_agentName_date: { oauthId, agentName, date: today } },
+        create: {
+          oauthId,
+          agentName,
+          date: today,
+          inputTokens,
+          outputTokens,
+          totalTokens,
+        },
+        update: {
+          inputTokens: { increment: inputTokens },
+          outputTokens: { increment: outputTokens },
+          totalTokens: { increment: totalTokens },
+        },
+      }),
+      this.prisma.userAgentTokenUsage.upsert({
+        where: { oauthId_agentName: { oauthId, agentName } },
+        create: {
+          oauthId,
+          agentName,
+          totalUsedInputTokens: inputTokens,
+          totalUsedOutputTokens: outputTokens,
+          totalUsedTokens: totalTokens,
+          totalTokenLimit,
+          totalTokensLeft,
+        },
+        update: {
+          totalUsedInputTokens: { increment: inputTokens },
+          totalUsedOutputTokens: { increment: outputTokens },
+          totalUsedTokens: { increment: totalTokens },
+          totalTokensLeft,
+        },
+      }),
+    ]);
+
+    return tokenUsage;
+  }
+
+  async setDailyTokenUsage(
+    email: string,
+    agentName: AgentName,
+    date: string,
+    usage: SetDailyTokenUsageInput,
+  ) {
+    const inputTokens = Number(usage?.inputTokens);
+    const outputTokens = Number(usage?.outputTokens);
+    const totalTokens = inputTokens + outputTokens;
+
+    if (
+      !Number.isInteger(inputTokens) ||
+      inputTokens < 0 ||
+      !Number.isInteger(outputTokens) ||
+      outputTokens < 0
+    ) {
+      throw new BadRequestException(
+        'inputTokens and outputTokens must be non-negative integers',
+      );
+    }
+
+    const oauthId = await this.resolveEmailToOauthId(email);
+    const usageDate = this.parseDateParam(date);
+
+    const existingUsage = await this.prisma.userAgentTokenUsage.findUnique({
       where: { oauthId_agentName: { oauthId, agentName } },
-      create: {
-        oauthId,
-        agentName,
-        totalUsedInputTokens: inputTokens,
-        totalUsedOutputTokens: outputTokens,
-        totalUsedTokens: totalTokens,
-        totalTokenLimit: 100000,
-        totalTokensLeft: Math.max(0, 100000 - totalTokens),
-      },
-      update: {
-        totalUsedInputTokens: { increment: inputTokens },
-        totalUsedOutputTokens: { increment: outputTokens },
-        totalUsedTokens: { increment: totalTokens },
-        totalTokensLeft: { decrement: totalTokens },
-      },
+      select: { totalTokenLimit: true, totalUsedTokens: true },
     });
+
+    const totalTokenLimit = existingUsage?.totalTokenLimit ?? 100000;
+    const nextTotalUsedTokens =
+      (existingUsage?.totalUsedTokens ?? 0) + totalTokens;
+    const totalTokensLeft = Math.max(0, totalTokenLimit - nextTotalUsedTokens);
+
+    const [dailyTokenUsage] = await this.prisma.$transaction([
+      this.prisma.dailyTokenUsage.upsert({
+        where: {
+          oauthId_agentName_date: { oauthId, agentName, date: usageDate },
+        },
+        create: {
+          oauthId,
+          agentName,
+          date: usageDate,
+          inputTokens,
+          outputTokens,
+          totalTokens,
+        },
+        update: {
+          inputTokens: { increment: inputTokens },
+          outputTokens: { increment: outputTokens },
+          totalTokens: { increment: totalTokens },
+        },
+      }),
+      this.prisma.userAgentTokenUsage.upsert({
+        where: { oauthId_agentName: { oauthId, agentName } },
+        create: {
+          oauthId,
+          agentName,
+          totalUsedInputTokens: inputTokens,
+          totalUsedOutputTokens: outputTokens,
+          totalUsedTokens: totalTokens,
+          totalTokenLimit,
+          totalTokensLeft,
+        },
+        update: {
+          totalUsedInputTokens: { increment: inputTokens },
+          totalUsedOutputTokens: { increment: outputTokens },
+          totalUsedTokens: { increment: totalTokens },
+          totalTokensLeft,
+        },
+      }),
+    ]);
+
+    return dailyTokenUsage;
   }
 
   async countTextTokens(text: string): Promise<CountTextTokensResult> {
@@ -408,6 +525,38 @@ export class TokenUsageService {
     return this.prisma.userAgentTokenUsage.findUnique({
       where: { oauthId_agentName: { oauthId, agentName } },
     });
+  }
+
+  async getDailyTokenUsage(
+    email: string,
+    agentName: AgentName,
+    date: string,
+  ) {
+    const oauthId = await this.resolveEmailToOauthId(email);
+    const usageDate = this.parseDateParam(date);
+
+    const dailyTokenUsage = await this.prisma.dailyTokenUsage.findUnique({
+      where: {
+        oauthId_agentName_date: { oauthId, agentName, date: usageDate },
+      },
+    });
+
+    if (dailyTokenUsage) {
+      return { ...dailyTokenUsage, recordExists: true };
+    }
+
+    return {
+      id: null,
+      oauthId,
+      agentName,
+      date: usageDate,
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      createdAt: null,
+      updatedAt: null,
+      recordExists: false,
+    };
   }
 
   async getAllUsage() {
