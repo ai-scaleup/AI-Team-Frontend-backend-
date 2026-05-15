@@ -34,6 +34,7 @@ import {
   ExternalLink,
   Menu,
   Home,
+  AlertTriangle,
 } from "lucide-react"
 import PreferencesWizard from "@/components/preferences/PreferencesWizard"
 import PreferencesButton from "@/components/preferences/PreferencesButton"
@@ -69,9 +70,47 @@ interface FolderType {
   createdAt: string
 }
 
+type ValentinaTokenAlertLevel = "info" | "warning" | "critical" | "stop"
+
+interface ValentinaTokenAlert {
+  threshold: number
+  level: ValentinaTokenAlertLevel
+  message: string
+}
+
 // --- CONSTANTS ---
 const USER_AVATAR =
   "https://www.shutterstock.com/image-vector/vector-flat-illustration-grayscale-avatar-600nw-2264922221.jpg"
+
+const VALENTINA_TOKEN_ALERTS: ValentinaTokenAlert[] = [
+  {
+    threshold: 100,
+    level: "stop",
+    message: "100% reached. Valentina AI is stopped for this conversation.",
+  },
+  {
+    threshold: 90,
+    level: "critical",
+    message: "90% reached! Your conversation will end soon. Save important info now.",
+  },
+  {
+    threshold: 75,
+    level: "warning",
+    message: "75% of conversation tokens used. You're approaching the limit.",
+  },
+  {
+    threshold: 50,
+    level: "info",
+    message: "You've used 50% of your conversation tokens. Consider wrapping up soon.",
+  },
+]
+
+const VALENTINA_TOKEN_ALERT_STYLES: Record<ValentinaTokenAlertLevel, string> = {
+  info: "border-sky-500/30 bg-sky-500/15 text-sky-200 shadow-sky-500/10",
+  warning: "border-amber-500/35 bg-amber-500/15 text-amber-100 shadow-amber-500/10",
+  critical: "border-rose-500/35 bg-rose-500/15 text-rose-100 shadow-rose-500/10",
+  stop: "border-red-500/45 bg-red-500/20 text-red-100 shadow-red-500/15",
+}
 
 // --- ROBUST MARKDOWN SHIM v4 ---
 const simpleMarkdown = {
@@ -406,6 +445,30 @@ export default function App() {
   const [newFolderName, setNewFolderName] = useState("")
   const [showArchived, setShowArchived] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const hasNoValentinaTokensLeft = Boolean(
+    tokenUsage && tokenUsage.totalTokenLimit > 0 && tokenUsage.totalTokensLeft <= 0,
+  )
+  const tokenUsagePercent = tokenUsage?.totalTokenLimit
+    ? Math.min(
+        100,
+        Math.max(
+          0,
+          hasNoValentinaTokensLeft ? 100 : (tokenUsage.totalUsedTokens / tokenUsage.totalTokenLimit) * 100,
+        ),
+      )
+    : 0
+  const activeTokenAlert = tokenUsage
+    ? VALENTINA_TOKEN_ALERTS.find((alert) => tokenUsagePercent >= alert.threshold) ?? null
+    : null
+  const hasReachedTokenLimit = Boolean(activeTokenAlert?.level === "stop")
+  const isComposerDisabled = isLoading || hasReachedTokenLimit
+  const isSendDisabled = isComposerDisabled || (!inputValue.trim() && selectedFiles.length === 0)
+  const tokenProgressClass =
+    activeTokenAlert?.level === "stop" || activeTokenAlert?.level === "critical"
+      ? "bg-red-500"
+      : activeTokenAlert?.level === "warning"
+        ? "bg-amber-500"
+        : "bg-violet-500"
 
   // --- REFS ---
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -1067,6 +1130,7 @@ export default function App() {
 
   // --- Message Sending Logic ---
   const sendMessage = async () => {
+    if (hasReachedTokenLimit) return
     if (!inputValue.trim() && selectedFiles.length === 0) return
 
     setIsLoading(true)
@@ -1969,8 +2033,8 @@ export default function App() {
                         <div className="mt-1.5 flex items-center gap-2">
                           <div className="w-28 h-1.5 rounded-full bg-slate-300/30 overflow-hidden">
                             <div
-                              className="h-full rounded-full bg-violet-500"
-                              style={{ width: `${Math.min(100, (tokenUsage.totalUsedTokens / tokenUsage.totalTokenLimit) * 100).toFixed(1)}%` }}
+                              className={`h-full rounded-full ${tokenProgressClass}`}
+                              style={{ width: `${tokenUsagePercent.toFixed(1)}%` }}
                             />
                           </div>
                           <span className={`text-[11px] font-semibold tabular-nums ${isDark ? "text-slate-400" : "text-slate-500"}`}>
@@ -2081,6 +2145,19 @@ export default function App() {
             className="sticky bottom-0 px-4 md:px-8 pb-4 md:pb-6"
           >
             <div className="max-w-6xl mx-auto">
+              {activeTokenAlert && (
+                <div
+                  className={`mb-3 flex items-start gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold shadow-lg backdrop-blur-md ${VALENTINA_TOKEN_ALERT_STYLES[activeTokenAlert.level]}`}
+                >
+                  <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                  <span className="min-w-0 flex-1 leading-snug">{activeTokenAlert.message}</span>
+                  {hasReachedTokenLimit && (
+                    <span className="shrink-0 rounded-md border border-red-300/30 bg-red-500/20 px-2 py-0.5 text-[10px] font-black tracking-widest text-red-50">
+                      STOP
+                    </span>
+                  )}
+                </div>
+              )}
               {selectedFiles.length > 0 && (
                 <div className="mb-3 flex flex-wrap gap-2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-xl p-3 border border-slate-200 dark:border-slate-700">
                   {selectedFiles.map((file, idx) => (
@@ -2112,15 +2189,19 @@ export default function App() {
                         sendMessage()
                       }
                     }}
-                    placeholder="Scrivi il tuo messaggio..."
+                    placeholder={
+                      hasReachedTokenLimit
+                        ? "Limite token raggiunto. Valentina AI non accetta nuovi messaggi."
+                        : "Scrivi il tuo messaggio..."
+                    }
                     rows={1}
                     className="flex-1 bg-transparent text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm md:text-base resize-none focus:outline-none min-h-[24px] max-h-[200px] py-2"
-                    disabled={isLoading}
+                    disabled={isComposerDisabled}
                   />
                   <button
                     onClick={sendMessage}
-                    disabled={isLoading || (!inputValue.trim() && selectedFiles.length === 0)}
-                    className={`p-3 md:p-3.5 rounded-xl font-bold uppercase tracking-wider transition-all duration-300 shrink-0 border-2 ${isLoading || (!inputValue.trim() && selectedFiles.length === 0) ? "bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 border-transparent cursor-not-allowed" : "bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-600 hover:to-cyan-600 text-white shadow-lg shadow-sky-500/40 hover:shadow-sky-500/60 hover:scale-105 active:scale-95 border-sky-400 cursor-pointer"}`}
+                    disabled={isSendDisabled}
+                    className={`p-3 md:p-3.5 rounded-xl font-bold uppercase tracking-wider transition-all duration-300 shrink-0 border-2 ${isSendDisabled ? "bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 border-transparent cursor-not-allowed" : "bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-600 hover:to-cyan-600 text-white shadow-lg shadow-sky-500/40 hover:shadow-sky-500/60 hover:scale-105 active:scale-95 border-sky-400 cursor-pointer"}`}
                   >
                     <Send size={20} strokeWidth={2.5} />
                   </button>
