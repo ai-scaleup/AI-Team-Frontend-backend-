@@ -123,6 +123,17 @@ enum MarketComparison {
   MAI
 }
 
+enum TokenAlertLevel {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum TokenAlertScope {
+  CONVERSATION
+  MONTHLY
+}
+
 model User {
   id            String                @id @default(uuid())
   email         String                @unique
@@ -397,6 +408,22 @@ model UserAgentTokenUsage {
   @@index([agentName])
 }
 
+model TokenUsageAlertRule {
+  id               String          @id @default(uuid())
+  scope            TokenAlertScope @default(CONVERSATION)
+  thresholdPercent Int
+  level            TokenAlertLevel
+  message          String
+  isActive         Boolean         @default(true)
+  sortOrder        Int             @default(0)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@unique([scope, thresholdPercent], map: "uniq_token_alert_rule_scope_threshold")
+  @@index([scope, isActive])
+  @@index([sortOrder])
+}
+
 // ─────────────────────────────────────────────────────────────
 // Memberships & Dynamic Limits
 // ─────────────────────────────────────────────────────────────
@@ -480,4 +507,3 @@ model UserAlert {
 
   @@index([userId, read])
 }
-
