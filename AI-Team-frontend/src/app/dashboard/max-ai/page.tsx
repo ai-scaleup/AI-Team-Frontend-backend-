@@ -349,17 +349,18 @@ export default function App() {
 
   // --- USER PREFERENCES STATE ---
   const { user } = useUser()
+  const userEmail = user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || ""
   const [isPrefsOpen, setIsPrefsOpen] = useState(false)
   const [userPrefs, setUserPrefs] = useState<UserPreference | null>(null)
 
   // --- Load Preferences ---
   useEffect(() => {
-    if (user?.id) {
-      userPreferenceService.getOrCreate(user.id, "JIM").then((prefs) => {
+    if (userEmail) {
+      userPreferenceService.getOrCreate(userEmail, "JIM").then((prefs) => {
         if (prefs) setUserPrefs(prefs)
       })
     }
-  }, [user?.id])
+  }, [userEmail])
 
   const [messages, setMessages] = useState<Message[]>([])
 
@@ -529,7 +530,8 @@ export default function App() {
     }
 
     loadConversations()
-    userPreferenceService.getOrCreate(user.id, "JIM").then((prefs) => {
+    if (userEmail) {
+      userPreferenceService.getOrCreate(userEmail, "JIM").then((prefs) => {
       if (prefs) {
         setUserPrefs(prefs)
         if (prefs.oauthId) {
@@ -537,8 +539,9 @@ export default function App() {
           CURRENT_NAMESPACE.current = prefs.oauthId
         }
       }
-    })
-  }, [user?.id])
+      })
+    }
+  }, [user?.id, userEmail])
 
   useEffect(() => {
     if (isDark) {
@@ -1855,13 +1858,13 @@ export default function App() {
         onClose={() => setIsPrefsOpen(false)}
         onComplete={() => {
           setIsPrefsOpen(false)
-          if (user?.id) {
+          if (userEmail) {
             console.log('🔄 Max AI [PREFERENCES]: Reloading preferences...')
-            userPreferenceService.getOrCreate(user.id, 'JIM')
+            userPreferenceService.getOrCreate(userEmail, 'JIM')
               .then((prefs) => { if (prefs) setUserPrefs(prefs) })
           }
         }}
-        userId={user?.id || ""}
+        userId={userEmail}
         agentName="JIM"
       />
     </>

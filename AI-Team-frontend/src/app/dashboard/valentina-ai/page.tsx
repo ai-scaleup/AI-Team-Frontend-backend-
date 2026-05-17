@@ -398,6 +398,7 @@ export default function App() {
   const [messages, setMessages] = useState<Message[]>([])
   const [isPrefsOpen, setIsPrefsOpen] = useState(false)
   const [userPrefs, setUserPrefs] = useState<UserPreference | null>(null)
+  const [isPreferenceLoading, setIsPreferenceLoading] = useState(true)
   const { user } = useUser()
   const userEmail =
     user?.primaryEmailAddress?.emailAddress ||
@@ -461,7 +462,8 @@ export default function App() {
     ? VALENTINA_TOKEN_ALERTS.find((alert) => tokenUsagePercent >= alert.threshold) ?? null
     : null
   const hasReachedTokenLimit = Boolean(activeTokenAlert?.level === "stop")
-  const isComposerDisabled = isLoading || hasReachedTokenLimit
+  const isPreferenceReady = Boolean(userPrefs?.onboardingCompleted)
+  const isComposerDisabled = isLoading || hasReachedTokenLimit || isPreferenceLoading || !isPreferenceReady
   const isSendDisabled = isComposerDisabled || (!inputValue.trim() && selectedFiles.length === 0)
   const tokenProgressClass =
     activeTokenAlert?.level === "stop" || activeTokenAlert?.level === "critical"
@@ -799,16 +801,24 @@ export default function App() {
     }
 
     loadConversations()
-    userPreferenceService.getOrCreate(user.id, "JIM").then((prefs) => {
+    if (!userEmail) {
+      setUserPrefs(null)
+      setIsPreferenceLoading(false)
+      return
+    }
+    setIsPreferenceLoading(true)
+    userPreferenceService.get(userEmail, "JIM").then((prefs) => {
       if (prefs) {
         setUserPrefs(prefs)
         if (prefs.oauthId) {
           console.log("✅ Valentina AI: Using oauthId for Pinecone namespace:", prefs.oauthId)
-          CURRENT_NAMESPACE.current = prefs.oauthId
+          CURRENT_NAMESPACE.current = userEmail
         }
+      } else {
+        setUserPrefs(null)
       }
-    })
-  }, [user?.id])
+    }).finally(() => setIsPreferenceLoading(false))
+  }, [user?.id, userEmail])
 
   useEffect(() => {
     if (isDark) {
@@ -1130,6 +1140,10 @@ export default function App() {
 
   // --- Message Sending Logic ---
   const sendMessage = async () => {
+    if (!isPreferenceReady) {
+      setIsPrefsOpen(true)
+      return
+    }
     if (hasReachedTokenLimit) return
     if (!inputValue.trim() && selectedFiles.length === 0) return
 
@@ -2190,7 +2204,11 @@ export default function App() {
                       }
                     }}
                     placeholder={
-                      hasReachedTokenLimit
+                      isPreferenceLoading
+                        ? "Caricamento preferenze..."
+                        : !isPreferenceReady
+                          ? "Completa le preferenze di Valentina AI prima di chattare."
+                          : hasReachedTokenLimit
                         ? "Limite token raggiunto. Valentina AI non accetta nuovi messaggi."
                         : "Scrivi il tuo messaggio..."
                     }
@@ -2219,13 +2237,13 @@ export default function App() {
         agentName="JIM"
         onComplete={() => {
           setIsPrefsOpen(false)
-          if (user?.id) {
+          if (userEmail) {
             userPreferenceService
-              .getOrCreate(user.id, "JIM")
+              .get(userEmail, "JIM")
               .then(setUserPrefs)
           }
         }}
-        userId={user?.id || ""}
+        userId={userEmail}
       />
     </>
   )

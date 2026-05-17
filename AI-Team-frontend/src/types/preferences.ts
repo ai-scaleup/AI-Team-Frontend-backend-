@@ -40,6 +40,7 @@ export type MarketComparison = 'SEMPRE' | 'SOLO_RILEVANTI' | 'MAI';
 export interface UserPreference {
     id: string;
     oauthId: string;
+    email: string;
     agentName: AgentName;
 
     // SECTION: IDENTITY
