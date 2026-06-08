@@ -23,7 +23,7 @@ const ALL_AGENTS = [
   "TEST_ROBERTA", "TEST_SARA_AI", "TEST_JENNIFER_AI", "TEST_CHIARA_AI",
 ];
 
-const DEFAULT_VISIBLE_AGENTS = ["SARA_AI", "JENNIFER_AI", "CHIARA_AI", "JIM"];
+const DEFAULT_VISIBLE_AGENTS = ALL_AGENTS;
 
 const AGENT_COLORS: Record<string, string> = {
   SARA_AI: "#38bdf8",
@@ -379,11 +379,7 @@ export default function AssignAndMetricsPage() {
 
       if (agents.length > 0) {
         setSelectedAgentTab((current) => (agents.includes(current) ? current : agents[0]));
-        setVisibleAgents((current) => {
-          const stillVisible = current.filter((agent) => agents.includes(agent));
-          if (stillVisible.length > 0) return stillVisible;
-          return agents.slice(0, 6);
-        });
+        setVisibleAgents(agents);
       }
     } catch (error) {
       setAgentMetrics({
