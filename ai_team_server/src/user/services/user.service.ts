@@ -8,6 +8,28 @@ import {
 } from '../schemas/user.schema';
 import { PrismaService } from 'src/prisma/prisma.service';
 
+type DailyUsageItem = {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+};
+
+const sumDailyUsage = (items: DailyUsageItem[]) =>
+  items.reduce(
+    (totals, item) => {
+      const inputTokens = item.inputTokens ?? 0;
+      const outputTokens = item.outputTokens ?? 0;
+      const totalTokens = item.totalTokens || inputTokens + outputTokens;
+
+      return {
+        inputTokens: totals.inputTokens + inputTokens,
+        outputTokens: totals.outputTokens + outputTokens,
+        totalTokens: totals.totalTokens + totalTokens,
+      };
+    },
+    { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+  );
+
 @Injectable()
 export class UserService {
   constructor(private prisma: PrismaService) {}
@@ -19,9 +41,20 @@ export class UserService {
 
   // Get users with pagination
   async findAllUsers(query: ListUsersQueryDto) {
-    const { page, limit, search } = query;
+    const { page, limit, search, usageFrom, usageTo } = query;
     const skip = (page - 1) * limit;
     const searchTerm = search?.trim();
+    const defaultUsageFrom = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const requestedUsageFrom = usageFrom ?? defaultUsageFrom;
+    const requestedUsageTo = usageTo ?? new Date();
+    const rangeStart =
+      requestedUsageFrom <= requestedUsageTo
+        ? requestedUsageFrom
+        : requestedUsageTo;
+    const rangeEnd =
+      requestedUsageFrom <= requestedUsageTo
+        ? requestedUsageTo
+        : requestedUsageFrom;
     const normalizedAgentSearch = searchTerm
       ?.toUpperCase()
       .replace(/[\s-]+/g, '_')
@@ -99,7 +132,8 @@ export class UserService {
           dailyUsage: {
             where: {
               date: {
-                gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+                gte: rangeStart,
+                lte: rangeEnd,
               },
             },
             orderBy: { date: 'desc' },
@@ -116,20 +150,26 @@ export class UserService {
         const weekStart = new Date(now);
         weekStart.setDate(now.getDate() - 7);
         const today = new Date(now.toISOString().split('T')[0] + 'T00:00:00Z');
+        const monthlyUsage = sumDailyUsage(user.dailyUsage);
+        const weeklyUsage = sumDailyUsage(
+          user.dailyUsage.filter((item) => item.date >= weekStart),
+        );
+        const dailyUsage = sumDailyUsage(
+          user.dailyUsage.filter((item) => item.date >= today),
+        );
 
         return {
           ...user,
           usage: {
-            monthly: user.dailyUsage.reduce(
-              (sum, item) => sum + item.totalTokens,
-              0,
-            ),
-            weekly: user.dailyUsage
-              .filter((item) => item.date >= weekStart)
-              .reduce((sum, item) => sum + item.totalTokens, 0),
-            daily: user.dailyUsage
-              .filter((item) => item.date >= today)
-              .reduce((sum, item) => sum + item.totalTokens, 0),
+            monthly: monthlyUsage.totalTokens,
+            monthlyInputTokens: monthlyUsage.inputTokens,
+            monthlyOutputTokens: monthlyUsage.outputTokens,
+            weekly: weeklyUsage.totalTokens,
+            weeklyInputTokens: weeklyUsage.inputTokens,
+            weeklyOutputTokens: weeklyUsage.outputTokens,
+            daily: dailyUsage.totalTokens,
+            dailyInputTokens: dailyUsage.inputTokens,
+            dailyOutputTokens: dailyUsage.outputTokens,
           },
         };
       }),

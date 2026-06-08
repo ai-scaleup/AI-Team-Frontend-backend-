@@ -389,6 +389,40 @@ export type IntNullableWithAggregatesFilter<$PrismaModel = never> = {
   _max?: Prisma.NestedIntNullableFilter<$PrismaModel>
 }
 
+export type EnumTokenAlertScopeFilter<$PrismaModel = never> = {
+  equals?: $Enums.TokenAlertScope | Prisma.EnumTokenAlertScopeFieldRefInput<$PrismaModel>
+  in?: $Enums.TokenAlertScope[] | Prisma.ListEnumTokenAlertScopeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.TokenAlertScope[] | Prisma.ListEnumTokenAlertScopeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumTokenAlertScopeFilter<$PrismaModel> | $Enums.TokenAlertScope
+}
+
+export type EnumTokenAlertLevelFilter<$PrismaModel = never> = {
+  equals?: $Enums.TokenAlertLevel | Prisma.EnumTokenAlertLevelFieldRefInput<$PrismaModel>
+  in?: $Enums.TokenAlertLevel[] | Prisma.ListEnumTokenAlertLevelFieldRefInput<$PrismaModel>
+  notIn?: $Enums.TokenAlertLevel[] | Prisma.ListEnumTokenAlertLevelFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumTokenAlertLevelFilter<$PrismaModel> | $Enums.TokenAlertLevel
+}
+
+export type EnumTokenAlertScopeWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.TokenAlertScope | Prisma.EnumTokenAlertScopeFieldRefInput<$PrismaModel>
+  in?: $Enums.TokenAlertScope[] | Prisma.ListEnumTokenAlertScopeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.TokenAlertScope[] | Prisma.ListEnumTokenAlertScopeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumTokenAlertScopeWithAggregatesFilter<$PrismaModel> | $Enums.TokenAlertScope
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumTokenAlertScopeFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumTokenAlertScopeFilter<$PrismaModel>
+}
+
+export type EnumTokenAlertLevelWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.TokenAlertLevel | Prisma.EnumTokenAlertLevelFieldRefInput<$PrismaModel>
+  in?: $Enums.TokenAlertLevel[] | Prisma.ListEnumTokenAlertLevelFieldRefInput<$PrismaModel>
+  notIn?: $Enums.TokenAlertLevel[] | Prisma.ListEnumTokenAlertLevelFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumTokenAlertLevelWithAggregatesFilter<$PrismaModel> | $Enums.TokenAlertLevel
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumTokenAlertLevelFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumTokenAlertLevelFilter<$PrismaModel>
+}
+
 export type NestedStringFilter<$PrismaModel = never> = {
   equals?: string | Prisma.StringFieldRefInput<$PrismaModel>
   in?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel>
@@ -775,6 +809,40 @@ export type NestedFloatNullableFilter<$PrismaModel = never> = {
   gt?: number | Prisma.FloatFieldRefInput<$PrismaModel>
   gte?: number | Prisma.FloatFieldRefInput<$PrismaModel>
   not?: Prisma.NestedFloatNullableFilter<$PrismaModel> | number | null
+}
+
+export type NestedEnumTokenAlertScopeFilter<$PrismaModel = never> = {
+  equals?: $Enums.TokenAlertScope | Prisma.EnumTokenAlertScopeFieldRefInput<$PrismaModel>
+  in?: $Enums.TokenAlertScope[] | Prisma.ListEnumTokenAlertScopeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.TokenAlertScope[] | Prisma.ListEnumTokenAlertScopeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumTokenAlertScopeFilter<$PrismaModel> | $Enums.TokenAlertScope
+}
+
+export type NestedEnumTokenAlertLevelFilter<$PrismaModel = never> = {
+  equals?: $Enums.TokenAlertLevel | Prisma.EnumTokenAlertLevelFieldRefInput<$PrismaModel>
+  in?: $Enums.TokenAlertLevel[] | Prisma.ListEnumTokenAlertLevelFieldRefInput<$PrismaModel>
+  notIn?: $Enums.TokenAlertLevel[] | Prisma.ListEnumTokenAlertLevelFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumTokenAlertLevelFilter<$PrismaModel> | $Enums.TokenAlertLevel
+}
+
+export type NestedEnumTokenAlertScopeWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.TokenAlertScope | Prisma.EnumTokenAlertScopeFieldRefInput<$PrismaModel>
+  in?: $Enums.TokenAlertScope[] | Prisma.ListEnumTokenAlertScopeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.TokenAlertScope[] | Prisma.ListEnumTokenAlertScopeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumTokenAlertScopeWithAggregatesFilter<$PrismaModel> | $Enums.TokenAlertScope
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumTokenAlertScopeFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumTokenAlertScopeFilter<$PrismaModel>
+}
+
+export type NestedEnumTokenAlertLevelWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.TokenAlertLevel | Prisma.EnumTokenAlertLevelFieldRefInput<$PrismaModel>
+  in?: $Enums.TokenAlertLevel[] | Prisma.ListEnumTokenAlertLevelFieldRefInput<$PrismaModel>
+  notIn?: $Enums.TokenAlertLevel[] | Prisma.ListEnumTokenAlertLevelFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumTokenAlertLevelWithAggregatesFilter<$PrismaModel> | $Enums.TokenAlertLevel
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumTokenAlertLevelFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumTokenAlertLevelFilter<$PrismaModel>
 }
 
 

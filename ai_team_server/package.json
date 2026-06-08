@@ -24,7 +24,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "backfill:preference-emails": "ts-node -r tsconfig-paths/register scripts/backfill-user-preference-emails.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",
@@ -86,6 +87,9 @@
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "moduleNameMapper": {
+      "^src/(.*)$": "<rootDir>/$1"
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s"

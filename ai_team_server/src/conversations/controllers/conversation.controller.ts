@@ -49,8 +49,22 @@ export class ConversationController {
   // Create a new conversation
   @Post(':oauthId')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Create a conversation for a user' })
-  @ApiParam({ name: 'oauthId', example: 'user_2abc123' })
+  @ApiOperation({
+    summary: 'Create a conversation for a user by OAuth ID or email',
+  })
+  @ApiParam({
+    name: 'oauthId',
+    example: 'user_2abc123',
+    description:
+      'OAuth ID. You may also pass a URL-encoded email here, or use the optional email query parameter.',
+  })
+  @ApiQuery({
+    name: 'email',
+    required: false,
+    example: 'user@gmail.com',
+    description:
+      'Optional user email/Gmail. When provided, it is used instead of oauthId.',
+  })
   @ApiBody({
     schema: {
       type: 'object',
@@ -69,55 +83,99 @@ export class ConversationController {
   @ApiCreatedResponse({ description: 'Conversation created' })
   create(
     @Param('oauthId') oauthId: string,
+    @Query('email') email: string | undefined,
     @Body(new ZodValidationPipe(createConversationSchema))
     createConversationDto: CreateConversationDto,
   ) {
     return this.conversationService.createConversation(
       oauthId,
       createConversationDto,
+      email,
     );
   }
 
   // Get all conversations for a user (optionally filter by agentId)
   @Get(':oauthId')
-  @ApiOperation({ summary: 'List conversations for a user' })
-  @ApiParam({ name: 'oauthId', example: 'user_2abc123' })
+  @ApiOperation({
+    summary: 'List conversations for a user by OAuth ID or email',
+  })
+  @ApiParam({
+    name: 'oauthId',
+    example: 'user_2abc123',
+    description:
+      'OAuth ID. You may also pass a URL-encoded email here, or use the optional email query parameter.',
+  })
   @ApiQuery({ name: 'agentId', required: false })
+  @ApiQuery({
+    name: 'email',
+    required: false,
+    example: 'user@gmail.com',
+    description:
+      'Optional user email/Gmail. When provided, it is used instead of oauthId.',
+  })
   @ApiOkResponse({ description: 'Conversations returned' })
   findAll(
     @Param('oauthId') oauthId: string,
     @Query('agentId') agentId?: string,
+    @Query('email') email?: string,
   ) {
     if (agentId) {
       return this.conversationService.findConversationsByAgent(
         oauthId,
         agentId,
+        email,
       );
     }
-    return this.conversationService.findAllConversations(oauthId);
+    return this.conversationService.findAllConversations(oauthId, email);
   }
 
   // Get a single conversation by ID
   @Get(':oauthId/:conversationId')
-  @ApiOperation({ summary: 'Get one conversation' })
-  @ApiParam({ name: 'oauthId', example: 'user_2abc123' })
+  @ApiOperation({ summary: 'Get one conversation by OAuth ID or email' })
+  @ApiParam({
+    name: 'oauthId',
+    example: 'user_2abc123',
+    description:
+      'OAuth ID. You may also pass a URL-encoded email here, or use the optional email query parameter.',
+  })
   @ApiParam({ name: 'conversationId', example: 'chat_1765435414978' })
+  @ApiQuery({
+    name: 'email',
+    required: false,
+    example: 'user@gmail.com',
+    description:
+      'Optional user email/Gmail. When provided, it is used instead of oauthId.',
+  })
   @ApiOkResponse({ description: 'Conversation returned' })
   findOne(
     @Param('oauthId') oauthId: string,
     @Param('conversationId') conversationId: string,
+    @Query('email') email?: string,
   ) {
     return this.conversationService.findConversationById(
       oauthId,
       conversationId,
+      email,
     );
   }
 
   // Update a conversation
   @Patch(':oauthId/:conversationId')
-  @ApiOperation({ summary: 'Update a conversation' })
-  @ApiParam({ name: 'oauthId', example: 'user_2abc123' })
+  @ApiOperation({ summary: 'Update a conversation by OAuth ID or email' })
+  @ApiParam({
+    name: 'oauthId',
+    example: 'user_2abc123',
+    description:
+      'OAuth ID. You may also pass a URL-encoded email here, or use the optional email query parameter.',
+  })
   @ApiParam({ name: 'conversationId', example: 'chat_1765435414978' })
+  @ApiQuery({
+    name: 'email',
+    required: false,
+    example: 'user@gmail.com',
+    description:
+      'Optional user email/Gmail. When provided, it is used instead of oauthId.',
+  })
   @ApiBody({
     schema: {
       type: 'object',
@@ -133,6 +191,7 @@ export class ConversationController {
   update(
     @Param('oauthId') oauthId: string,
     @Param('conversationId') conversationId: string,
+    @Query('email') email: string | undefined,
     @Body(new ZodValidationPipe(updateConversationSchema))
     updateConversationDto: UpdateConversationDto,
   ) {
@@ -140,28 +199,60 @@ export class ConversationController {
       oauthId,
       conversationId,
       updateConversationDto,
+      email,
     );
   }
 
   // Delete a conversation
   @Delete(':oauthId/:conversationId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete a conversation' })
-  @ApiParam({ name: 'oauthId', example: 'user_2abc123' })
+  @ApiOperation({ summary: 'Delete a conversation by OAuth ID or email' })
+  @ApiParam({
+    name: 'oauthId',
+    example: 'user_2abc123',
+    description:
+      'OAuth ID. You may also pass a URL-encoded email here, or use the optional email query parameter.',
+  })
   @ApiParam({ name: 'conversationId', example: 'chat_1765435414978' })
+  @ApiQuery({
+    name: 'email',
+    required: false,
+    example: 'user@gmail.com',
+    description:
+      'Optional user email/Gmail. When provided, it is used instead of oauthId.',
+  })
   @ApiNoContentResponse({ description: 'Conversation deleted' })
   remove(
     @Param('oauthId') oauthId: string,
     @Param('conversationId') conversationId: string,
+    @Query('email') email?: string,
   ) {
-    return this.conversationService.deleteConversation(oauthId, conversationId);
+    return this.conversationService.deleteConversation(
+      oauthId,
+      conversationId,
+      email,
+    );
   }
 
   // Archive/Unarchive a conversation
   @Patch(':oauthId/:conversationId/archive')
-  @ApiOperation({ summary: 'Archive or unarchive a conversation' })
-  @ApiParam({ name: 'oauthId', example: 'user_2abc123' })
+  @ApiOperation({
+    summary: 'Archive or unarchive a conversation by OAuth ID or email',
+  })
+  @ApiParam({
+    name: 'oauthId',
+    example: 'user_2abc123',
+    description:
+      'OAuth ID. You may also pass a URL-encoded email here, or use the optional email query parameter.',
+  })
   @ApiParam({ name: 'conversationId', example: 'chat_1765435414978' })
+  @ApiQuery({
+    name: 'email',
+    required: false,
+    example: 'user@gmail.com',
+    description:
+      'Optional user email/Gmail. When provided, it is used instead of oauthId.',
+  })
   @ApiBody({
     schema: {
       type: 'object',
@@ -173,12 +264,14 @@ export class ConversationController {
   toggleArchive(
     @Param('oauthId') oauthId: string,
     @Param('conversationId') conversationId: string,
+    @Query('email') email: string | undefined,
     @Body('archived') archived: boolean,
   ) {
     return this.conversationService.toggleArchive(
       oauthId,
       conversationId,
       archived,
+      email,
     );
   }
 
@@ -189,14 +282,29 @@ export class ConversationController {
   // Add a message to a conversation
   @Post(':oauthId/:conversationId/messages')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Add a message to a conversation' })
-  @ApiParam({ name: 'oauthId', example: 'user_2abc123' })
+  @ApiOperation({
+    summary: 'Add a message to a conversation by OAuth ID or email',
+  })
+  @ApiParam({
+    name: 'oauthId',
+    example: 'user_2abc123',
+    description:
+      'OAuth ID. You may also pass a URL-encoded email here, or use the optional email query parameter.',
+  })
   @ApiParam({ name: 'conversationId', example: 'chat_1765435414978' })
+  @ApiQuery({
+    name: 'email',
+    required: false,
+    example: 'user@gmail.com',
+    description:
+      'Optional user email/Gmail. When provided, it is used instead of oauthId.',
+  })
   @ApiBody({ schema: messageSchema })
   @ApiCreatedResponse({ description: 'Message added' })
   addMessage(
     @Param('oauthId') oauthId: string,
     @Param('conversationId') conversationId: string,
+    @Query('email') email: string | undefined,
     @Body(new ZodValidationPipe(addMessageSchema))
     addMessageDto: AddMessageDto,
   ) {
@@ -204,39 +312,69 @@ export class ConversationController {
       oauthId,
       conversationId,
       addMessageDto,
+      email,
     );
   }
 
   // Get all messages for a conversation
   @Get(':oauthId/:conversationId/messages')
-  @ApiOperation({ summary: 'List messages for a conversation' })
-  @ApiParam({ name: 'oauthId', example: 'user_2abc123' })
+  @ApiOperation({
+    summary: 'List messages for a conversation by OAuth ID or email',
+  })
+  @ApiParam({
+    name: 'oauthId',
+    example: 'user_2abc123',
+    description:
+      'OAuth ID. You may also pass a URL-encoded email here, or use the optional email query parameter.',
+  })
   @ApiParam({ name: 'conversationId', example: 'chat_1765435414978' })
+  @ApiQuery({
+    name: 'email',
+    required: false,
+    example: 'user@gmail.com',
+    description:
+      'Optional user email/Gmail. When provided, it is used instead of oauthId.',
+  })
   @ApiOkResponse({ description: 'Messages returned' })
   getMessages(
     @Param('oauthId') oauthId: string,
     @Param('conversationId') conversationId: string,
+    @Query('email') email?: string,
   ) {
-    return this.conversationService.getMessages(oauthId, conversationId);
+    return this.conversationService.getMessages(oauthId, conversationId, email);
   }
 
   // Delete a message
   @Delete(':oauthId/:conversationId/messages/:messageId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete a message' })
-  @ApiParam({ name: 'oauthId', example: 'user_2abc123' })
+  @ApiOperation({ summary: 'Delete a message by OAuth ID or email' })
+  @ApiParam({
+    name: 'oauthId',
+    example: 'user_2abc123',
+    description:
+      'OAuth ID. You may also pass a URL-encoded email here, or use the optional email query parameter.',
+  })
   @ApiParam({ name: 'conversationId', example: 'chat_1765435414978' })
   @ApiParam({ name: 'messageId' })
+  @ApiQuery({
+    name: 'email',
+    required: false,
+    example: 'user@gmail.com',
+    description:
+      'Optional user email/Gmail. When provided, it is used instead of oauthId.',
+  })
   @ApiNoContentResponse({ description: 'Message deleted' })
   deleteMessage(
     @Param('oauthId') oauthId: string,
     @Param('conversationId') conversationId: string,
     @Param('messageId') messageId: string,
+    @Query('email') email?: string,
   ) {
     return this.conversationService.deleteMessage(
       oauthId,
       conversationId,
       messageId,
+      email,
     );
   }
 }

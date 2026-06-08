@@ -91,6 +91,16 @@ export class UserPreferenceService {
     return user.oauthId;
   }
 
+  private normalizeEmailIdentifier(userIdentifier: string): string {
+    const email = userIdentifier.trim();
+
+    if (!email.includes('@')) {
+      throw new BadRequestException('Email is required for this endpoint.');
+    }
+
+    return email;
+  }
+
   // Create new preferences for a user + agent combination
   async createPreference(
     data: CreateUserPreferenceDto,
@@ -132,10 +142,15 @@ export class UserPreferenceService {
   async findAllByUserIdentifier(
     userIdentifier: string,
   ): Promise<UserPreference[]> {
-    const oauthId = await this.resolveOauthId(userIdentifier);
+    const email = this.normalizeEmailIdentifier(userIdentifier);
 
     return this.prisma.userPreference.findMany({
-      where: { oauthId },
+      where: {
+        email: {
+          equals: email,
+          mode: 'insensitive',
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -152,14 +167,15 @@ export class UserPreferenceService {
     userIdentifier: string,
     agentName: AgentName,
   ): Promise<UserPreference> {
-    const oauthId = await this.resolveOauthId(userIdentifier);
+    const email = this.normalizeEmailIdentifier(userIdentifier);
 
-    const preference = await this.prisma.userPreference.findUnique({
+    const preference = await this.prisma.userPreference.findFirst({
       where: {
-        oauthId_agentName: {
-          oauthId,
-          agentName,
+        email: {
+          equals: email,
+          mode: 'insensitive',
         },
+        agentName,
       },
     });
 
@@ -316,20 +332,23 @@ export class UserPreferenceService {
     userIdentifier: string,
     agentName: AgentName,
   ): Promise<UserPreference> {
-    const user = await this.resolveUser(userIdentifier);
+    const email = this.normalizeEmailIdentifier(userIdentifier);
 
-    const existing = await this.prisma.userPreference.findUnique({
+    const existing = await this.prisma.userPreference.findFirst({
       where: {
-        oauthId_agentName: {
-          oauthId: user.oauthId,
-          agentName,
+        email: {
+          equals: email,
+          mode: 'insensitive',
         },
+        agentName,
       },
     });
 
     if (existing) {
       return existing;
     }
+
+    const user = await this.resolveUser({ email });
 
     // Create with default values (Prisma will use schema defaults)
     return this.prisma.userPreference.create({
