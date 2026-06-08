@@ -34,11 +34,7 @@ import {
   Menu,
   Home,
 } from "lucide-react"
-import PreferencesWizard from "@/components/preferences/PreferencesWizard"
-import PreferencesButton from "@/components/preferences/PreferencesButton"
 import { useUser } from "@clerk/nextjs"
-import { UserPreference, AGENT_ID_TO_NAME } from "@/types/preferences"
-import { userPreferenceService } from "@/services/preferenceService"
 import { conversationService } from "@/services/conversationService"
 import { extractFileContent } from "@/utils/fileExtraction"
 
@@ -356,9 +352,13 @@ export default function App() {
   const currentAgent = AGENTS_DB[activeAgentId] || AGENTS_DB["jim-ai"]
 
   const [messages, setMessages] = useState<Message[]>([])
-  const [isPrefsOpen, setIsPrefsOpen] = useState(false)
-  const [userPrefs, setUserPrefs] = useState<UserPreference | null>(null)
   const { user } = useUser()
+  const userEmail = user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || ""
+  const [tokenUsage, setTokenUsage] = useState<{
+    totalUsedTokens: number
+    totalTokenLimit: number
+    totalTokensLeft: number
+  } | null>(null)
 
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -383,6 +383,15 @@ export default function App() {
   const [newFolderName, setNewFolderName] = useState("")
   const [showArchived, setShowArchived] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const tokenUsagePercent = tokenUsage?.totalTokenLimit
+    ? Math.min(100, Math.max(0, (tokenUsage.totalUsedTokens / tokenUsage.totalTokenLimit) * 100))
+    : 0
+  const tokenProgressClass =
+    tokenUsagePercent >= 90
+      ? "bg-red-500"
+      : tokenUsagePercent >= 75
+        ? "bg-amber-500"
+        : "bg-sky-500"
 
   // --- REFS ---
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -393,6 +402,26 @@ export default function App() {
   const prevMessageCountRef = useRef(0)
 
   const N8N_ENDPOINT = process.env.NEXT_PUBLIC_JIM_AI_N8N_ENDPOINT || "https://n8n-c2lq.onrender.com/webhook/bdc4cf07-48f7-4144-ac75-659ab5197b2b/chat?action=sendMessage"
+
+  useEffect(() => {
+    if (user?.id) {
+      CURRENT_NAMESPACE.current = user.id
+      console.log("✅ Jim AI: Using user.id for Pinecone namespace:", user.id)
+    }
+  }, [user?.id])
+
+  useEffect(() => {
+    if (!userEmail) return
+
+    const userIdentifier = encodeURIComponent(userEmail)
+    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""
+    fetch(`${API_BASE}/token-usage/${userIdentifier}/JIM`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data) setTokenUsage(data)
+      })
+      .catch(() => {})
+  }, [userEmail])
 
   // --- INITIALIZATION ---
   useEffect(() => {
@@ -743,46 +772,7 @@ export default function App() {
 
     loadConversations()
 
-    // Load per-agent preferences from API
-    const agentName = AGENT_ID_TO_NAME[activeAgentId] || 'JIM'
-    console.log('🔄 Jim AI [PREFERENCES]: Starting preference load...')
-    console.log('🔄 Jim AI [PREFERENCES]: User ID:', user.id)
-    console.log('🔄 Jim AI [PREFERENCES]: Agent Name:', agentName)
-    console.log('🔄 Jim AI [PREFERENCES]: Active Agent ID:', activeAgentId)
-
-    userPreferenceService.getOrCreate(user.id, agentName)
-      .then((prefs) => {
-        if (prefs) {
-          console.log('✅ Jim AI [PREFERENCES]: Successfully loaded preferences!')
-          if (prefs.oauthId) {
-            console.log("✅ Jim AI: Using oauthId for Pinecone namespace:", prefs.oauthId)
-            CURRENT_NAMESPACE.current = prefs.oauthId
-          }
-          console.log('✅ Jim AI [PREFERENCES]: Preference ID:', prefs.id)
-          console.log('✅ Jim AI [PREFERENCES]: Display Name:', prefs.displayName)
-          console.log('✅ Jim AI [PREFERENCES]: Business Name:', prefs.businessName)
-          console.log('✅ Jim AI [PREFERENCES]: Content Language:', prefs.contentLanguage)
-          console.log('✅ Jim AI [PREFERENCES]: Response Language:', prefs.responseLanguage)
-          console.log('✅ Jim AI [PREFERENCES]: Tone of Voice:', prefs.toneOfVoice)
-          console.log('✅ Jim AI [PREFERENCES]: Marketing Knowledge:', prefs.marketingKnowledge)
-          console.log('✅ Jim AI [PREFERENCES]: Response Length:', prefs.responseLength)
-          console.log('✅ Jim AI [PREFERENCES]: Emoji Usage:', prefs.emojiUsage)
-          console.log('✅ Jim AI [PREFERENCES]: Proactivity Level:', prefs.proactivityLevel)
-          console.log('✅ Jim AI [PREFERENCES]: Question Style:', prefs.questionStyle)
-          console.log('✅ Jim AI [PREFERENCES]: Decision Help Style:', prefs.decisionHelpStyle)
-          console.log('✅ Jim AI [PREFERENCES]: Learning Preference:', prefs.learningPreference)
-          console.log('✅ Jim AI [PREFERENCES]: Market Comparison:', prefs.marketComparison)
-          console.log('✅ Jim AI [PREFERENCES]: Onboarding Completed:', prefs.onboardingCompleted)
-          console.log('✅ Jim AI [PREFERENCES]: Full preferences object:', JSON.stringify(prefs, null, 2))
-          setUserPrefs(prefs)
-        } else {
-          console.warn('⚠️ Jim AI [PREFERENCES]: No preferences returned from API')
-        }
-      })
-      .catch((error) => {
-        console.error('❌ Jim AI [PREFERENCES]: Failed to load preferences:', error)
-      })
-  }, [user?.id, activeAgentId])
+  }, [user?.id])
 
   useEffect(() => {
     if (isDark) {
@@ -1104,10 +1094,6 @@ export default function App() {
 
   // --- Message Sending Logic ---
   const sendMessage = async () => {
-    if (!userPrefs?.displayName) {
-      setIsPrefsOpen(true)
-      return
-    }
     if (!inputValue.trim() && selectedFiles.length === 0) return
 
     setIsLoading(true)
@@ -1224,17 +1210,15 @@ export default function App() {
       console.log('📤 Jim AI [SEND MESSAGE]: N8N Endpoint:', N8N_ENDPOINT)
       console.log('📤 Jim AI [SEND MESSAGE]: Session ID:', sessionId)
       console.log('📤 Jim AI [SEND MESSAGE]: Chat ID:', currentChatIdForSend)
-      console.log('📤 Jim AI [SEND MESSAGE]: User Preferences being sent:', JSON.stringify(userPrefs, null, 2))
 
       const requestBody = {
         chatInput:
           inputValue +
           (selectedFiles.length ? ` [Attached: ${selectedFiles.map((f) => f.name).join(", ")}]` : "") +
-          fileContext +
-          `\n\n<SYSTEM_CONTEXT_DO_NOT_REPLY>\nUSER_PROFILE_DATA: ${JSON.stringify(userPrefs)}\n</SYSTEM_CONTEXT_DO_NOT_REPLY>`,
+          fileContext,
         sessionId: sessionId, // Use chat-specific sessionId for conversation continuity,
         useMemory: useMemory,
-        metadata: { namespace: CURRENT_NAMESPACE.current, source: activeAgentId },
+        metadata: { namespace: CURRENT_NAMESPACE.current, source: activeAgentId, email: userEmail },
         chatId: currentChatIdForSend,
       }
 
@@ -1324,6 +1308,41 @@ export default function App() {
         } catch (error) {
           console.error("❌ Jim AI: Failed to save AI message:", error)
         }
+      }
+
+      const userIdentifier = userEmail ? encodeURIComponent(userEmail) : ""
+      const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""
+      try {
+        if (userIdentifier) {
+          const [inputCount, outputCount] = await Promise.all([
+            fetch(`${API_BASE}/token-usage/count`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ text: userMessage.text }),
+            }).then((r) => (r.ok ? r.json() : null)),
+            fetch(`${API_BASE}/token-usage/count`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ text: finalAiMessage.text }),
+            }).then((r) => (r.ok ? r.json() : null)),
+          ])
+
+          const totalUsedInputTokens = inputCount?.totalUsedInputTokens ?? 0
+          const totalUsedOutputTokens = outputCount?.totalUsedInputTokens ?? 0
+
+          await fetch(`${API_BASE}/token-usage/${userIdentifier}/JIM/usage`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ totalUsedInputTokens, totalUsedOutputTokens }),
+          })
+
+          const updated = await fetch(`${API_BASE}/token-usage/${userIdentifier}/JIM`).then((r) =>
+            r.ok ? r.json() : null,
+          )
+          if (updated) setTokenUsage(updated)
+        }
+      } catch (err) {
+        console.error("Jim AI: Failed to update token usage:", err)
       }
     } catch (error) {
       console.error("Error sending message:", error)
@@ -1959,6 +1978,19 @@ export default function App() {
                       >
                         {currentAgent.role}
                       </p>
+                      {tokenUsage && (
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <div className="w-28 h-1.5 rounded-full bg-slate-300/30 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${tokenProgressClass}`}
+                              style={{ width: `${tokenUsagePercent.toFixed(1)}%` }}
+                            />
+                          </div>
+                          <span className={`text-[11px] font-semibold tabular-nums ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+                            {tokenUsage.totalUsedTokens.toLocaleString()} / {tokenUsage.totalTokenLimit.toLocaleString()} token
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1977,9 +2009,6 @@ export default function App() {
                   >
                     <Home size={22} strokeWidth={2.5} className="group-hover:scale-110 transition-transform" />
                   </a>
-                  <div className="hidden sm:block">
-                    <PreferencesButton onClick={() => setIsPrefsOpen(true)} />
-                  </div>
                   <div className="hidden sm:block">
                     <UserButton
                       appearance={{
@@ -2111,22 +2140,6 @@ export default function App() {
           </div>
         </div>
       </div>
-
-      {/* PREFERENCES WIZARD */}
-      <PreferencesWizard
-        isOpen={isPrefsOpen}
-        onClose={() => setIsPrefsOpen(false)}
-        onComplete={() => {
-          setIsPrefsOpen(false)
-          if (user?.id) {
-            const agentName = AGENT_ID_TO_NAME[activeAgentId] || 'JIM'
-            userPreferenceService.getOrCreate(user.id, agentName).then((prefs) => {
-              if (prefs) setUserPrefs(prefs)
-            })
-          }
-        }}
-        userId={user?.id || ""}
-      />
     </>
   )
 }

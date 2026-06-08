@@ -34,13 +34,7 @@ import {
   Menu,
   Home,
 } from "lucide-react"
-import PreferencesWizard from "@/components/preferences/PreferencesWizard"
-import PreferencesButton from "@/components/preferences/PreferencesButton"
 import { useUser } from "@clerk/nextjs"
-import {
-  userPreferenceService,
-} from "@/services/preferenceService"
-import { type UserPreference, type AgentName } from "@/types/preferences"
 import { conversationService } from "@/services/conversationService"
 import { extractFileContent } from "@/utils/fileExtraction"
 
@@ -357,30 +351,15 @@ export default function App() {
   const [activeAgentId, setActiveAgentId] = useState<string>("simone-ai")
   const currentAgent = AGENTS_DB[activeAgentId] || AGENTS_DB["simone-ai"]
 
-  // --- USER PREFERENCES STATE ---
   const { user } = useUser()
-  const [isPrefsOpen, setIsPrefsOpen] = useState(false)
-  const [userPrefs, setUserPrefs] = useState<UserPreference | null>(null)
-
-  // --- Load Preferences ---
-  useEffect(() => {
-    if (user?.id) {
-      userPreferenceService
-        .getOrCreate(user.id, "JIM")
-        .then((prefs) => {
-          if (prefs) {
-            setUserPrefs(prefs)
-            if (prefs.oauthId) {
-              console.log("✅ Simone AI: Using oauthId for Pinecone namespace:", prefs.oauthId)
-              CURRENT_NAMESPACE.current = prefs.oauthId
-            }
-          }
-        })
-        .catch((err) => console.error("Failed to load preferences:", err))
-    }
-  }, [user?.id])
+  const userEmail = user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || ""
 
   const [messages, setMessages] = useState<Message[]>([])
+  const [tokenUsage, setTokenUsage] = useState<{
+    totalUsedTokens: number
+    totalTokenLimit: number
+    totalTokensLeft: number
+  } | null>(null)
 
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -405,6 +384,15 @@ export default function App() {
   const [newFolderName, setNewFolderName] = useState("")
   const [showArchived, setShowArchived] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const tokenUsagePercent = tokenUsage?.totalTokenLimit
+    ? Math.min(100, Math.max(0, (tokenUsage.totalUsedTokens / tokenUsage.totalTokenLimit) * 100))
+    : 0
+  const tokenProgressClass =
+    tokenUsagePercent >= 90
+      ? "bg-red-500"
+      : tokenUsagePercent >= 75
+        ? "bg-amber-500"
+        : "bg-sky-500"
 
   // --- REFS ---
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -416,6 +404,26 @@ export default function App() {
 
   const N8N_ENDPOINT = process.env.NEXT_PUBLIC_SIMONE_AI_N8N_ENDPOINT || "https://n8n-c2lq.onrender.com/webhook/da2742bb-3308-4d18-a58b-77abed489389/chat?action=sendMessage"
 
+  useEffect(() => {
+    if (user?.id) {
+      CURRENT_NAMESPACE.current = user.id
+      console.log("✅ Simone AI: Using user.id for Pinecone namespace:", user.id)
+    }
+  }, [user?.id])
+
+  useEffect(() => {
+    if (!userEmail) return
+
+    const userIdentifier = encodeURIComponent(userEmail)
+    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""
+    fetch(`${API_BASE}/token-usage/${userIdentifier}/SIMONE`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data) setTokenUsage(data)
+      })
+      .catch(() => {})
+  }, [userEmail])
+
   // --- INITIALIZATION ---
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme")
@@ -425,8 +433,6 @@ export default function App() {
     if (window.innerWidth < 768) {
       setSidebarVisible(false)
     }
-
-    CURRENT_NAMESPACE.current = "" // Default to empty, will be set by preferences
 
     const savedChats = localStorage.getItem("simone-ai-chats")
     if (savedChats) {
@@ -1054,12 +1060,6 @@ export default function App() {
   // --- Message Sending Logic ---
   // --- Message Sending Logic ---
   const sendMessage = async () => {
-    // --- AUTO-ONBOARDING CHECK ---
-    if (!userPrefs?.displayName) {
-      setIsPrefsOpen(true)
-      return
-    }
-
     if (!inputValue.trim() && selectedFiles.length === 0) return
 
     setIsLoading(true)
@@ -1152,11 +1152,10 @@ export default function App() {
         body: JSON.stringify({
           chatInput:
             inputValue + (selectedFiles.length ? ` [Attached: ${selectedFiles.map((f) => f.name).join(", ")}]` : "") +
-            fileContext +
-            `\n\n<SYSTEM_CONTEXT_DO_NOT_REPLY>\nUSER_PROFILE_DATA: ${JSON.stringify(userPrefs)}\n</SYSTEM_CONTEXT_DO_NOT_REPLY>`,
+            fileContext,
           sessionId: sessionId, // Use chat-specific sessionId for conversation continuity
           useMemory: useMemory,
-          metadata: { namespace: CURRENT_NAMESPACE.current, source: activeAgentId },
+          metadata: { namespace: CURRENT_NAMESPACE.current, source: activeAgentId, email: userEmail },
           chatId: currentChatIdForSend,
         }),
       })
@@ -1226,6 +1225,41 @@ export default function App() {
         setChats(updatedChatsState)
         return newMsgs
       })
+
+      const userIdentifier = userEmail ? encodeURIComponent(userEmail) : ""
+      const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""
+      try {
+        if (userIdentifier) {
+          const [inputCount, outputCount] = await Promise.all([
+            fetch(`${API_BASE}/token-usage/count`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ text: userMessage.text }),
+            }).then((r) => (r.ok ? r.json() : null)),
+            fetch(`${API_BASE}/token-usage/count`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ text: finalAiMessage.text }),
+            }).then((r) => (r.ok ? r.json() : null)),
+          ])
+
+          const totalUsedInputTokens = inputCount?.totalUsedInputTokens ?? 0
+          const totalUsedOutputTokens = outputCount?.totalUsedInputTokens ?? 0
+
+          await fetch(`${API_BASE}/token-usage/${userIdentifier}/SIMONE/usage`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ totalUsedInputTokens, totalUsedOutputTokens }),
+          })
+
+          const updated = await fetch(`${API_BASE}/token-usage/${userIdentifier}/SIMONE`).then((r) =>
+            r.ok ? r.json() : null,
+          )
+          if (updated) setTokenUsage(updated)
+        }
+      } catch (err) {
+        console.error("Simone AI: Failed to update token usage:", err)
+      }
     } catch (error) {
       console.error("Error sending message:", error)
       setMessages((prev) => {
@@ -1860,6 +1894,19 @@ export default function App() {
                       >
                         {currentAgent.role}
                       </p>
+                      {tokenUsage && (
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <div className="w-28 h-1.5 rounded-full bg-slate-300/30 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${tokenProgressClass}`}
+                              style={{ width: `${tokenUsagePercent.toFixed(1)}%` }}
+                            />
+                          </div>
+                          <span className={`text-[11px] font-semibold tabular-nums ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+                            {tokenUsage.totalUsedTokens.toLocaleString()} / {tokenUsage.totalTokenLimit.toLocaleString()} token
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1879,7 +1926,6 @@ export default function App() {
                     <Home size={22} strokeWidth={2.5} className="group-hover:scale-110 transition-transform" />
                   </a>
                   <div className="hidden sm:block">
-                    <PreferencesButton onClick={() => setIsPrefsOpen(true)} />
                     <UserButton
                       appearance={{
                         elements: {
@@ -2010,22 +2056,6 @@ export default function App() {
           </div>
         </div>
       </div>
-
-      {/* PREFERENCES WIZARD */}
-      <PreferencesWizard
-        isOpen={isPrefsOpen}
-        onClose={() => setIsPrefsOpen(false)}
-        agentName="JIM"
-        onComplete={() => {
-          setIsPrefsOpen(false)
-          if (user?.id) {
-            userPreferenceService
-              .getOrCreate(user.id, "JIM")
-              .then(setUserPrefs)
-          }
-        }}
-        userId={user?.id || ""}
-      />
     </>
   )
 }

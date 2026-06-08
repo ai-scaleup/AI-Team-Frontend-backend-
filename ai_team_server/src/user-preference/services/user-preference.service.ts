@@ -142,15 +142,10 @@ export class UserPreferenceService {
   async findAllByUserIdentifier(
     userIdentifier: string,
   ): Promise<UserPreference[]> {
-    const email = this.normalizeEmailIdentifier(userIdentifier);
+    const user = await this.resolveUser(userIdentifier);
 
     return this.prisma.userPreference.findMany({
-      where: {
-        email: {
-          equals: email,
-          mode: 'insensitive',
-        },
-      },
+      where: { oauthId: user.oauthId },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -167,15 +162,14 @@ export class UserPreferenceService {
     userIdentifier: string,
     agentName: AgentName,
   ): Promise<UserPreference> {
-    const email = this.normalizeEmailIdentifier(userIdentifier);
+    const user = await this.resolveUser(userIdentifier);
 
-    const preference = await this.prisma.userPreference.findFirst({
+    const preference = await this.prisma.userPreference.findUnique({
       where: {
-        email: {
-          equals: email,
-          mode: 'insensitive',
+        oauthId_agentName: {
+          oauthId: user.oauthId,
+          agentName,
         },
-        agentName,
       },
     });
 
@@ -332,23 +326,20 @@ export class UserPreferenceService {
     userIdentifier: string,
     agentName: AgentName,
   ): Promise<UserPreference> {
-    const email = this.normalizeEmailIdentifier(userIdentifier);
+    const user = await this.resolveUser(userIdentifier);
 
-    const existing = await this.prisma.userPreference.findFirst({
+    const existing = await this.prisma.userPreference.findUnique({
       where: {
-        email: {
-          equals: email,
-          mode: 'insensitive',
+        oauthId_agentName: {
+          oauthId: user.oauthId,
+          agentName,
         },
-        agentName,
       },
     });
 
     if (existing) {
       return existing;
     }
-
-    const user = await this.resolveUser({ email });
 
     // Create with default values (Prisma will use schema defaults)
     return this.prisma.userPreference.create({

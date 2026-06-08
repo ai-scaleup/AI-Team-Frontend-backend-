@@ -112,25 +112,6 @@ export default function ChiaraAiPage() {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
     }, [chatLogs])
 
-    // DB stores sender as exactly 'user' or 'ai'
-    const isUserSender = (sender: string) => sender.toLowerCase().trim() === 'user'
-
-    // Render message text: convert **bold**, line breaks, and HTML links
-    const renderMessage = (text: string) => {
-        // Convert **text** to <strong>text</strong>
-        let html = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        // Convert *text* to <em>text</em>
-        html = html.replace(/\*(.+?)\*/g, '<em>$1</em>')
-        // Convert newlines to <br>
-        html = html.replace(/\n/g, '<br/>')
-        // Ensure raw <a href> tags are preserved (already HTML)
-        return html
-    }
-
-    // Display a truncated session ID
-    const displaySessionId = (sessionId: string) =>
-        sessionId.length > 22 ? sessionId.substring(0, 22) + '…' : sessionId
-
     // Filter sessions by search
     const filteredSessions = sessions.filter(s =>
         s.sessionId.toLowerCase().includes(searchQuery.toLowerCase())
@@ -148,10 +129,6 @@ export default function ChiaraAiPage() {
                 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
                 .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.2); border-radius: 2px; }
                 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-                .msg-content a { color: #60a5fa; text-decoration: underline; }
-                .msg-content a:hover { color: #93c5fd; }
-                .msg-bubble-user a { color: #bfdbfe; }
-                .msg-bubble-user a:hover { color: #dbeafe; }
             `}</style>
 
             <div className={`flex h-screen w-full overflow-hidden ${isDark ? "dark" : ""}`}>
@@ -236,11 +213,11 @@ export default function ChiaraAiPage() {
                                             : 'border-transparent hover:bg-slate-50 dark:hover:bg-white/5'
                                             }`}
                                     >
-                                        <div className="flex items-center justify-between gap-1">
-                                            <span className="font-semibold text-slate-700 dark:text-slate-200 text-xs truncate font-mono">
-                                                {displaySessionId(session.sessionId)}
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-semibold text-slate-700 dark:text-slate-200 text-xs truncate max-w-[200px] font-mono">
+                                                {session.sessionId.length > 24 ? session.sessionId.substring(0, 24) + '...' : session.sessionId}
                                             </span>
-                                            <span className="text-[10px] text-slate-400 shrink-0">{session.messageCount}</span>
+                                            <ChevronRight size={14} className={`text-slate-400 transition-opacity ${selectedSession === session.sessionId ? 'opacity-100' : 'opacity-0'}`} />
                                         </div>
                                     </div>
                                 ))
@@ -254,7 +231,7 @@ export default function ChiaraAiPage() {
                         <div className="p-4 border-b border-slate-200 dark:border-slate-700/50 flex items-center justify-between bg-white/50 dark:bg-black/20">
                             <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2 text-sm">
                                 <MessageSquare size={16} />
-                                {selectedSession ? `Session: ${displaySessionId(selectedSession)}` : "Chat Transcript"}
+                                {selectedSession ? `Session: ${selectedSession.substring(0, 20)}...` : "Chat Transcript"}
                             </h3>
                             <div className="flex items-center gap-3">
                                 {selectedSession && chatLogs.length > 0 && (
@@ -284,36 +261,22 @@ export default function ChiaraAiPage() {
                                 </div>
                             ) : (
                                 chatLogs.map((log, idx) => {
-                                    const isUser = isUserSender(log.sender)
+                                    const isUser = log.sender === 'user'
                                     return (
-                                        <div key={idx} className={`flex flex-col gap-0.5 ${isUser ? 'items-end' : 'items-start'}`}>
-                                            <span className="text-[10px] font-semibold text-slate-400 px-2">
-                                                {isUser ? 'User' : 'Chiara AI'}
-                                            </span>
-                                            <div className={`flex gap-2 items-end max-w-[78%] ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
-                                                {/* Avatar */}
-                                                <img
-                                                    src={isUser ? USER_AVATAR_URL : CHIARA_AVATAR}
-                                                    className="w-7 h-7 rounded-full shadow-sm object-cover shrink-0 self-end"
-                                                    alt={isUser ? 'User' : 'Chiara AI'}
-                                                />
-                                                {/* Bubble */}
-                                                <div className={`px-4 py-3 rounded-2xl text-sm shadow-sm break-words msg-content ${
-                                                    isUser
-                                                        ? 'bg-emerald-500 text-white rounded-br-none msg-bubble-user'
-                                                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-bl-none border border-slate-100 dark:border-slate-700'
+                                        <div key={idx} className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
+                                            {!isUser && <img src={CHIARA_AVATAR} className="w-8 h-8 rounded-full shadow-sm object-cover" alt="Chiara AI" />}
+                                            <div className={`max-w-[85%] p-4 rounded-2xl text-sm shadow-sm ${isUser
+                                                ? 'bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white rounded-tr-none'
+                                                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-tl-none'
                                                 }`}>
-                                                    <div
-                                                        className="leading-relaxed [&_strong]:font-bold [&_em]:italic [&_a]:underline [&_a]:text-blue-400 [&_a]:hover:text-blue-300"
-                                                        dangerouslySetInnerHTML={{ __html: renderMessage(log.messageText) }}
-                                                    />
-                                                    {log.createdAt && (
-                                                        <p className={`text-[10px] mt-1.5 ${isUser ? 'text-emerald-100' : 'text-slate-400'} text-right`}>
-                                                            {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                        </p>
-                                                    )}
-                                                </div>
+                                                <p>{log.messageText}</p>
+                                                {log.createdAt && (
+                                                    <p className="text-[10px] opacity-40 mt-2 text-right">
+                                                        {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    </p>
+                                                )}
                                             </div>
+                                            {isUser && <img src={USER_AVATAR_URL} className="w-8 h-8 rounded-full shadow-sm object-cover" alt="User" />}
                                         </div>
                                     )
                                 })

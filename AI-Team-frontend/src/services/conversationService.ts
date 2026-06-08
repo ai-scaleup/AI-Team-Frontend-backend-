@@ -1,10 +1,12 @@
 import { Conversation, Message, CreateConversationDto, UpdateConversationDto, AddMessageDto } from '@/types/conversation';
+import { waitForUserSync } from '@/lib/userSyncGate';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '';
 
 export const conversationService = {
     // Create or Upsert a conversation
     async createConversation(oauthId: string, data: CreateConversationDto): Promise<Conversation> {
+        await waitForUserSync();
         const response = await fetch(`${API_BASE}/conversations/${oauthId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -19,6 +21,7 @@ export const conversationService = {
 
     // Get all conversations for a user
     async getConversations(oauthId: string, agentId?: string): Promise<Conversation[]> {
+        await waitForUserSync();
         const url = agentId
             ? `${API_BASE}/conversations/${oauthId}?agentId=${agentId}`
             : `${API_BASE}/conversations/${oauthId}`;
