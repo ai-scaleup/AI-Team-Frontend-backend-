@@ -23,10 +23,21 @@ export const updateUserSchema = z.object({
     .optional(),
 });
 
+const optionalQueryDate = z
+  .string()
+  .trim()
+  .optional()
+  .transform((value) => (value ? new Date(value) : undefined))
+  .refine((value) => value === undefined || !Number.isNaN(value.getTime()), {
+    message: 'Invalid date.',
+  });
+
 export const listUsersQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(10),
   search: z.string().trim().optional(),
+  usageFrom: optionalQueryDate,
+  usageTo: optionalQueryDate,
 });
 
 // We infer our TypeScript types directly from the schemas for type safety.

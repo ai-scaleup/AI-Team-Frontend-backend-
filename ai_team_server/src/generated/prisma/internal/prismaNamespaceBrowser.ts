@@ -66,6 +66,7 @@ export const ModelName = {
   TagField: 'TagField',
   Tag: 'Tag',
   UserAgentTokenUsage: 'UserAgentTokenUsage',
+  TokenUsageAlertRule: 'TokenUsageAlertRule',
   MembershipTemplate: 'MembershipTemplate',
   AssignedMembership: 'AssignedMembership',
   DailyTokenUsage: 'DailyTokenUsage',
@@ -194,6 +195,7 @@ export type AssignedGroupScalarFieldEnum = (typeof AssignedGroupScalarFieldEnum)
 export const ConversationScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
+  email: 'email',
   title: 'title',
   agentId: 'agentId',
   sessionId: 'sessionId',
@@ -303,13 +305,27 @@ export const UserAgentTokenUsageScalarFieldEnum = {
 export type UserAgentTokenUsageScalarFieldEnum = (typeof UserAgentTokenUsageScalarFieldEnum)[keyof typeof UserAgentTokenUsageScalarFieldEnum]
 
 
+export const TokenUsageAlertRuleScalarFieldEnum = {
+  id: 'id',
+  scope: 'scope',
+  thresholdPercent: 'thresholdPercent',
+  level: 'level',
+  message: 'message',
+  isActive: 'isActive',
+  sortOrder: 'sortOrder',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type TokenUsageAlertRuleScalarFieldEnum = (typeof TokenUsageAlertRuleScalarFieldEnum)[keyof typeof TokenUsageAlertRuleScalarFieldEnum]
+
+
 export const MembershipTemplateScalarFieldEnum = {
   id: 'id',
   name: 'name',
   durationDays: 'durationDays',
   monthlyTokenLimit: 'monthlyTokenLimit',
   includedAgents: 'includedAgents',
-  includedGroupIds: 'includedGroupIds',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -324,6 +340,7 @@ export const AssignedMembershipScalarFieldEnum = {
   startsAt: 'startsAt',
   expiresAt: 'expiresAt',
   isActive: 'isActive',
+  monthlyTokenLimit: 'monthlyTokenLimit',
   threshold50Notified: 'threshold50Notified',
   threshold80Notified: 'threshold80Notified',
   threshold90Notified: 'threshold90Notified',

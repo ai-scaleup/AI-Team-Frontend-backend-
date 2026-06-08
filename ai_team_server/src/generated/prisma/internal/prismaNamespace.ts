@@ -399,6 +399,7 @@ export const ModelName = {
   TagField: 'TagField',
   Tag: 'Tag',
   UserAgentTokenUsage: 'UserAgentTokenUsage',
+  TokenUsageAlertRule: 'TokenUsageAlertRule',
   MembershipTemplate: 'MembershipTemplate',
   AssignedMembership: 'AssignedMembership',
   DailyTokenUsage: 'DailyTokenUsage',
@@ -419,7 +420,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "userPreference" | "assignedAgent" | "agentGroup" | "agentGroupItem" | "assignedGroup" | "conversation" | "message" | "chatLog" | "metisChatLog" | "chiaraInboundChatLog" | "chiaraLead" | "tagField" | "tag" | "userAgentTokenUsage" | "membershipTemplate" | "assignedMembership" | "dailyTokenUsage" | "tokenLimitStopLog" | "userAlert"
+    modelProps: "user" | "userPreference" | "assignedAgent" | "agentGroup" | "agentGroupItem" | "assignedGroup" | "conversation" | "message" | "chatLog" | "metisChatLog" | "chiaraInboundChatLog" | "chiaraLead" | "tagField" | "tag" | "userAgentTokenUsage" | "tokenUsageAlertRule" | "membershipTemplate" | "assignedMembership" | "dailyTokenUsage" | "tokenLimitStopLog" | "userAlert"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1533,6 +1534,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    TokenUsageAlertRule: {
+      payload: Prisma.$TokenUsageAlertRulePayload<ExtArgs>
+      fields: Prisma.TokenUsageAlertRuleFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.TokenUsageAlertRuleFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenUsageAlertRulePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.TokenUsageAlertRuleFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenUsageAlertRulePayload>
+        }
+        findFirst: {
+          args: Prisma.TokenUsageAlertRuleFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenUsageAlertRulePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.TokenUsageAlertRuleFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenUsageAlertRulePayload>
+        }
+        findMany: {
+          args: Prisma.TokenUsageAlertRuleFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenUsageAlertRulePayload>[]
+        }
+        create: {
+          args: Prisma.TokenUsageAlertRuleCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenUsageAlertRulePayload>
+        }
+        createMany: {
+          args: Prisma.TokenUsageAlertRuleCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.TokenUsageAlertRuleCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenUsageAlertRulePayload>[]
+        }
+        delete: {
+          args: Prisma.TokenUsageAlertRuleDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenUsageAlertRulePayload>
+        }
+        update: {
+          args: Prisma.TokenUsageAlertRuleUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenUsageAlertRulePayload>
+        }
+        deleteMany: {
+          args: Prisma.TokenUsageAlertRuleDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.TokenUsageAlertRuleUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.TokenUsageAlertRuleUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenUsageAlertRulePayload>[]
+        }
+        upsert: {
+          args: Prisma.TokenUsageAlertRuleUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenUsageAlertRulePayload>
+        }
+        aggregate: {
+          args: Prisma.TokenUsageAlertRuleAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateTokenUsageAlertRule>
+        }
+        groupBy: {
+          args: Prisma.TokenUsageAlertRuleGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.TokenUsageAlertRuleGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.TokenUsageAlertRuleCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.TokenUsageAlertRuleCountAggregateOutputType> | number
+        }
+      }
+    }
     MembershipTemplate: {
       payload: Prisma.$MembershipTemplatePayload<ExtArgs>
       fields: Prisma.MembershipTemplateFieldRefs
@@ -2047,6 +2122,7 @@ export type AssignedGroupScalarFieldEnum = (typeof AssignedGroupScalarFieldEnum)
 export const ConversationScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
+  email: 'email',
   title: 'title',
   agentId: 'agentId',
   sessionId: 'sessionId',
@@ -2156,13 +2232,27 @@ export const UserAgentTokenUsageScalarFieldEnum = {
 export type UserAgentTokenUsageScalarFieldEnum = (typeof UserAgentTokenUsageScalarFieldEnum)[keyof typeof UserAgentTokenUsageScalarFieldEnum]
 
 
+export const TokenUsageAlertRuleScalarFieldEnum = {
+  id: 'id',
+  scope: 'scope',
+  thresholdPercent: 'thresholdPercent',
+  level: 'level',
+  message: 'message',
+  isActive: 'isActive',
+  sortOrder: 'sortOrder',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type TokenUsageAlertRuleScalarFieldEnum = (typeof TokenUsageAlertRuleScalarFieldEnum)[keyof typeof TokenUsageAlertRuleScalarFieldEnum]
+
+
 export const MembershipTemplateScalarFieldEnum = {
   id: 'id',
   name: 'name',
   durationDays: 'durationDays',
   monthlyTokenLimit: 'monthlyTokenLimit',
   includedAgents: 'includedAgents',
-  includedGroupIds: 'includedGroupIds',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -2177,6 +2267,7 @@ export const AssignedMembershipScalarFieldEnum = {
   startsAt: 'startsAt',
   expiresAt: 'expiresAt',
   isActive: 'isActive',
+  monthlyTokenLimit: 'monthlyTokenLimit',
   threshold50Notified: 'threshold50Notified',
   threshold80Notified: 'threshold80Notified',
   threshold90Notified: 'threshold90Notified',
@@ -2461,6 +2552,34 @@ export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel,
 
 
 /**
+ * Reference to a field of type 'TokenAlertScope'
+ */
+export type EnumTokenAlertScopeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'TokenAlertScope'>
+    
+
+
+/**
+ * Reference to a field of type 'TokenAlertScope[]'
+ */
+export type ListEnumTokenAlertScopeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'TokenAlertScope[]'>
+    
+
+
+/**
+ * Reference to a field of type 'TokenAlertLevel'
+ */
+export type EnumTokenAlertLevelFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'TokenAlertLevel'>
+    
+
+
+/**
+ * Reference to a field of type 'TokenAlertLevel[]'
+ */
+export type ListEnumTokenAlertLevelFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'TokenAlertLevel[]'>
+    
+
+
+/**
  * Reference to a field of type 'Float'
  */
 export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
@@ -2583,6 +2702,7 @@ export type GlobalOmitConfig = {
   tagField?: Prisma.TagFieldOmit
   tag?: Prisma.TagOmit
   userAgentTokenUsage?: Prisma.UserAgentTokenUsageOmit
+  tokenUsageAlertRule?: Prisma.TokenUsageAlertRuleOmit
   membershipTemplate?: Prisma.MembershipTemplateOmit
   assignedMembership?: Prisma.AssignedMembershipOmit
   dailyTokenUsage?: Prisma.DailyTokenUsageOmit

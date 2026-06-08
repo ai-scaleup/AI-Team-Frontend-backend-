@@ -149,3 +149,20 @@ export const MarketComparison = {
 } as const
 
 export type MarketComparison = (typeof MarketComparison)[keyof typeof MarketComparison]
+
+
+export const TokenAlertLevel = {
+  INFO: 'INFO',
+  WARNING: 'WARNING',
+  CRITICAL: 'CRITICAL'
+} as const
+
+export type TokenAlertLevel = (typeof TokenAlertLevel)[keyof typeof TokenAlertLevel]
+
+
+export const TokenAlertScope = {
+  CONVERSATION: 'CONVERSATION',
+  MONTHLY: 'MONTHLY'
+} as const
+
+export type TokenAlertScope = (typeof TokenAlertScope)[keyof typeof TokenAlertScope]

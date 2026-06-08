@@ -60,7 +60,6 @@ export type MembershipTemplateCountAggregateOutputType = {
   durationDays: number
   monthlyTokenLimit: number
   includedAgents: number
-  includedGroupIds: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -101,7 +100,6 @@ export type MembershipTemplateCountAggregateInputType = {
   durationDays?: true
   monthlyTokenLimit?: true
   includedAgents?: true
-  includedGroupIds?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -199,7 +197,6 @@ export type MembershipTemplateGroupByOutputType = {
   durationDays: number
   monthlyTokenLimit: number
   includedAgents: $Enums.AgentName[]
-  includedGroupIds: string[]
   createdAt: Date
   updatedAt: Date
   _count: MembershipTemplateCountAggregateOutputType | null
@@ -233,7 +230,6 @@ export type MembershipTemplateWhereInput = {
   durationDays?: Prisma.IntFilter<"MembershipTemplate"> | number
   monthlyTokenLimit?: Prisma.IntFilter<"MembershipTemplate"> | number
   includedAgents?: Prisma.EnumAgentNameNullableListFilter<"MembershipTemplate">
-  includedGroupIds?: Prisma.StringNullableListFilter<"MembershipTemplate">
   createdAt?: Prisma.DateTimeFilter<"MembershipTemplate"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"MembershipTemplate"> | Date | string
   assignments?: Prisma.AssignedMembershipListRelationFilter
@@ -245,7 +241,6 @@ export type MembershipTemplateOrderByWithRelationInput = {
   durationDays?: Prisma.SortOrder
   monthlyTokenLimit?: Prisma.SortOrder
   includedAgents?: Prisma.SortOrder
-  includedGroupIds?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   assignments?: Prisma.AssignedMembershipOrderByRelationAggregateInput
@@ -260,7 +255,6 @@ export type MembershipTemplateWhereUniqueInput = Prisma.AtLeast<{
   durationDays?: Prisma.IntFilter<"MembershipTemplate"> | number
   monthlyTokenLimit?: Prisma.IntFilter<"MembershipTemplate"> | number
   includedAgents?: Prisma.EnumAgentNameNullableListFilter<"MembershipTemplate">
-  includedGroupIds?: Prisma.StringNullableListFilter<"MembershipTemplate">
   createdAt?: Prisma.DateTimeFilter<"MembershipTemplate"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"MembershipTemplate"> | Date | string
   assignments?: Prisma.AssignedMembershipListRelationFilter
@@ -272,7 +266,6 @@ export type MembershipTemplateOrderByWithAggregationInput = {
   durationDays?: Prisma.SortOrder
   monthlyTokenLimit?: Prisma.SortOrder
   includedAgents?: Prisma.SortOrder
-  includedGroupIds?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.MembershipTemplateCountOrderByAggregateInput
@@ -291,7 +284,6 @@ export type MembershipTemplateScalarWhereWithAggregatesInput = {
   durationDays?: Prisma.IntWithAggregatesFilter<"MembershipTemplate"> | number
   monthlyTokenLimit?: Prisma.IntWithAggregatesFilter<"MembershipTemplate"> | number
   includedAgents?: Prisma.EnumAgentNameNullableListFilter<"MembershipTemplate">
-  includedGroupIds?: Prisma.StringNullableListFilter<"MembershipTemplate">
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"MembershipTemplate"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"MembershipTemplate"> | Date | string
 }
@@ -302,7 +294,6 @@ export type MembershipTemplateCreateInput = {
   durationDays: number
   monthlyTokenLimit: number
   includedAgents?: Prisma.MembershipTemplateCreateincludedAgentsInput | $Enums.AgentName[]
-  includedGroupIds?: Prisma.MembershipTemplateCreateincludedGroupIdsInput | string[]
   createdAt?: Date | string
   updatedAt?: Date | string
   assignments?: Prisma.AssignedMembershipCreateNestedManyWithoutTemplateInput
@@ -314,7 +305,6 @@ export type MembershipTemplateUncheckedCreateInput = {
   durationDays: number
   monthlyTokenLimit: number
   includedAgents?: Prisma.MembershipTemplateCreateincludedAgentsInput | $Enums.AgentName[]
-  includedGroupIds?: Prisma.MembershipTemplateCreateincludedGroupIdsInput | string[]
   createdAt?: Date | string
   updatedAt?: Date | string
   assignments?: Prisma.AssignedMembershipUncheckedCreateNestedManyWithoutTemplateInput
@@ -326,7 +316,6 @@ export type MembershipTemplateUpdateInput = {
   durationDays?: Prisma.IntFieldUpdateOperationsInput | number
   monthlyTokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
   includedAgents?: Prisma.MembershipTemplateUpdateincludedAgentsInput | $Enums.AgentName[]
-  includedGroupIds?: Prisma.MembershipTemplateUpdateincludedGroupIdsInput | string[]
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assignments?: Prisma.AssignedMembershipUpdateManyWithoutTemplateNestedInput
@@ -338,7 +327,6 @@ export type MembershipTemplateUncheckedUpdateInput = {
   durationDays?: Prisma.IntFieldUpdateOperationsInput | number
   monthlyTokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
   includedAgents?: Prisma.MembershipTemplateUpdateincludedAgentsInput | $Enums.AgentName[]
-  includedGroupIds?: Prisma.MembershipTemplateUpdateincludedGroupIdsInput | string[]
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assignments?: Prisma.AssignedMembershipUncheckedUpdateManyWithoutTemplateNestedInput
@@ -350,7 +338,6 @@ export type MembershipTemplateCreateManyInput = {
   durationDays: number
   monthlyTokenLimit: number
   includedAgents?: Prisma.MembershipTemplateCreateincludedAgentsInput | $Enums.AgentName[]
-  includedGroupIds?: Prisma.MembershipTemplateCreateincludedGroupIdsInput | string[]
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -361,7 +348,6 @@ export type MembershipTemplateUpdateManyMutationInput = {
   durationDays?: Prisma.IntFieldUpdateOperationsInput | number
   monthlyTokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
   includedAgents?: Prisma.MembershipTemplateUpdateincludedAgentsInput | $Enums.AgentName[]
-  includedGroupIds?: Prisma.MembershipTemplateUpdateincludedGroupIdsInput | string[]
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -372,7 +358,6 @@ export type MembershipTemplateUncheckedUpdateManyInput = {
   durationDays?: Prisma.IntFieldUpdateOperationsInput | number
   monthlyTokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
   includedAgents?: Prisma.MembershipTemplateUpdateincludedAgentsInput | $Enums.AgentName[]
-  includedGroupIds?: Prisma.MembershipTemplateUpdateincludedGroupIdsInput | string[]
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -391,7 +376,6 @@ export type MembershipTemplateCountOrderByAggregateInput = {
   durationDays?: Prisma.SortOrder
   monthlyTokenLimit?: Prisma.SortOrder
   includedAgents?: Prisma.SortOrder
-  includedGroupIds?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -433,18 +417,9 @@ export type MembershipTemplateCreateincludedAgentsInput = {
   set: $Enums.AgentName[]
 }
 
-export type MembershipTemplateCreateincludedGroupIdsInput = {
-  set: string[]
-}
-
 export type MembershipTemplateUpdateincludedAgentsInput = {
   set?: $Enums.AgentName[]
   push?: $Enums.AgentName | $Enums.AgentName[]
-}
-
-export type MembershipTemplateUpdateincludedGroupIdsInput = {
-  set?: string[]
-  push?: string | string[]
 }
 
 export type MembershipTemplateCreateNestedOneWithoutAssignmentsInput = {
@@ -467,7 +442,6 @@ export type MembershipTemplateCreateWithoutAssignmentsInput = {
   durationDays: number
   monthlyTokenLimit: number
   includedAgents?: Prisma.MembershipTemplateCreateincludedAgentsInput | $Enums.AgentName[]
-  includedGroupIds?: Prisma.MembershipTemplateCreateincludedGroupIdsInput | string[]
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -478,7 +452,6 @@ export type MembershipTemplateUncheckedCreateWithoutAssignmentsInput = {
   durationDays: number
   monthlyTokenLimit: number
   includedAgents?: Prisma.MembershipTemplateCreateincludedAgentsInput | $Enums.AgentName[]
-  includedGroupIds?: Prisma.MembershipTemplateCreateincludedGroupIdsInput | string[]
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -505,7 +478,6 @@ export type MembershipTemplateUpdateWithoutAssignmentsInput = {
   durationDays?: Prisma.IntFieldUpdateOperationsInput | number
   monthlyTokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
   includedAgents?: Prisma.MembershipTemplateUpdateincludedAgentsInput | $Enums.AgentName[]
-  includedGroupIds?: Prisma.MembershipTemplateUpdateincludedGroupIdsInput | string[]
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -516,7 +488,6 @@ export type MembershipTemplateUncheckedUpdateWithoutAssignmentsInput = {
   durationDays?: Prisma.IntFieldUpdateOperationsInput | number
   monthlyTokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
   includedAgents?: Prisma.MembershipTemplateUpdateincludedAgentsInput | $Enums.AgentName[]
-  includedGroupIds?: Prisma.MembershipTemplateUpdateincludedGroupIdsInput | string[]
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -558,7 +529,6 @@ export type MembershipTemplateSelect<ExtArgs extends runtime.Types.Extensions.In
   durationDays?: boolean
   monthlyTokenLimit?: boolean
   includedAgents?: boolean
-  includedGroupIds?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   assignments?: boolean | Prisma.MembershipTemplate$assignmentsArgs<ExtArgs>
@@ -571,7 +541,6 @@ export type MembershipTemplateSelectCreateManyAndReturn<ExtArgs extends runtime.
   durationDays?: boolean
   monthlyTokenLimit?: boolean
   includedAgents?: boolean
-  includedGroupIds?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["membershipTemplate"]>
@@ -582,7 +551,6 @@ export type MembershipTemplateSelectUpdateManyAndReturn<ExtArgs extends runtime.
   durationDays?: boolean
   monthlyTokenLimit?: boolean
   includedAgents?: boolean
-  includedGroupIds?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["membershipTemplate"]>
@@ -593,12 +561,11 @@ export type MembershipTemplateSelectScalar = {
   durationDays?: boolean
   monthlyTokenLimit?: boolean
   includedAgents?: boolean
-  includedGroupIds?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type MembershipTemplateOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "durationDays" | "monthlyTokenLimit" | "includedAgents" | "includedGroupIds" | "createdAt" | "updatedAt", ExtArgs["result"]["membershipTemplate"]>
+export type MembershipTemplateOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "durationDays" | "monthlyTokenLimit" | "includedAgents" | "createdAt" | "updatedAt", ExtArgs["result"]["membershipTemplate"]>
 export type MembershipTemplateInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   assignments?: boolean | Prisma.MembershipTemplate$assignmentsArgs<ExtArgs>
   _count?: boolean | Prisma.MembershipTemplateCountOutputTypeDefaultArgs<ExtArgs>
@@ -617,7 +584,6 @@ export type $MembershipTemplatePayload<ExtArgs extends runtime.Types.Extensions.
     durationDays: number
     monthlyTokenLimit: number
     includedAgents: $Enums.AgentName[]
-    includedGroupIds: string[]
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["membershipTemplate"]>
@@ -1049,7 +1015,6 @@ export interface MembershipTemplateFieldRefs {
   readonly durationDays: Prisma.FieldRef<"MembershipTemplate", 'Int'>
   readonly monthlyTokenLimit: Prisma.FieldRef<"MembershipTemplate", 'Int'>
   readonly includedAgents: Prisma.FieldRef<"MembershipTemplate", 'AgentName[]'>
-  readonly includedGroupIds: Prisma.FieldRef<"MembershipTemplate", 'String[]'>
   readonly createdAt: Prisma.FieldRef<"MembershipTemplate", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"MembershipTemplate", 'DateTime'>
 }

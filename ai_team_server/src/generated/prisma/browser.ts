@@ -93,6 +93,11 @@ export type Tag = Prisma.TagModel
  */
 export type UserAgentTokenUsage = Prisma.UserAgentTokenUsageModel
 /**
+ * Model TokenUsageAlertRule
+ * 
+ */
+export type TokenUsageAlertRule = Prisma.TokenUsageAlertRuleModel
+/**
  * Model MembershipTemplate
  * 
  */
