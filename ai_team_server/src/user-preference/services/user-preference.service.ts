@@ -142,10 +142,15 @@ export class UserPreferenceService {
   async findAllByUserIdentifier(
     userIdentifier: string,
   ): Promise<UserPreference[]> {
-    const user = await this.resolveUser(userIdentifier);
+    const email = this.normalizeEmailIdentifier(userIdentifier);
 
     return this.prisma.userPreference.findMany({
-      where: { oauthId: user.oauthId },
+      where: {
+        email: {
+          equals: email,
+          mode: 'insensitive',
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -162,11 +167,14 @@ export class UserPreferenceService {
     userIdentifier: string,
     agentName: AgentName,
   ): Promise<UserPreference> {
-    const user = await this.resolveUser(userIdentifier);
+    const email = this.normalizeEmailIdentifier(userIdentifier);
 
     const preference = await this.prisma.userPreference.findFirst({
       where: {
-        oauthId: user.oauthId,
+        email: {
+          equals: email,
+          mode: 'insensitive',
+        },
         agentName,
       },
     });

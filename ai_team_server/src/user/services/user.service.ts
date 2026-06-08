@@ -249,23 +249,11 @@ export class UserService {
     email: string,
     username?: string,
   ): Promise<User> {
-    const cleanUsername = username?.trim() || undefined;
-    try {
-      return await this.prisma.user.upsert({
-        where: { oauthId },
-        create: { oauthId, email: email.toLowerCase().trim(), username: cleanUsername },
-        update: { email: email.toLowerCase().trim(), username: cleanUsername },
-      });
-    } catch (error: any) {
-      // P2002 = unique constraint violation (email already exists with different oauthId)
-      if (error?.code === 'P2002') {
-        return await this.prisma.user.update({
-          where: { email: email.toLowerCase().trim() },
-          data: { oauthId, username: cleanUsername },
-        });
-      }
-      throw error;
-    }
+    return this.prisma.user.upsert({
+      where: { oauthId },
+      create: { oauthId, email, username },
+      update: { email, username },
+    });
   }
 
   // ALERTS
