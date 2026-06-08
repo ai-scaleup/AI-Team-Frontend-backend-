@@ -20,8 +20,18 @@ export type AssignedMembershipModel = runtime.Types.Result.DefaultSelection<Pris
 
 export type AggregateAssignedMembership = {
   _count: AssignedMembershipCountAggregateOutputType | null
+  _avg: AssignedMembershipAvgAggregateOutputType | null
+  _sum: AssignedMembershipSumAggregateOutputType | null
   _min: AssignedMembershipMinAggregateOutputType | null
   _max: AssignedMembershipMaxAggregateOutputType | null
+}
+
+export type AssignedMembershipAvgAggregateOutputType = {
+  monthlyTokenLimit: number | null
+}
+
+export type AssignedMembershipSumAggregateOutputType = {
+  monthlyTokenLimit: number | null
 }
 
 export type AssignedMembershipMinAggregateOutputType = {
@@ -31,6 +41,7 @@ export type AssignedMembershipMinAggregateOutputType = {
   startsAt: Date | null
   expiresAt: Date | null
   isActive: boolean | null
+  monthlyTokenLimit: number | null
   threshold50Notified: boolean | null
   threshold80Notified: boolean | null
   threshold90Notified: boolean | null
@@ -46,6 +57,7 @@ export type AssignedMembershipMaxAggregateOutputType = {
   startsAt: Date | null
   expiresAt: Date | null
   isActive: boolean | null
+  monthlyTokenLimit: number | null
   threshold50Notified: boolean | null
   threshold80Notified: boolean | null
   threshold90Notified: boolean | null
@@ -61,6 +73,7 @@ export type AssignedMembershipCountAggregateOutputType = {
   startsAt: number
   expiresAt: number
   isActive: number
+  monthlyTokenLimit: number
   threshold50Notified: number
   threshold80Notified: number
   threshold90Notified: number
@@ -71,6 +84,14 @@ export type AssignedMembershipCountAggregateOutputType = {
 }
 
 
+export type AssignedMembershipAvgAggregateInputType = {
+  monthlyTokenLimit?: true
+}
+
+export type AssignedMembershipSumAggregateInputType = {
+  monthlyTokenLimit?: true
+}
+
 export type AssignedMembershipMinAggregateInputType = {
   id?: true
   userId?: true
@@ -78,6 +99,7 @@ export type AssignedMembershipMinAggregateInputType = {
   startsAt?: true
   expiresAt?: true
   isActive?: true
+  monthlyTokenLimit?: true
   threshold50Notified?: true
   threshold80Notified?: true
   threshold90Notified?: true
@@ -93,6 +115,7 @@ export type AssignedMembershipMaxAggregateInputType = {
   startsAt?: true
   expiresAt?: true
   isActive?: true
+  monthlyTokenLimit?: true
   threshold50Notified?: true
   threshold80Notified?: true
   threshold90Notified?: true
@@ -108,6 +131,7 @@ export type AssignedMembershipCountAggregateInputType = {
   startsAt?: true
   expiresAt?: true
   isActive?: true
+  monthlyTokenLimit?: true
   threshold50Notified?: true
   threshold80Notified?: true
   threshold90Notified?: true
@@ -155,6 +179,18 @@ export type AssignedMembershipAggregateArgs<ExtArgs extends runtime.Types.Extens
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
+   * Select which fields to average
+  **/
+  _avg?: AssignedMembershipAvgAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
+   * Select which fields to sum
+  **/
+  _sum?: AssignedMembershipSumAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
    * Select which fields to find the minimum value
   **/
   _min?: AssignedMembershipMinAggregateInputType
@@ -185,6 +221,8 @@ export type AssignedMembershipGroupByArgs<ExtArgs extends runtime.Types.Extensio
   take?: number
   skip?: number
   _count?: AssignedMembershipCountAggregateInputType | true
+  _avg?: AssignedMembershipAvgAggregateInputType
+  _sum?: AssignedMembershipSumAggregateInputType
   _min?: AssignedMembershipMinAggregateInputType
   _max?: AssignedMembershipMaxAggregateInputType
 }
@@ -196,6 +234,7 @@ export type AssignedMembershipGroupByOutputType = {
   startsAt: Date
   expiresAt: Date | null
   isActive: boolean
+  monthlyTokenLimit: number | null
   threshold50Notified: boolean
   threshold80Notified: boolean
   threshold90Notified: boolean
@@ -203,6 +242,8 @@ export type AssignedMembershipGroupByOutputType = {
   createdAt: Date
   updatedAt: Date
   _count: AssignedMembershipCountAggregateOutputType | null
+  _avg: AssignedMembershipAvgAggregateOutputType | null
+  _sum: AssignedMembershipSumAggregateOutputType | null
   _min: AssignedMembershipMinAggregateOutputType | null
   _max: AssignedMembershipMaxAggregateOutputType | null
 }
@@ -232,6 +273,7 @@ export type AssignedMembershipWhereInput = {
   startsAt?: Prisma.DateTimeFilter<"AssignedMembership"> | Date | string
   expiresAt?: Prisma.DateTimeNullableFilter<"AssignedMembership"> | Date | string | null
   isActive?: Prisma.BoolFilter<"AssignedMembership"> | boolean
+  monthlyTokenLimit?: Prisma.IntNullableFilter<"AssignedMembership"> | number | null
   threshold50Notified?: Prisma.BoolFilter<"AssignedMembership"> | boolean
   threshold80Notified?: Prisma.BoolFilter<"AssignedMembership"> | boolean
   threshold90Notified?: Prisma.BoolFilter<"AssignedMembership"> | boolean
@@ -249,6 +291,7 @@ export type AssignedMembershipOrderByWithRelationInput = {
   startsAt?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrderInput | Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  monthlyTokenLimit?: Prisma.SortOrderInput | Prisma.SortOrder
   threshold50Notified?: Prisma.SortOrder
   threshold80Notified?: Prisma.SortOrder
   threshold90Notified?: Prisma.SortOrder
@@ -269,6 +312,7 @@ export type AssignedMembershipWhereUniqueInput = Prisma.AtLeast<{
   startsAt?: Prisma.DateTimeFilter<"AssignedMembership"> | Date | string
   expiresAt?: Prisma.DateTimeNullableFilter<"AssignedMembership"> | Date | string | null
   isActive?: Prisma.BoolFilter<"AssignedMembership"> | boolean
+  monthlyTokenLimit?: Prisma.IntNullableFilter<"AssignedMembership"> | number | null
   threshold50Notified?: Prisma.BoolFilter<"AssignedMembership"> | boolean
   threshold80Notified?: Prisma.BoolFilter<"AssignedMembership"> | boolean
   threshold90Notified?: Prisma.BoolFilter<"AssignedMembership"> | boolean
@@ -286,6 +330,7 @@ export type AssignedMembershipOrderByWithAggregationInput = {
   startsAt?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrderInput | Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  monthlyTokenLimit?: Prisma.SortOrderInput | Prisma.SortOrder
   threshold50Notified?: Prisma.SortOrder
   threshold80Notified?: Prisma.SortOrder
   threshold90Notified?: Prisma.SortOrder
@@ -293,8 +338,10 @@ export type AssignedMembershipOrderByWithAggregationInput = {
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.AssignedMembershipCountOrderByAggregateInput
+  _avg?: Prisma.AssignedMembershipAvgOrderByAggregateInput
   _max?: Prisma.AssignedMembershipMaxOrderByAggregateInput
   _min?: Prisma.AssignedMembershipMinOrderByAggregateInput
+  _sum?: Prisma.AssignedMembershipSumOrderByAggregateInput
 }
 
 export type AssignedMembershipScalarWhereWithAggregatesInput = {
@@ -307,6 +354,7 @@ export type AssignedMembershipScalarWhereWithAggregatesInput = {
   startsAt?: Prisma.DateTimeWithAggregatesFilter<"AssignedMembership"> | Date | string
   expiresAt?: Prisma.DateTimeNullableWithAggregatesFilter<"AssignedMembership"> | Date | string | null
   isActive?: Prisma.BoolWithAggregatesFilter<"AssignedMembership"> | boolean
+  monthlyTokenLimit?: Prisma.IntNullableWithAggregatesFilter<"AssignedMembership"> | number | null
   threshold50Notified?: Prisma.BoolWithAggregatesFilter<"AssignedMembership"> | boolean
   threshold80Notified?: Prisma.BoolWithAggregatesFilter<"AssignedMembership"> | boolean
   threshold90Notified?: Prisma.BoolWithAggregatesFilter<"AssignedMembership"> | boolean
@@ -320,6 +368,7 @@ export type AssignedMembershipCreateInput = {
   startsAt?: Date | string
   expiresAt?: Date | string | null
   isActive?: boolean
+  monthlyTokenLimit?: number | null
   threshold50Notified?: boolean
   threshold80Notified?: boolean
   threshold90Notified?: boolean
@@ -337,6 +386,7 @@ export type AssignedMembershipUncheckedCreateInput = {
   startsAt?: Date | string
   expiresAt?: Date | string | null
   isActive?: boolean
+  monthlyTokenLimit?: number | null
   threshold50Notified?: boolean
   threshold80Notified?: boolean
   threshold90Notified?: boolean
@@ -350,6 +400,7 @@ export type AssignedMembershipUpdateInput = {
   startsAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  monthlyTokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   threshold50Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   threshold80Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   threshold90Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -367,6 +418,7 @@ export type AssignedMembershipUncheckedUpdateInput = {
   startsAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  monthlyTokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   threshold50Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   threshold80Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   threshold90Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -382,6 +434,7 @@ export type AssignedMembershipCreateManyInput = {
   startsAt?: Date | string
   expiresAt?: Date | string | null
   isActive?: boolean
+  monthlyTokenLimit?: number | null
   threshold50Notified?: boolean
   threshold80Notified?: boolean
   threshold90Notified?: boolean
@@ -395,6 +448,7 @@ export type AssignedMembershipUpdateManyMutationInput = {
   startsAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  monthlyTokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   threshold50Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   threshold80Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   threshold90Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -410,6 +464,7 @@ export type AssignedMembershipUncheckedUpdateManyInput = {
   startsAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  monthlyTokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   threshold50Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   threshold80Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   threshold90Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -435,12 +490,17 @@ export type AssignedMembershipCountOrderByAggregateInput = {
   startsAt?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  monthlyTokenLimit?: Prisma.SortOrder
   threshold50Notified?: Prisma.SortOrder
   threshold80Notified?: Prisma.SortOrder
   threshold90Notified?: Prisma.SortOrder
   threshold100Notified?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+}
+
+export type AssignedMembershipAvgOrderByAggregateInput = {
+  monthlyTokenLimit?: Prisma.SortOrder
 }
 
 export type AssignedMembershipMaxOrderByAggregateInput = {
@@ -450,6 +510,7 @@ export type AssignedMembershipMaxOrderByAggregateInput = {
   startsAt?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  monthlyTokenLimit?: Prisma.SortOrder
   threshold50Notified?: Prisma.SortOrder
   threshold80Notified?: Prisma.SortOrder
   threshold90Notified?: Prisma.SortOrder
@@ -465,12 +526,17 @@ export type AssignedMembershipMinOrderByAggregateInput = {
   startsAt?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  monthlyTokenLimit?: Prisma.SortOrder
   threshold50Notified?: Prisma.SortOrder
   threshold80Notified?: Prisma.SortOrder
   threshold90Notified?: Prisma.SortOrder
   threshold100Notified?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+}
+
+export type AssignedMembershipSumOrderByAggregateInput = {
+  monthlyTokenLimit?: Prisma.SortOrder
 }
 
 export type AssignedMembershipCreateNestedManyWithoutUserInput = {
@@ -562,6 +628,7 @@ export type AssignedMembershipCreateWithoutUserInput = {
   startsAt?: Date | string
   expiresAt?: Date | string | null
   isActive?: boolean
+  monthlyTokenLimit?: number | null
   threshold50Notified?: boolean
   threshold80Notified?: boolean
   threshold90Notified?: boolean
@@ -577,6 +644,7 @@ export type AssignedMembershipUncheckedCreateWithoutUserInput = {
   startsAt?: Date | string
   expiresAt?: Date | string | null
   isActive?: boolean
+  monthlyTokenLimit?: number | null
   threshold50Notified?: boolean
   threshold80Notified?: boolean
   threshold90Notified?: boolean
@@ -621,6 +689,7 @@ export type AssignedMembershipScalarWhereInput = {
   startsAt?: Prisma.DateTimeFilter<"AssignedMembership"> | Date | string
   expiresAt?: Prisma.DateTimeNullableFilter<"AssignedMembership"> | Date | string | null
   isActive?: Prisma.BoolFilter<"AssignedMembership"> | boolean
+  monthlyTokenLimit?: Prisma.IntNullableFilter<"AssignedMembership"> | number | null
   threshold50Notified?: Prisma.BoolFilter<"AssignedMembership"> | boolean
   threshold80Notified?: Prisma.BoolFilter<"AssignedMembership"> | boolean
   threshold90Notified?: Prisma.BoolFilter<"AssignedMembership"> | boolean
@@ -634,6 +703,7 @@ export type AssignedMembershipCreateWithoutTemplateInput = {
   startsAt?: Date | string
   expiresAt?: Date | string | null
   isActive?: boolean
+  monthlyTokenLimit?: number | null
   threshold50Notified?: boolean
   threshold80Notified?: boolean
   threshold90Notified?: boolean
@@ -649,6 +719,7 @@ export type AssignedMembershipUncheckedCreateWithoutTemplateInput = {
   startsAt?: Date | string
   expiresAt?: Date | string | null
   isActive?: boolean
+  monthlyTokenLimit?: number | null
   threshold50Notified?: boolean
   threshold80Notified?: boolean
   threshold90Notified?: boolean
@@ -689,6 +760,7 @@ export type AssignedMembershipCreateManyUserInput = {
   startsAt?: Date | string
   expiresAt?: Date | string | null
   isActive?: boolean
+  monthlyTokenLimit?: number | null
   threshold50Notified?: boolean
   threshold80Notified?: boolean
   threshold90Notified?: boolean
@@ -702,6 +774,7 @@ export type AssignedMembershipUpdateWithoutUserInput = {
   startsAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  monthlyTokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   threshold50Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   threshold80Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   threshold90Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -717,6 +790,7 @@ export type AssignedMembershipUncheckedUpdateWithoutUserInput = {
   startsAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  monthlyTokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   threshold50Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   threshold80Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   threshold90Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -731,6 +805,7 @@ export type AssignedMembershipUncheckedUpdateManyWithoutUserInput = {
   startsAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  monthlyTokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   threshold50Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   threshold80Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   threshold90Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -745,6 +820,7 @@ export type AssignedMembershipCreateManyTemplateInput = {
   startsAt?: Date | string
   expiresAt?: Date | string | null
   isActive?: boolean
+  monthlyTokenLimit?: number | null
   threshold50Notified?: boolean
   threshold80Notified?: boolean
   threshold90Notified?: boolean
@@ -758,6 +834,7 @@ export type AssignedMembershipUpdateWithoutTemplateInput = {
   startsAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  monthlyTokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   threshold50Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   threshold80Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   threshold90Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -773,6 +850,7 @@ export type AssignedMembershipUncheckedUpdateWithoutTemplateInput = {
   startsAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  monthlyTokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   threshold50Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   threshold80Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   threshold90Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -787,6 +865,7 @@ export type AssignedMembershipUncheckedUpdateManyWithoutTemplateInput = {
   startsAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  monthlyTokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   threshold50Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   threshold80Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
   threshold90Notified?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -804,6 +883,7 @@ export type AssignedMembershipSelect<ExtArgs extends runtime.Types.Extensions.In
   startsAt?: boolean
   expiresAt?: boolean
   isActive?: boolean
+  monthlyTokenLimit?: boolean
   threshold50Notified?: boolean
   threshold80Notified?: boolean
   threshold90Notified?: boolean
@@ -821,6 +901,7 @@ export type AssignedMembershipSelectCreateManyAndReturn<ExtArgs extends runtime.
   startsAt?: boolean
   expiresAt?: boolean
   isActive?: boolean
+  monthlyTokenLimit?: boolean
   threshold50Notified?: boolean
   threshold80Notified?: boolean
   threshold90Notified?: boolean
@@ -838,6 +919,7 @@ export type AssignedMembershipSelectUpdateManyAndReturn<ExtArgs extends runtime.
   startsAt?: boolean
   expiresAt?: boolean
   isActive?: boolean
+  monthlyTokenLimit?: boolean
   threshold50Notified?: boolean
   threshold80Notified?: boolean
   threshold90Notified?: boolean
@@ -855,6 +937,7 @@ export type AssignedMembershipSelectScalar = {
   startsAt?: boolean
   expiresAt?: boolean
   isActive?: boolean
+  monthlyTokenLimit?: boolean
   threshold50Notified?: boolean
   threshold80Notified?: boolean
   threshold90Notified?: boolean
@@ -863,7 +946,7 @@ export type AssignedMembershipSelectScalar = {
   updatedAt?: boolean
 }
 
-export type AssignedMembershipOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "membershipTemplateId" | "startsAt" | "expiresAt" | "isActive" | "threshold50Notified" | "threshold80Notified" | "threshold90Notified" | "threshold100Notified" | "createdAt" | "updatedAt", ExtArgs["result"]["assignedMembership"]>
+export type AssignedMembershipOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "membershipTemplateId" | "startsAt" | "expiresAt" | "isActive" | "monthlyTokenLimit" | "threshold50Notified" | "threshold80Notified" | "threshold90Notified" | "threshold100Notified" | "createdAt" | "updatedAt", ExtArgs["result"]["assignedMembership"]>
 export type AssignedMembershipInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   template?: boolean | Prisma.MembershipTemplateDefaultArgs<ExtArgs>
@@ -890,6 +973,7 @@ export type $AssignedMembershipPayload<ExtArgs extends runtime.Types.Extensions.
     startsAt: Date
     expiresAt: Date | null
     isActive: boolean
+    monthlyTokenLimit: number | null
     threshold50Notified: boolean
     threshold80Notified: boolean
     threshold90Notified: boolean
@@ -1327,6 +1411,7 @@ export interface AssignedMembershipFieldRefs {
   readonly startsAt: Prisma.FieldRef<"AssignedMembership", 'DateTime'>
   readonly expiresAt: Prisma.FieldRef<"AssignedMembership", 'DateTime'>
   readonly isActive: Prisma.FieldRef<"AssignedMembership", 'Boolean'>
+  readonly monthlyTokenLimit: Prisma.FieldRef<"AssignedMembership", 'Int'>
   readonly threshold50Notified: Prisma.FieldRef<"AssignedMembership", 'Boolean'>
   readonly threshold80Notified: Prisma.FieldRef<"AssignedMembership", 'Boolean'>
   readonly threshold90Notified: Prisma.FieldRef<"AssignedMembership", 'Boolean'>

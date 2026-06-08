@@ -1,10 +1,20 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
-import { ApiBody, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { AssignMembershipDto, CreateMembershipDto } from './dto/membership.dto';
+import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  ApiBody,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
+import {
+  AssignMembershipDto,
+  CreateMembershipDto,
+  UpdateMembershipDto,
+} from './dto/membership.dto';
 import { MembershipService } from './membership.service';
 
 @ApiTags('memberships')
-@Controller('admin/dashboard/memberships')
+@Controller('admin/memberships')
 export class MembershipController {
   constructor(private readonly membershipService: MembershipService) {}
 
@@ -19,7 +29,6 @@ export class MembershipController {
         durationDays: 30,
         monthlyTokenLimit: 100000,
         includedAgents: ['JIM'],
-        includedGroupIds: [],
       },
     },
   })
@@ -35,6 +44,42 @@ export class MembershipController {
     return this.membershipService.listMemberships();
   }
 
+  @Get(':id')
+  @ApiOperation({ summary: 'Get a membership template by id' })
+  @ApiParam({ name: 'id', description: 'Membership template id' })
+  @ApiOkResponse({ description: 'Membership returned' })
+  getMembership(@Param('id') id: string) {
+    return this.membershipService.getMembership(id);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update a membership template' })
+  @ApiParam({ name: 'id', description: 'Membership template id' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      additionalProperties: true,
+      example: {
+        name: 'Pro Plus',
+        durationDays: 60,
+        monthlyTokenLimit: 150000,
+        includedAgents: ['JIM', 'SARA_AI'],
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Membership updated' })
+  updateMembership(@Param('id') id: string, @Body() body: UpdateMembershipDto) {
+    return this.membershipService.updateMembership(id, body);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Delete a membership template' })
+  @ApiParam({ name: 'id', description: 'Membership template id' })
+  @ApiOkResponse({ description: 'Membership deleted' })
+  deleteMembership(@Param('id') id: string) {
+    return this.membershipService.deleteMembership(id);
+  }
+
   @Post('assign')
   @ApiOperation({ summary: 'Assign a membership template to a user' })
   @ApiBody({
@@ -45,6 +90,7 @@ export class MembershipController {
         userId: { type: 'string', format: 'uuid' },
         membershipTemplateId: { type: 'string', format: 'uuid' },
         durationOverride: { type: 'integer', example: 30 },
+        monthlyTokenLimitOverride: { type: 'integer', minimum: 0, example: 80000 },
       },
     },
   })
@@ -54,6 +100,7 @@ export class MembershipController {
       body.userId,
       body.membershipTemplateId,
       body.durationOverride,
+      body.monthlyTokenLimitOverride,
     );
   }
 }

@@ -129,25 +129,58 @@ export class ConversationService {
   }
 
   // ─────────────────────────────────────────────────────────────
-  // Helper: Get user by oauthId
+  // Helper: Get user by oauthId or email
   // ─────────────────────────────────────────────────────────────
-  private async getUserByOauthId(oauthId: string) {
-    try {
-      const user = await this.prisma.user.findUnique({
-        where: { oauthId },
+  private normalizeEmail(email: string): string {
+    return email.trim().toLowerCase();
+  }
+
+  private async getUserByEmail(email: string) {
+    const normalizedEmail = this.normalizeEmail(email);
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
+
+    if (!user) {
+      throw new NotFoundException({
+        statusCode: 404,
+        error: 'Not Found',
+        message: `User with email "${normalizedEmail}" not found. Please ensure the user exists before creating conversations.`,
+        hint: 'Create the user first via the /users endpoint.',
       });
-      if (!user) {
-        throw new NotFoundException({
-          statusCode: 404,
-          error: 'Not Found',
-          message: `User with OAuth ID "${oauthId}" not found. Please ensure the user exists before creating conversations.`,
-          hint: 'Create the user first via the /users endpoint.',
-        });
+    }
+
+    return user;
+  }
+
+  private async getUserByIdentifier(userIdentifier: string, email?: string) {
+    try {
+      if (email?.trim()) {
+        return await this.getUserByEmail(email);
       }
-      return user;
+
+      const identifier = userIdentifier.trim();
+      const user = await this.prisma.user.findUnique({
+        where: { oauthId: identifier },
+      });
+
+      if (user) {
+        return user;
+      }
+
+      if (identifier.includes('@')) {
+        return await this.getUserByEmail(identifier);
+      }
+
+      throw new NotFoundException({
+        statusCode: 404,
+        error: 'Not Found',
+        message: `User with OAuth ID "${identifier}" not found. Please ensure the user exists before creating conversations.`,
+        hint: 'Create the user first via the /users endpoint, or pass ?email=user@gmail.com.',
+      });
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
-      this.handlePrismaError(error, 'getUserByOauthId');
+      this.handlePrismaError(error, 'getUserByIdentifier');
     }
   }
 
@@ -157,9 +190,10 @@ export class ConversationService {
   async createConversation(
     oauthId: string,
     data: CreateConversationDto,
+    email?: string,
   ): Promise<Conversation> {
     try {
-      const user = await this.getUserByOauthId(oauthId);
+      const user = await this.getUserByIdentifier(oauthId, email);
       const { messages, ...conversationData } = data;
 
       // Auto-fill time for messages if not provided
@@ -199,9 +233,12 @@ export class ConversationService {
   // ─────────────────────────────────────────────────────────────
   // Get all conversations for a user
   // ─────────────────────────────────────────────────────────────
-  async findAllConversations(oauthId: string): Promise<Conversation[]> {
+  async findAllConversations(
+    oauthId: string,
+    email?: string,
+  ): Promise<Conversation[]> {
     try {
-      const user = await this.getUserByOauthId(oauthId);
+      const user = await this.getUserByIdentifier(oauthId, email);
 
       return this.prisma.conversation.findMany({
         where: { userId: user.id },
@@ -220,9 +257,10 @@ export class ConversationService {
   async findConversationsByAgent(
     oauthId: string,
     agentId: string,
+    email?: string,
   ): Promise<Conversation[]> {
     try {
-      const user = await this.getUserByOauthId(oauthId);
+      const user = await this.getUserByIdentifier(oauthId, email);
 
       const conversations = await this.prisma.conversation.findMany({
         where: { userId: user.id, agentId },
@@ -248,9 +286,10 @@ export class ConversationService {
   async findConversationById(
     oauthId: string,
     conversationId: string,
+    email?: string,
   ): Promise<Conversation> {
     try {
-      const user = await this.getUserByOauthId(oauthId);
+      const user = await this.getUserByIdentifier(oauthId, email);
 
       const conversation = await this.prisma.conversation.findFirst({
         where: { id: conversationId, userId: user.id },
@@ -280,9 +319,10 @@ export class ConversationService {
     oauthId: string,
     conversationId: string,
     data: UpdateConversationDto,
+    email?: string,
   ): Promise<Conversation> {
     try {
-      await this.findConversationById(oauthId, conversationId);
+      await this.findConversationById(oauthId, conversationId, email);
 
       return this.prisma.conversation.update({
         where: { id: conversationId },
@@ -308,9 +348,10 @@ export class ConversationService {
   async deleteConversation(
     oauthId: string,
     conversationId: string,
+    email?: string,
   ): Promise<void> {
     try {
-      await this.findConversationById(oauthId, conversationId);
+      await this.findConversationById(oauthId, conversationId, email);
 
       await this.prisma.conversation.delete({
         where: { id: conversationId },
@@ -328,9 +369,10 @@ export class ConversationService {
     oauthId: string,
     conversationId: string,
     data: AddMessageDto,
+    email?: string,
   ): Promise<Message> {
     try {
-      await this.findConversationById(oauthId, conversationId);
+      await this.findConversationById(oauthId, conversationId, email);
 
       await this.prisma.conversation.update({
         where: { id: conversationId },
@@ -363,9 +405,10 @@ export class ConversationService {
   async getMessages(
     oauthId: string,
     conversationId: string,
+    email?: string,
   ): Promise<Message[]> {
     try {
-      await this.findConversationById(oauthId, conversationId);
+      await this.findConversationById(oauthId, conversationId, email);
 
       return this.prisma.message.findMany({
         where: { conversationId },
@@ -384,9 +427,10 @@ export class ConversationService {
     oauthId: string,
     conversationId: string,
     messageId: string,
+    email?: string,
   ): Promise<void> {
     try {
-      await this.findConversationById(oauthId, conversationId);
+      await this.findConversationById(oauthId, conversationId, email);
 
       const message = await this.prisma.message.findFirst({
         where: { id: messageId, conversationId },
@@ -417,9 +461,10 @@ export class ConversationService {
     oauthId: string,
     conversationId: string,
     archived: boolean,
+    email?: string,
   ): Promise<Conversation> {
     try {
-      await this.findConversationById(oauthId, conversationId);
+      await this.findConversationById(oauthId, conversationId, email);
 
       return this.prisma.conversation.update({
         where: { id: conversationId },

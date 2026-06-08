@@ -17,6 +17,12 @@ import {
 } from '@nestjs/swagger';
 import { AdminDashboardService } from './admin-dashboard.service';
 
+const parseOptionalDate = (value?: string): Date | undefined => {
+  if (!value) return undefined;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+};
+
 @ApiTags('admin-dashboard')
 @Controller('admin/dashboard')
 export class AdminDashboardController {
@@ -64,10 +70,22 @@ export class AdminDashboardController {
   @ApiOperation({ summary: 'Get dashboard details for one user' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiQuery({ name: 'days', required: false, example: 30 })
+  @ApiQuery({ name: 'usageFrom', required: false })
+  @ApiQuery({ name: 'usageTo', required: false })
   @ApiOkResponse({ description: 'User details returned' })
-  getUserDetails(@Param('id') id: string, @Query('days') days?: string) {
+  getUserDetails(
+    @Param('id') id: string,
+    @Query('days') days?: string,
+    @Query('usageFrom') usageFrom?: string,
+    @Query('usageTo') usageTo?: string,
+  ) {
     const daysLimit = days ? parseInt(days, 10) : 30;
-    return this.dashboardService.getUserDetails(id, daysLimit);
+    return this.dashboardService.getUserDetails(
+      id,
+      daysLimit,
+      parseOptionalDate(usageFrom),
+      parseOptionalDate(usageTo),
+    );
   }
 
   @Post('usage/reset-all')

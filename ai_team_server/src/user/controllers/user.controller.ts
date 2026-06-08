@@ -88,6 +88,18 @@ export class UserController {
     type: String,
     description: 'Search by email, username, membership, group, or agent',
   })
+  @ApiQuery({
+    name: 'usageFrom',
+    required: false,
+    type: String,
+    description: 'Inclusive ISO date/time lower bound for token usage totals',
+  })
+  @ApiQuery({
+    name: 'usageTo',
+    required: false,
+    type: String,
+    description: 'Inclusive ISO date/time upper bound for token usage totals',
+  })
   @ApiOkResponse({
     description: 'Users returned',
     schema: {

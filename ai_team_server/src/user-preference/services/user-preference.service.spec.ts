@@ -8,6 +8,8 @@ describe('UserPreferenceService', () => {
     },
     userPreference: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
     },
   };
 
@@ -18,14 +20,11 @@ describe('UserPreferenceService', () => {
     service = new UserPreferenceService(prisma as any);
   });
 
-  it('resolves path email identifiers without treating them as OAuth IDs', async () => {
-    prisma.user.findFirst.mockResolvedValue({
-      oauthId: 'oauth-user-123',
-      email: 'digitalcoachai@gmail.com',
-    });
-    prisma.userPreference.findUnique.mockResolvedValue({
+  it('gets preferences by email without resolving OAuth ID first', async () => {
+    prisma.userPreference.findFirst.mockResolvedValue({
       id: 'preference-1',
       oauthId: 'oauth-user-123',
+      email: 'digitalcoachai@gmail.com',
       agentName: 'ALEX',
     });
 
@@ -34,21 +33,14 @@ describe('UserPreferenceService', () => {
       'ALEX' as any,
     );
 
-    expect(prisma.user.findFirst).toHaveBeenCalledWith({
+    expect(prisma.user.findFirst).not.toHaveBeenCalled();
+    expect(prisma.userPreference.findFirst).toHaveBeenCalledWith({
       where: {
         email: {
           equals: 'digitalcoachai@gmail.com',
           mode: 'insensitive',
         },
-      },
-      select: { oauthId: true, email: true },
-    });
-    expect(prisma.userPreference.findUnique).toHaveBeenCalledWith({
-      where: {
-        oauthId_agentName: {
-          oauthId: 'oauth-user-123',
-          agentName: 'ALEX',
-        },
+        agentName: 'ALEX',
       },
     });
     expect(preference.oauthId).toBe('oauth-user-123');

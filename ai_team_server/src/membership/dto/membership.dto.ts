@@ -5,11 +5,18 @@ export class CreateMembershipDto {
   durationDays!: number;
   monthlyTokenLimit!: number;
   includedAgents?: AgentName[];
-  includedGroupIds?: string[];
+}
+
+export class UpdateMembershipDto {
+  name?: string;
+  durationDays?: number;
+  monthlyTokenLimit?: number;
+  includedAgents?: AgentName[];
 }
 
 export class AssignMembershipDto {
   userId!: string;
   membershipTemplateId!: string;
   durationOverride?: number;
+  monthlyTokenLimitOverride?: number;
 }

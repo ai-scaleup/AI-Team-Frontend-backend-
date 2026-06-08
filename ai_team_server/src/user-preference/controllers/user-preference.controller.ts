@@ -147,7 +147,7 @@ export class UserPreferenceController {
    */
   @Get(':userIdentifier')
   @ApiOperation({
-    summary: 'List all preferences for a user by OAuth ID or email',
+    summary: 'List all preferences for a user by email',
   })
   @ApiParam({ name: 'userIdentifier', example: 'jane@example.com' })
   @ApiOkResponse({ description: 'Preferences returned' })
@@ -161,7 +161,7 @@ export class UserPreferenceController {
    */
   @Get(':userIdentifier/:agentName')
   @ApiOperation({
-    summary: 'Get preferences for a user and agent by OAuth ID or email',
+    summary: 'Get preferences for a user and agent by email',
   })
   @ApiParam({ name: 'userIdentifier', example: 'jane@example.com' })
   @ApiParam({ name: 'agentName', enum: agentNames })
@@ -182,7 +182,7 @@ export class UserPreferenceController {
    */
   @Get(':userIdentifier/:agentName/or-create')
   @ApiOperation({
-    summary: 'Get preferences or create defaults by OAuth ID or email',
+    summary: 'Get preferences or create defaults by email',
   })
   @ApiParam({ name: 'userIdentifier', example: 'jane@example.com' })
   @ApiParam({ name: 'agentName', enum: agentNames })

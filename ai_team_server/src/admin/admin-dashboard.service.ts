@@ -155,7 +155,8 @@ export class AdminDashboardService {
           assignment.startsAt,
           assignment.expiresAt,
         ),
-        tokens: assignment.template.monthlyTokenLimit,
+        tokens:
+          assignment.monthlyTokenLimit ?? assignment.template.monthlyTokenLimit,
         assignedAt: assignment.createdAt,
       })),
       ...groups.map((assignment) => ({
@@ -304,7 +305,12 @@ export class AdminDashboardService {
     };
   }
 
-  async getUserDetails(userId: string, daysLimit: number = 30) {
+  async getUserDetails(
+    userId: string,
+    daysLimit: number = 30,
+    usageFrom?: Date,
+    usageTo?: Date,
+  ) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
@@ -319,11 +325,17 @@ export class AdminDashboardService {
 
     if (!user) throw new NotFoundException('User not found');
 
-    const fromDate = new Date();
-    fromDate.setDate(fromDate.getDate() - daysLimit);
+    const fallbackToDate = new Date();
+    const fallbackFromDate = new Date(fallbackToDate);
+    fallbackFromDate.setDate(fallbackToDate.getDate() - daysLimit);
+    const requestedFrom = usageFrom ?? fallbackFromDate;
+    const requestedTo = usageTo ?? fallbackToDate;
+    const rangeStart =
+      requestedFrom <= requestedTo ? requestedFrom : requestedTo;
+    const rangeEnd = requestedFrom <= requestedTo ? requestedTo : requestedFrom;
 
     const dailyUsage = await this.prisma.dailyTokenUsage.findMany({
-      where: { oauthId: user.oauthId, date: { gte: fromDate } },
+      where: { oauthId: user.oauthId, date: { gte: rangeStart, lte: rangeEnd } },
       orderBy: { date: 'asc' },
     });
 

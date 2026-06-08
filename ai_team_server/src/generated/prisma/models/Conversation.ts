@@ -27,6 +27,7 @@ export type AggregateConversation = {
 export type ConversationMinAggregateOutputType = {
   id: string | null
   userId: string | null
+  email: string | null
   title: string | null
   agentId: string | null
   sessionId: string | null
@@ -40,6 +41,7 @@ export type ConversationMinAggregateOutputType = {
 export type ConversationMaxAggregateOutputType = {
   id: string | null
   userId: string | null
+  email: string | null
   title: string | null
   agentId: string | null
   sessionId: string | null
@@ -53,6 +55,7 @@ export type ConversationMaxAggregateOutputType = {
 export type ConversationCountAggregateOutputType = {
   id: number
   userId: number
+  email: number
   title: number
   agentId: number
   sessionId: number
@@ -68,6 +71,7 @@ export type ConversationCountAggregateOutputType = {
 export type ConversationMinAggregateInputType = {
   id?: true
   userId?: true
+  email?: true
   title?: true
   agentId?: true
   sessionId?: true
@@ -81,6 +85,7 @@ export type ConversationMinAggregateInputType = {
 export type ConversationMaxAggregateInputType = {
   id?: true
   userId?: true
+  email?: true
   title?: true
   agentId?: true
   sessionId?: true
@@ -94,6 +99,7 @@ export type ConversationMaxAggregateInputType = {
 export type ConversationCountAggregateInputType = {
   id?: true
   userId?: true
+  email?: true
   title?: true
   agentId?: true
   sessionId?: true
@@ -180,6 +186,7 @@ export type ConversationGroupByArgs<ExtArgs extends runtime.Types.Extensions.Int
 export type ConversationGroupByOutputType = {
   id: string
   userId: string
+  email: string | null
   title: string
   agentId: string
   sessionId: string
@@ -214,6 +221,7 @@ export type ConversationWhereInput = {
   NOT?: Prisma.ConversationWhereInput | Prisma.ConversationWhereInput[]
   id?: Prisma.StringFilter<"Conversation"> | string
   userId?: Prisma.StringFilter<"Conversation"> | string
+  email?: Prisma.StringNullableFilter<"Conversation"> | string | null
   title?: Prisma.StringFilter<"Conversation"> | string
   agentId?: Prisma.StringFilter<"Conversation"> | string
   sessionId?: Prisma.StringFilter<"Conversation"> | string
@@ -229,6 +237,7 @@ export type ConversationWhereInput = {
 export type ConversationOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
+  email?: Prisma.SortOrderInput | Prisma.SortOrder
   title?: Prisma.SortOrder
   agentId?: Prisma.SortOrder
   sessionId?: Prisma.SortOrder
@@ -247,6 +256,7 @@ export type ConversationWhereUniqueInput = Prisma.AtLeast<{
   OR?: Prisma.ConversationWhereInput[]
   NOT?: Prisma.ConversationWhereInput | Prisma.ConversationWhereInput[]
   userId?: Prisma.StringFilter<"Conversation"> | string
+  email?: Prisma.StringNullableFilter<"Conversation"> | string | null
   title?: Prisma.StringFilter<"Conversation"> | string
   agentId?: Prisma.StringFilter<"Conversation"> | string
   sessionId?: Prisma.StringFilter<"Conversation"> | string
@@ -262,6 +272,7 @@ export type ConversationWhereUniqueInput = Prisma.AtLeast<{
 export type ConversationOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
+  email?: Prisma.SortOrderInput | Prisma.SortOrder
   title?: Prisma.SortOrder
   agentId?: Prisma.SortOrder
   sessionId?: Prisma.SortOrder
@@ -281,6 +292,7 @@ export type ConversationScalarWhereWithAggregatesInput = {
   NOT?: Prisma.ConversationScalarWhereWithAggregatesInput | Prisma.ConversationScalarWhereWithAggregatesInput[]
   id?: Prisma.StringWithAggregatesFilter<"Conversation"> | string
   userId?: Prisma.StringWithAggregatesFilter<"Conversation"> | string
+  email?: Prisma.StringNullableWithAggregatesFilter<"Conversation"> | string | null
   title?: Prisma.StringWithAggregatesFilter<"Conversation"> | string
   agentId?: Prisma.StringWithAggregatesFilter<"Conversation"> | string
   sessionId?: Prisma.StringWithAggregatesFilter<"Conversation"> | string
@@ -293,6 +305,7 @@ export type ConversationScalarWhereWithAggregatesInput = {
 
 export type ConversationCreateInput = {
   id: string
+  email?: string | null
   title: string
   agentId: string
   sessionId: string
@@ -308,6 +321,7 @@ export type ConversationCreateInput = {
 export type ConversationUncheckedCreateInput = {
   id: string
   userId: string
+  email?: string | null
   title: string
   agentId: string
   sessionId: string
@@ -321,6 +335,7 @@ export type ConversationUncheckedCreateInput = {
 
 export type ConversationUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   title?: Prisma.StringFieldUpdateOperationsInput | string
   agentId?: Prisma.StringFieldUpdateOperationsInput | string
   sessionId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -336,6 +351,7 @@ export type ConversationUpdateInput = {
 export type ConversationUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   title?: Prisma.StringFieldUpdateOperationsInput | string
   agentId?: Prisma.StringFieldUpdateOperationsInput | string
   sessionId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -350,6 +366,7 @@ export type ConversationUncheckedUpdateInput = {
 export type ConversationCreateManyInput = {
   id: string
   userId: string
+  email?: string | null
   title: string
   agentId: string
   sessionId: string
@@ -362,6 +379,7 @@ export type ConversationCreateManyInput = {
 
 export type ConversationUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   title?: Prisma.StringFieldUpdateOperationsInput | string
   agentId?: Prisma.StringFieldUpdateOperationsInput | string
   sessionId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -375,6 +393,7 @@ export type ConversationUpdateManyMutationInput = {
 export type ConversationUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   title?: Prisma.StringFieldUpdateOperationsInput | string
   agentId?: Prisma.StringFieldUpdateOperationsInput | string
   sessionId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -398,6 +417,7 @@ export type ConversationOrderByRelationAggregateInput = {
 export type ConversationCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
+  email?: Prisma.SortOrder
   title?: Prisma.SortOrder
   agentId?: Prisma.SortOrder
   sessionId?: Prisma.SortOrder
@@ -411,6 +431,7 @@ export type ConversationCountOrderByAggregateInput = {
 export type ConversationMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
+  email?: Prisma.SortOrder
   title?: Prisma.SortOrder
   agentId?: Prisma.SortOrder
   sessionId?: Prisma.SortOrder
@@ -424,6 +445,7 @@ export type ConversationMaxOrderByAggregateInput = {
 export type ConversationMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
+  email?: Prisma.SortOrder
   title?: Prisma.SortOrder
   agentId?: Prisma.SortOrder
   sessionId?: Prisma.SortOrder
@@ -497,6 +519,7 @@ export type ConversationUpdateOneRequiredWithoutMessagesNestedInput = {
 
 export type ConversationCreateWithoutUserInput = {
   id: string
+  email?: string | null
   title: string
   agentId: string
   sessionId: string
@@ -510,6 +533,7 @@ export type ConversationCreateWithoutUserInput = {
 
 export type ConversationUncheckedCreateWithoutUserInput = {
   id: string
+  email?: string | null
   title: string
   agentId: string
   sessionId: string
@@ -553,6 +577,7 @@ export type ConversationScalarWhereInput = {
   NOT?: Prisma.ConversationScalarWhereInput | Prisma.ConversationScalarWhereInput[]
   id?: Prisma.StringFilter<"Conversation"> | string
   userId?: Prisma.StringFilter<"Conversation"> | string
+  email?: Prisma.StringNullableFilter<"Conversation"> | string | null
   title?: Prisma.StringFilter<"Conversation"> | string
   agentId?: Prisma.StringFilter<"Conversation"> | string
   sessionId?: Prisma.StringFilter<"Conversation"> | string
@@ -565,6 +590,7 @@ export type ConversationScalarWhereInput = {
 
 export type ConversationCreateWithoutMessagesInput = {
   id: string
+  email?: string | null
   title: string
   agentId: string
   sessionId: string
@@ -579,6 +605,7 @@ export type ConversationCreateWithoutMessagesInput = {
 export type ConversationUncheckedCreateWithoutMessagesInput = {
   id: string
   userId: string
+  email?: string | null
   title: string
   agentId: string
   sessionId: string
@@ -607,6 +634,7 @@ export type ConversationUpdateToOneWithWhereWithoutMessagesInput = {
 
 export type ConversationUpdateWithoutMessagesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   title?: Prisma.StringFieldUpdateOperationsInput | string
   agentId?: Prisma.StringFieldUpdateOperationsInput | string
   sessionId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -621,6 +649,7 @@ export type ConversationUpdateWithoutMessagesInput = {
 export type ConversationUncheckedUpdateWithoutMessagesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   title?: Prisma.StringFieldUpdateOperationsInput | string
   agentId?: Prisma.StringFieldUpdateOperationsInput | string
   sessionId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -633,6 +662,7 @@ export type ConversationUncheckedUpdateWithoutMessagesInput = {
 
 export type ConversationCreateManyUserInput = {
   id: string
+  email?: string | null
   title: string
   agentId: string
   sessionId: string
@@ -645,6 +675,7 @@ export type ConversationCreateManyUserInput = {
 
 export type ConversationUpdateWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   title?: Prisma.StringFieldUpdateOperationsInput | string
   agentId?: Prisma.StringFieldUpdateOperationsInput | string
   sessionId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -658,6 +689,7 @@ export type ConversationUpdateWithoutUserInput = {
 
 export type ConversationUncheckedUpdateWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   title?: Prisma.StringFieldUpdateOperationsInput | string
   agentId?: Prisma.StringFieldUpdateOperationsInput | string
   sessionId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -671,6 +703,7 @@ export type ConversationUncheckedUpdateWithoutUserInput = {
 
 export type ConversationUncheckedUpdateManyWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   title?: Prisma.StringFieldUpdateOperationsInput | string
   agentId?: Prisma.StringFieldUpdateOperationsInput | string
   sessionId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -715,6 +748,7 @@ export type ConversationCountOutputTypeCountMessagesArgs<ExtArgs extends runtime
 export type ConversationSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   userId?: boolean
+  email?: boolean
   title?: boolean
   agentId?: boolean
   sessionId?: boolean
@@ -731,6 +765,7 @@ export type ConversationSelect<ExtArgs extends runtime.Types.Extensions.Internal
 export type ConversationSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   userId?: boolean
+  email?: boolean
   title?: boolean
   agentId?: boolean
   sessionId?: boolean
@@ -745,6 +780,7 @@ export type ConversationSelectCreateManyAndReturn<ExtArgs extends runtime.Types.
 export type ConversationSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   userId?: boolean
+  email?: boolean
   title?: boolean
   agentId?: boolean
   sessionId?: boolean
@@ -759,6 +795,7 @@ export type ConversationSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.
 export type ConversationSelectScalar = {
   id?: boolean
   userId?: boolean
+  email?: boolean
   title?: boolean
   agentId?: boolean
   sessionId?: boolean
@@ -769,7 +806,7 @@ export type ConversationSelectScalar = {
   updatedAt?: boolean
 }
 
-export type ConversationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "title" | "agentId" | "sessionId" | "folderId" | "archived" | "lastUpdated" | "createdAt" | "updatedAt", ExtArgs["result"]["conversation"]>
+export type ConversationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "email" | "title" | "agentId" | "sessionId" | "folderId" | "archived" | "lastUpdated" | "createdAt" | "updatedAt", ExtArgs["result"]["conversation"]>
 export type ConversationInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   messages?: boolean | Prisma.Conversation$messagesArgs<ExtArgs>
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -791,6 +828,7 @@ export type $ConversationPayload<ExtArgs extends runtime.Types.Extensions.Intern
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
     userId: string
+    email: string | null
     title: string
     agentId: string
     sessionId: string
@@ -1226,6 +1264,7 @@ export interface Prisma__ConversationClient<T, Null = never, ExtArgs extends run
 export interface ConversationFieldRefs {
   readonly id: Prisma.FieldRef<"Conversation", 'String'>
   readonly userId: Prisma.FieldRef<"Conversation", 'String'>
+  readonly email: Prisma.FieldRef<"Conversation", 'String'>
   readonly title: Prisma.FieldRef<"Conversation", 'String'>
   readonly agentId: Prisma.FieldRef<"Conversation", 'String'>
   readonly sessionId: Prisma.FieldRef<"Conversation", 'String'>

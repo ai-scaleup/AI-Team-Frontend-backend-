@@ -141,20 +141,9 @@ export class TokenUsageService {
 
     // Check memberships
     for (const m of user.memberships) {
-      let grants = m.template.includedAgents.includes(agentName);
-      if (!grants && m.template.includedGroupIds.length > 0) {
-        const groupItems = await this.prisma.agentGroupItem.findMany({
-          where: {
-            groupId: { in: m.template.includedGroupIds },
-            agentName,
-          },
-        });
-        if (groupItems.length > 0) grants = true;
-      }
-
-      if (grants) {
+      if (m.template.includedAgents.includes(agentName)) {
         hasAccess = true;
-        totalLimit += m.template.monthlyTokenLimit;
+        totalLimit += m.monthlyTokenLimit ?? m.template.monthlyTokenLimit;
         if (m.startsAt < earliestStart) earliestStart = m.startsAt;
       }
     }

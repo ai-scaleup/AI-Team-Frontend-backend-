@@ -123,6 +123,17 @@ enum MarketComparison {
   MAI
 }
 
+enum TokenAlertLevel {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum TokenAlertScope {
+  CONVERSATION
+  MONTHLY
+}
+
 model User {
   id            String                @id @default(uuid())
   email         String                @unique
@@ -273,6 +284,7 @@ model AssignedGroup {
 model Conversation {
   id          String    @id
   userId      String
+  email       String?
   title       String
   agentId     String
   sessionId   String
@@ -397,6 +409,22 @@ model UserAgentTokenUsage {
   @@index([agentName])
 }
 
+model TokenUsageAlertRule {
+  id               String          @id @default(uuid())
+  scope            TokenAlertScope @default(CONVERSATION)
+  thresholdPercent Int
+  level            TokenAlertLevel
+  message          String
+  isActive         Boolean         @default(true)
+  sortOrder        Int             @default(0)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@unique([scope, thresholdPercent], map: "uniq_token_alert_rule_scope_threshold")
+  @@index([scope, isActive])
+  @@index([sortOrder])
+}
+
 // ─────────────────────────────────────────────────────────────
 // Memberships & Dynamic Limits
 // ─────────────────────────────────────────────────────────────
@@ -407,9 +435,7 @@ model MembershipTemplate {
   durationDays      Int
   monthlyTokenLimit Int
   
-  // What is included stringified for simple arrays
   includedAgents    AgentName[]
-  includedGroupIds  String[] // references AgentGroup ids
   
   assignments       AssignedMembership[]
 
@@ -424,6 +450,7 @@ model AssignedMembership {
   startsAt             DateTime           @default(now())
   expiresAt            DateTime?
   isActive             Boolean            @default(true)
+  monthlyTokenLimit    Int?
   
   threshold50Notified  Boolean            @default(false)
   threshold80Notified  Boolean            @default(false)
@@ -480,4 +507,3 @@ model UserAlert {
 
   @@index([userId, read])
 }
-
