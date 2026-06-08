@@ -16,6 +16,11 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { AdminDashboardService } from './admin-dashboard.service';
+import {
+  AssignMembershipDto,
+  CreateMembershipDto,
+} from 'src/membership/dto/membership.dto';
+import { MembershipService } from 'src/membership/membership.service';
 
 const parseOptionalDate = (value?: string): Date | undefined => {
   if (!value) return undefined;
@@ -26,7 +31,10 @@ const parseOptionalDate = (value?: string): Date | undefined => {
 @ApiTags('admin-dashboard')
 @Controller('admin/dashboard')
 export class AdminDashboardController {
-  constructor(private readonly dashboardService: AdminDashboardService) {}
+  constructor(
+    private readonly dashboardService: AdminDashboardService,
+    private readonly membershipService: MembershipService,
+  ) {}
 
   @Get('users')
   @ApiOperation({ summary: 'List dashboard users with usage details' })
@@ -45,6 +53,66 @@ export class AdminDashboardController {
   listRecentAssignments(@Query('limit') limit?: string) {
     const parsedLimit = limit ? parseInt(limit, 10) : 6;
     return this.dashboardService.listRecentAssignments(parsedLimit);
+  }
+
+  @Get('memberships')
+  @ApiOperation({
+    summary: 'List membership templates for admin dashboard',
+  })
+  @ApiOkResponse({ description: 'Memberships returned' })
+  listMemberships() {
+    return this.membershipService.listMemberships();
+  }
+
+  @Post('memberships')
+  @ApiOperation({
+    summary: 'Create a membership template from admin dashboard',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      additionalProperties: true,
+      example: {
+        name: 'Pro',
+        durationDays: 30,
+        monthlyTokenLimit: 100000,
+        includedAgents: ['JIM'],
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Membership created' })
+  createMembership(@Body() body: CreateMembershipDto) {
+    return this.membershipService.createMembership(body);
+  }
+
+  @Post('memberships/assign')
+  @ApiOperation({
+    summary: 'Assign a membership template from admin dashboard',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['userId', 'membershipTemplateId'],
+      properties: {
+        userId: { type: 'string', format: 'uuid' },
+        membershipTemplateId: { type: 'string', format: 'uuid' },
+        durationOverride: { type: 'integer', example: 30 },
+        monthlyTokenLimitOverride: {
+          type: 'integer',
+          minimum: 0,
+          example: 80000,
+        },
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Membership assigned' })
+  assignMembership(@Body() body: AssignMembershipDto) {
+    return this.membershipService.assignMembership(
+      body.userId,
+      body.membershipTemplateId,
+      body.durationOverride,
+      body.monthlyTokenLimitOverride,
+    );
   }
 
   @Get('usage/agent-metrics')
