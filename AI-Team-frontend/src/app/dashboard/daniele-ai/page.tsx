@@ -351,12 +351,6 @@ export default function App() {
   const [messages, setMessages] = useState<Message[]>([])
   const { user } = useUser()
   const userEmail = user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || ""
-  const [tokenUsage, setTokenUsage] = useState<{
-    totalUsedTokens: number
-    totalTokenLimit: number
-    totalTokensLeft: number
-  } | null>(null)
-
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [sidebarVisible, setSidebarVisible] = useState(true)
@@ -380,16 +374,6 @@ export default function App() {
   const [newFolderName, setNewFolderName] = useState("")
   const [showArchived, setShowArchived] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
-  const tokenUsagePercent = tokenUsage?.totalTokenLimit
-    ? Math.min(100, Math.max(0, (tokenUsage.totalUsedTokens / tokenUsage.totalTokenLimit) * 100))
-    : 0
-  const tokenProgressClass =
-    tokenUsagePercent >= 90
-      ? "bg-red-500"
-      : tokenUsagePercent >= 75
-        ? "bg-amber-500"
-        : "bg-sky-500"
-
   // --- REFS ---
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -410,14 +394,6 @@ export default function App() {
   useEffect(() => {
     if (!userEmail) return
 
-    const userIdentifier = encodeURIComponent(userEmail)
-    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""
-    fetch(`${API_BASE}/token-usage/${userIdentifier}/DANIELE`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data) setTokenUsage(data)
-      })
-      .catch(() => {})
   }, [userEmail])
 
   // --- INITIALIZATION ---
@@ -1264,40 +1240,6 @@ export default function App() {
         }
       }
 
-      const userIdentifier = userEmail ? encodeURIComponent(userEmail) : ""
-      const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""
-      try {
-        if (userIdentifier) {
-          const [inputCount, outputCount] = await Promise.all([
-            fetch(`${API_BASE}/token-usage/count`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ text: userMessage.text }),
-            }).then((r) => (r.ok ? r.json() : null)),
-            fetch(`${API_BASE}/token-usage/count`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ text: finalAiMessage.text }),
-            }).then((r) => (r.ok ? r.json() : null)),
-          ])
-
-          const totalUsedInputTokens = inputCount?.totalUsedInputTokens ?? 0
-          const totalUsedOutputTokens = outputCount?.totalUsedInputTokens ?? 0
-
-          await fetch(`${API_BASE}/token-usage/${userIdentifier}/DANIELE/usage`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ totalUsedInputTokens, totalUsedOutputTokens }),
-          })
-
-          const updated = await fetch(`${API_BASE}/token-usage/${userIdentifier}/DANIELE`).then((r) =>
-            r.ok ? r.json() : null,
-          )
-          if (updated) setTokenUsage(updated)
-        }
-      } catch (err) {
-        console.error("Daniele AI: Failed to update token usage:", err)
-      }
     } catch (error) {
       console.error("Error sending message:", error)
       setMessages((prev) => {
@@ -1932,19 +1874,6 @@ export default function App() {
                       >
                         {currentAgent.role}
                       </p>
-                      {tokenUsage && (
-                        <div className="mt-1.5 flex items-center gap-2">
-                          <div className="w-28 h-1.5 rounded-full bg-slate-300/30 overflow-hidden">
-                            <div
-                              className={`h-full rounded-full ${tokenProgressClass}`}
-                              style={{ width: `${tokenUsagePercent.toFixed(1)}%` }}
-                            />
-                          </div>
-                          <span className={`text-[11px] font-semibold tabular-nums ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-                            {tokenUsage.totalUsedTokens.toLocaleString()} / {tokenUsage.totalTokenLimit.toLocaleString()} token
-                          </span>
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>
