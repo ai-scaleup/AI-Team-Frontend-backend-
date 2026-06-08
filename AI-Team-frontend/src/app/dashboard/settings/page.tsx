@@ -32,6 +32,7 @@ import { userPreferenceService } from "@/services/preferenceService"
 
 export default function SettingsPage() {
     const { user, isLoaded } = useUser()
+    const userEmail = user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || ""
     const [isDark, setIsDark] = useState(true)
     const [selectedAgent, setSelectedAgent] = useState<AgentName>("JIM")
     const [preferences, setPreferences] = useState<UserPreference | null>(null)
@@ -62,13 +63,13 @@ export default function SettingsPage() {
 
     // Load preferences when user or agent changes
     useEffect(() => {
-        if (!user?.id) return
+        if (!userEmail) return
 
         const loadPreferences = async () => {
             setIsLoading(true)
             setSaveError(null)
 
-            const prefs = await userPreferenceService.getOrCreate(user.id, selectedAgent)
+            const prefs = await userPreferenceService.getOrCreate(userEmail, "JIM")
 
             if (prefs) {
                 setPreferences(prefs)
@@ -80,7 +81,7 @@ export default function SettingsPage() {
         }
 
         loadPreferences()
-    }, [user?.id, selectedAgent])
+    }, [userEmail, selectedAgent])
 
     const toggleSection = (section: string) => {
         setExpandedSections(prev => {
@@ -102,7 +103,7 @@ export default function SettingsPage() {
     }
 
     const handleSave = async () => {
-        if (!user?.id || !preferences) return
+        if (!userEmail || !preferences) return
 
         setIsSaving(true)
         setSaveError(null)
@@ -129,7 +130,7 @@ export default function SettingsPage() {
 
         console.log('💾 [Settings] Data payload:', JSON.stringify(dataToSave, null, 2));
 
-        const result = await userPreferenceService.upsert(user.id, selectedAgent, dataToSave)
+        const result = await userPreferenceService.upsert(userEmail, "JIM", dataToSave)
 
         if (result) {
             setPreferences(result)

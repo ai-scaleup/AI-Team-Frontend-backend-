@@ -37,7 +37,7 @@ import {
 import PreferencesWizard from "@/components/preferences/PreferencesWizard"
 import PreferencesButton from "@/components/preferences/PreferencesButton"
 import { useUser } from "@clerk/nextjs"
-import { UserPreferences, UserPreference, AgentName } from "@/types/preferences"
+import { type UserPreference } from "@/types/preferences"
 import { userPreferenceService } from "@/services/preferenceService"
 import { conversationService } from "@/services/conversationService"
 import { Conversation, Message as ApiMessage, CreateConversationDto } from "@/types/conversation"
@@ -331,7 +331,14 @@ export default function App() {
   const [messages, setMessages] = useState<Message[]>([])
   const [isPrefsOpen, setIsPrefsOpen] = useState(false)
   const [userPrefs, setUserPrefs] = useState<UserPreference | null>(null)
+  const [isPreferenceLoading, setIsPreferenceLoading] = useState(true)
   const { user } = useUser()
+  const userEmail = user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || ""
+  const [tokenUsage, setTokenUsage] = useState<{
+    totalUsedTokens: number
+    totalTokenLimit: number
+    totalTokensLeft: number
+  } | null>(null)
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [sidebarVisible, setSidebarVisible] = useState(true)
@@ -355,8 +362,44 @@ export default function App() {
   const [newFolderName, setNewFolderName] = useState("")
   const [showArchived, setShowArchived] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const tokenUsagePercent = tokenUsage?.totalTokenLimit
+    ? Math.min(100, Math.max(0, (tokenUsage.totalUsedTokens / tokenUsage.totalTokenLimit) * 100))
+    : 0
+  const tokenProgressClass =
+    tokenUsagePercent >= 90
+      ? "bg-red-500"
+      : tokenUsagePercent >= 75
+        ? "bg-amber-500"
+        : "bg-sky-500"
+  const isPreferenceReady = Boolean(userPrefs?.onboardingCompleted)
+  const isComposerDisabled = isLoading || isPreferenceLoading || !isPreferenceReady
+  const isSendDisabled = isComposerDisabled || (!inputValue.trim() && selectedFiles.length === 0)
 
   const [pendingFileContents, setPendingFileContents] = useState<{ fileName: string; content: string }[]>([])
+
+  const syncUserToBackend = async () => {
+    if (!user?.id || !userEmail) return
+
+    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ''
+
+    try {
+      const response = await fetch(`${API_BASE}/users/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          oauthId: user.id,
+          email: userEmail,
+          username: user.username ?? undefined,
+        }),
+      })
+
+      if (!response.ok) {
+        console.warn("⚠️ Alex AI: User sync failed before preferences:", response.status, await response.text())
+      }
+    } catch (error) {
+      console.warn("⚠️ Alex AI: User sync request failed before preferences:", error)
+    }
+  }
 
   // --- TYPES ---
   interface Message {
@@ -396,6 +439,19 @@ export default function App() {
   const prevMessageCountRef = useRef(0)
 
   const N8N_ENDPOINT = "/api/n8n-proxy?agent=alex-ai"
+
+  useEffect(() => {
+    if (!userEmail) return
+
+    const userIdentifier = encodeURIComponent(userEmail)
+    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""
+    fetch(`${API_BASE}/token-usage/${userIdentifier}/ALEX`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data) setTokenUsage(data)
+      })
+      .catch(() => {})
+  }, [userEmail])
 
   // --- INITIALIZATION ---
   useEffect(() => {
@@ -711,6 +767,8 @@ export default function App() {
 
     const loadConversations = async () => {
       try {
+        await syncUserToBackend()
+
         // First, migrate any localStorage chats (runs only once)
         await migrateLocalStorageChats(user.id)
 
@@ -773,16 +831,31 @@ export default function App() {
     }
 
     loadConversations()
-    userPreferenceService.getOrCreate(user.id, "JIM").then((prefs) => {
-      if (prefs) {
-        setUserPrefs(prefs)
-        if (prefs.oauthId) {
-          console.log("✅ Alex AI: Using oauthId for Pinecone namespace:", prefs.oauthId)
-          CURRENT_NAMESPACE.current = prefs.oauthId
+    if (!userEmail) {
+      setUserPrefs(null)
+      setIsPreferenceLoading(false)
+      return
+    }
+
+    const loadPreferences = async () => {
+      setIsPreferenceLoading(true)
+      try {
+        await syncUserToBackend()
+        const prefs = await userPreferenceService.getOrCreate(userEmail, "JIM")
+        if (prefs) {
+          setUserPrefs(prefs)
+          CURRENT_NAMESPACE.current = userEmail
+        } else {
+          setUserPrefs(null)
         }
+      } finally {
+        setIsPreferenceLoading(false)
       }
-    })
-  }, [user?.id])
+    }
+
+    loadPreferences()
+
+  }, [user?.id, userEmail])
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -1112,10 +1185,6 @@ export default function App() {
   }
 
   const sendMessage = async () => {
-    if (!userPrefs?.displayName) {
-      setIsPrefsOpen(true)
-      return
-    }
     if (!inputValue.trim() && selectedFiles.length === 0) return
 
     setIsLoading(true)
@@ -1239,6 +1308,7 @@ export default function App() {
         metadata: {
           namespace: CURRENT_NAMESPACE.current,
           source: activeAgentId,
+          email: userEmail,
         },
         chatId: currentChatIdForSend,
       })
@@ -1335,6 +1405,41 @@ export default function App() {
         } catch (error) {
           console.error("❌ Alex AI: Failed to save AI message:", error)
         }
+      }
+
+      const userIdentifier = userEmail ? encodeURIComponent(userEmail) : ""
+      const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""
+      try {
+        if (userIdentifier) {
+          const [inputCount, outputCount] = await Promise.all([
+            fetch(`${API_BASE}/token-usage/count`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ text: userMessage.text }),
+            }).then((r) => (r.ok ? r.json() : null)),
+            fetch(`${API_BASE}/token-usage/count`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ text: finalAiMessage.text }),
+            }).then((r) => (r.ok ? r.json() : null)),
+          ])
+
+          const totalUsedInputTokens = inputCount?.totalUsedInputTokens ?? 0
+          const totalUsedOutputTokens = outputCount?.totalUsedInputTokens ?? 0
+
+          await fetch(`${API_BASE}/token-usage/${userIdentifier}/ALEX/usage`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ totalUsedInputTokens, totalUsedOutputTokens }),
+          })
+
+          const updated = await fetch(`${API_BASE}/token-usage/${userIdentifier}/ALEX`).then((r) =>
+            r.ok ? r.json() : null,
+          )
+          if (updated) setTokenUsage(updated)
+        }
+      } catch (err) {
+        console.error("Alex AI: Failed to update token usage:", err)
       }
 
       // Upsert pending file contents to Pinecone on send - REMOVED
@@ -2037,6 +2142,19 @@ export default function App() {
                       >
                         {currentAgent.role}
                       </p>
+                      {tokenUsage && (
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <div className="w-28 h-1.5 rounded-full bg-slate-300/30 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${tokenProgressClass}`}
+                              style={{ width: `${tokenUsagePercent.toFixed(1)}%` }}
+                            />
+                          </div>
+                          <span className={`text-[11px] font-semibold tabular-nums ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+                            {tokenUsage.totalUsedTokens.toLocaleString()} / {tokenUsage.totalTokenLimit.toLocaleString()} token
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -2061,6 +2179,7 @@ export default function App() {
                   <div className="hidden sm:block">
                     <PreferencesButton onClick={() => setIsPrefsOpen(true)} />
                   </div>
+
                   <div className="hidden sm:block">
                     <UserButton
                       appearance={{
@@ -2195,16 +2314,22 @@ export default function App() {
                         sendMessage()
                       }
                     }}
-                    placeholder="Scrivi il tuo messaggio..."
+                    placeholder={
+                      isPreferenceLoading
+                        ? "Caricamento preferenze..."
+                        : !isPreferenceReady
+                          ? "Completa le preferenze di Alex AI prima di chattare."
+                          : "Scrivi il tuo messaggio..."
+                    }
                     rows={1}
                     className="flex-1 bg-transparent text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm md:text-base resize-none focus:outline-none min-h-[24px] max-h-[200px] py-2"
-                    disabled={isLoading}
+                    disabled={isComposerDisabled}
                   />
 
                   <button
                     onClick={sendMessage}
-                    disabled={isLoading || (!inputValue.trim() && selectedFiles.length === 0)}
-                    className={`p-3 md:p-3.5 rounded-xl font-bold uppercase tracking-wider transition-all duration-300 shrink-0 border-2 ${isLoading || (!inputValue.trim() && selectedFiles.length === 0) ? "bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 border-transparent cursor-not-allowed" : "bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-600 hover:to-cyan-600 text-white shadow-lg shadow-sky-500/40 hover:shadow-sky-500/60 hover:scale-105 active:scale-95 border-sky-400 cursor-pointer"}`}
+                    disabled={isSendDisabled}
+                    className={`p-3 md:p-3.5 rounded-xl font-bold uppercase tracking-wider transition-all duration-300 shrink-0 border-2 ${isSendDisabled ? "bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 border-transparent cursor-not-allowed" : "bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-600 hover:to-cyan-600 text-white shadow-lg shadow-sky-500/40 hover:shadow-sky-500/60 hover:scale-105 active:scale-95 border-sky-400 cursor-pointer"}`}
                   >
                     <Send size={20} strokeWidth={2.5} />
                   </button>
@@ -2215,22 +2340,19 @@ export default function App() {
         </div>
       </div>
 
-      {/* PREFERENCES WIZARD */}
       <PreferencesWizard
         isOpen={isPrefsOpen}
         onClose={() => setIsPrefsOpen(false)}
+        agentName="JIM"
         onComplete={() => {
           setIsPrefsOpen(false)
-          if (user?.id) {
-            console.log('🔄 Alex AI [PREFERENCES]: Reloading preferences...')
-            userPreferenceService.getOrCreate(user.id, 'JIM')
-              .then((prefs) => {
-                if (prefs) setUserPrefs(prefs)
-              })
+          if (userEmail) {
+            userPreferenceService
+              .getOrCreate(userEmail, "JIM")
+              .then(setUserPrefs)
           }
         }}
-        userId={user?.id || ""}
-        agentName="JIM"
+        userId={userEmail}
       />
     </>
   )

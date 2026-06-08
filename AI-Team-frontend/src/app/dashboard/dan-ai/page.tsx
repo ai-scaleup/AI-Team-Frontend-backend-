@@ -292,6 +292,7 @@ export default function page() {
     const [userPrefs, setUserPrefs] = useState<UserPreferences>(DEFAULT_PREFERENCES)
     const [legacyPrefs, setLegacyPrefs] = useState<Record<string, any>>({})
     const { user } = useUser()
+    const userEmail = user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || ""
     const [activeSubjectId, setActiveSubjectId] = useState<string | null>(null)
     const [showHome, setShowHome] = useState(true)
     const [isResourcesPanelOpen, setIsResourcesPanelOpen] = useState(false)
@@ -303,10 +304,10 @@ export default function page() {
     const [useMemory, setUseMemory] = useState(true)
 
     useEffect(() => {
-        if (user?.id) {
-            preferenceService.getUserPreferences(user.id).then(setUserPrefs)
+        if (userEmail) {
+            preferenceService.getUserPreferences(userEmail).then(setUserPrefs)
         }
-    }, [user?.id])
+    }, [userEmail])
 
     // Rename Modal State (Reverted to Inline for consistency with System)
     const [chats, setChats] = useState<Record<string, ChatSession>>({})
@@ -910,11 +911,11 @@ export default function page() {
                 onClose={() => setIsPrefsOpen(false)}
                 onComplete={() => {
                     setIsPrefsOpen(false)
-                    if (user?.id) {
-                        preferenceService.getUserPreferences(user.id).then(setUserPrefs)
+                    if (userEmail) {
+                        preferenceService.getUserPreferences(userEmail).then(setUserPrefs)
                     }
                 }}
-                userId={user?.id || ""}
+                userId={userEmail}
             />
 
             {activeSubject && (

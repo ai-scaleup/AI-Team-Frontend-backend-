@@ -1,4 +1,5 @@
 "use client"
+// Valentina AI chat page
 
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
@@ -33,6 +34,7 @@ import {
   ExternalLink,
   Menu,
   Home,
+  AlertTriangle,
 } from "lucide-react"
 import PreferencesWizard from "@/components/preferences/PreferencesWizard"
 import PreferencesButton from "@/components/preferences/PreferencesButton"
@@ -68,9 +70,47 @@ interface FolderType {
   createdAt: string
 }
 
+type ValentinaTokenAlertLevel = "info" | "warning" | "critical" | "stop"
+
+interface ValentinaTokenAlert {
+  threshold: number
+  level: ValentinaTokenAlertLevel
+  message: string
+}
+
 // --- CONSTANTS ---
 const USER_AVATAR =
   "https://www.shutterstock.com/image-vector/vector-flat-illustration-grayscale-avatar-600nw-2264922221.jpg"
+
+const VALENTINA_TOKEN_ALERTS: ValentinaTokenAlert[] = [
+  {
+    threshold: 100,
+    level: "stop",
+    message: "100% reached. Valentina AI is stopped for this conversation.",
+  },
+  {
+    threshold: 90,
+    level: "critical",
+    message: "90% reached! Your conversation will end soon. Save important info now.",
+  },
+  {
+    threshold: 75,
+    level: "warning",
+    message: "75% of conversation tokens used. You're approaching the limit.",
+  },
+  {
+    threshold: 50,
+    level: "info",
+    message: "You've used 50% of your conversation tokens. Consider wrapping up soon.",
+  },
+]
+
+const VALENTINA_TOKEN_ALERT_STYLES: Record<ValentinaTokenAlertLevel, string> = {
+  info: "border-sky-500/30 bg-sky-500/15 text-sky-200 shadow-sky-500/10",
+  warning: "border-amber-500/35 bg-amber-500/15 text-amber-100 shadow-amber-500/10",
+  critical: "border-rose-500/35 bg-rose-500/15 text-rose-100 shadow-rose-500/10",
+  stop: "border-red-500/45 bg-red-500/20 text-red-100 shadow-red-500/15",
+}
 
 // --- ROBUST MARKDOWN SHIM v4 ---
 const simpleMarkdown = {
@@ -358,7 +398,30 @@ export default function App() {
   const [messages, setMessages] = useState<Message[]>([])
   const [isPrefsOpen, setIsPrefsOpen] = useState(false)
   const [userPrefs, setUserPrefs] = useState<UserPreference | null>(null)
+  const [isPreferenceLoading, setIsPreferenceLoading] = useState(true)
   const { user } = useUser()
+  const userEmail =
+    user?.primaryEmailAddress?.emailAddress ||
+    user?.emailAddresses?.[0]?.emailAddress ||
+    ""
+
+  // --- TOKEN USAGE ---
+  const [tokenUsage, setTokenUsage] = useState<{
+    totalUsedTokens: number
+    totalTokenLimit: number
+    totalTokensLeft: number
+  } | null>(null)
+
+  useEffect(() => {
+    if (!userEmail) return
+
+    const userIdentifier = encodeURIComponent(userEmail)
+    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""
+    fetch(`${API_BASE}/token-usage/${userIdentifier}/VALENTINA`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data) setTokenUsage(data) })
+      .catch(() => {})
+  }, [userEmail])
 
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -383,6 +446,31 @@ export default function App() {
   const [newFolderName, setNewFolderName] = useState("")
   const [showArchived, setShowArchived] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const hasNoValentinaTokensLeft = Boolean(
+    tokenUsage && tokenUsage.totalTokenLimit > 0 && tokenUsage.totalTokensLeft <= 0,
+  )
+  const tokenUsagePercent = tokenUsage?.totalTokenLimit
+    ? Math.min(
+        100,
+        Math.max(
+          0,
+          hasNoValentinaTokensLeft ? 100 : (tokenUsage.totalUsedTokens / tokenUsage.totalTokenLimit) * 100,
+        ),
+      )
+    : 0
+  const activeTokenAlert = tokenUsage
+    ? VALENTINA_TOKEN_ALERTS.find((alert) => tokenUsagePercent >= alert.threshold) ?? null
+    : null
+  const hasReachedTokenLimit = Boolean(activeTokenAlert?.level === "stop")
+  const isPreferenceReady = Boolean(userPrefs?.onboardingCompleted)
+  const isComposerDisabled = isLoading || hasReachedTokenLimit || isPreferenceLoading || !isPreferenceReady
+  const isSendDisabled = isComposerDisabled || (!inputValue.trim() && selectedFiles.length === 0)
+  const tokenProgressClass =
+    activeTokenAlert?.level === "stop" || activeTokenAlert?.level === "critical"
+      ? "bg-red-500"
+      : activeTokenAlert?.level === "warning"
+        ? "bg-amber-500"
+        : "bg-violet-500"
 
   // --- REFS ---
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -713,16 +801,24 @@ export default function App() {
     }
 
     loadConversations()
-    userPreferenceService.getOrCreate(user.id, "JIM").then((prefs) => {
+    if (!userEmail) {
+      setUserPrefs(null)
+      setIsPreferenceLoading(false)
+      return
+    }
+    setIsPreferenceLoading(true)
+    userPreferenceService.get(userEmail, "JIM").then((prefs) => {
       if (prefs) {
         setUserPrefs(prefs)
         if (prefs.oauthId) {
           console.log("✅ Valentina AI: Using oauthId for Pinecone namespace:", prefs.oauthId)
-          CURRENT_NAMESPACE.current = prefs.oauthId
+          CURRENT_NAMESPACE.current = userEmail
         }
+      } else {
+        setUserPrefs(null)
       }
-    })
-  }, [user?.id])
+    }).finally(() => setIsPreferenceLoading(false))
+  }, [user?.id, userEmail])
 
   useEffect(() => {
     if (isDark) {
@@ -1044,10 +1140,11 @@ export default function App() {
 
   // --- Message Sending Logic ---
   const sendMessage = async () => {
-    if (!userPrefs?.displayName) {
+    if (!isPreferenceReady) {
       setIsPrefsOpen(true)
       return
     }
+    if (hasReachedTokenLimit) return
     if (!inputValue.trim() && selectedFiles.length === 0) return
 
     setIsLoading(true)
@@ -1168,7 +1265,7 @@ export default function App() {
             `\n\nUSER_PROFILE_DATA: ${JSON.stringify(userPrefs)}`,
           sessionId: sessionId,
           useMemory: useMemory,
-          metadata: { namespace: CURRENT_NAMESPACE.current, source: activeAgentId },
+          metadata: { namespace: CURRENT_NAMESPACE.current, source: activeAgentId, email: userEmail },
           chatId: currentChatIdForSend,
         }),
       })
@@ -1209,11 +1306,38 @@ export default function App() {
               })
             } else if (obj.type === "done") {
               break
+            } else if (typeof obj.output === "string") {
+              // plain JSON response from N8N: { "output": "..." }
+              rawText = obj.output
+              setMessages((prev) => {
+                const newMsgs = [...prev]
+                newMsgs[newMsgs.length - 1].text = rawText
+                return newMsgs
+              })
+            } else if (Array.isArray(obj) && typeof obj[0]?.output === "string") {
+              // array format: [{ "output": "..." }]
+              rawText = obj[0].output
+              setMessages((prev) => {
+                const newMsgs = [...prev]
+                newMsgs[newMsgs.length - 1].text = rawText
+                return newMsgs
+              })
             }
           } catch (e) {
             console.error("Failed to parse JSON chunk:", e, "Line:", trimmed)
           }
         }
+      }
+
+      // Fallback: if rawText still empty, try parsing the remaining buffer as plain JSON
+      if (!rawText && buffer.trim()) {
+        try {
+          const obj = JSON.parse(buffer.trim())
+          if (typeof obj.output === "string") rawText = obj.output
+          else if (Array.isArray(obj) && typeof obj[0]?.output === "string") rawText = obj[0].output
+          else if (typeof obj.text === "string") rawText = obj.text
+          else if (typeof obj.message === "string") rawText = obj.message
+        } catch (e) { /* not JSON */ }
       }
 
       const finalAiMessage: Message = {
@@ -1248,6 +1372,42 @@ export default function App() {
         } catch (error) {
           console.error("❌ Valentina AI: Failed to save AI message:", error)
         }
+      }
+
+      // Count tokens and update usage
+      const userIdentifier = userEmail ? encodeURIComponent(userEmail) : ""
+      const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""
+      try {
+        if (!userIdentifier) return
+
+        const [inputCount, outputCount] = await Promise.all([
+          fetch(`${API_BASE}/token-usage/count`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: userMessage.text }),
+          }).then((r) => r.ok ? r.json() : null),
+          fetch(`${API_BASE}/token-usage/count`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: finalAiMessage.text }),
+          }).then((r) => r.ok ? r.json() : null),
+        ])
+
+        const totalUsedInputTokens = inputCount?.totalUsedInputTokens ?? 0
+        const totalUsedOutputTokens = outputCount?.totalUsedInputTokens ?? 0
+
+        await fetch(`${API_BASE}/token-usage/${userIdentifier}/VALENTINA/usage`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ totalUsedInputTokens, totalUsedOutputTokens }),
+        })
+
+        // Refresh token usage display
+        const updated = await fetch(`${API_BASE}/token-usage/${userIdentifier}/VALENTINA`).then((r) => r.ok ? r.json() : null)
+        if (updated) setTokenUsage(updated)
+        console.log("✅ Valentina AI: Token usage updated", { totalUsedInputTokens, totalUsedOutputTokens })
+      } catch (err) {
+        console.error("❌ Valentina AI: Failed to update token usage:", err)
       }
     } catch (error) {
       console.error("Error sending message:", error)
@@ -1883,6 +2043,19 @@ export default function App() {
                       >
                         {currentAgent.role}
                       </p>
+                      {tokenUsage && (
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <div className="w-28 h-1.5 rounded-full bg-slate-300/30 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${tokenProgressClass}`}
+                              style={{ width: `${tokenUsagePercent.toFixed(1)}%` }}
+                            />
+                          </div>
+                          <span className={`text-[11px] font-semibold tabular-nums ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+                            {tokenUsage.totalUsedTokens.toLocaleString()} / {tokenUsage.totalTokenLimit.toLocaleString()} token
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1986,6 +2159,19 @@ export default function App() {
             className="sticky bottom-0 px-4 md:px-8 pb-4 md:pb-6"
           >
             <div className="max-w-6xl mx-auto">
+              {activeTokenAlert && (
+                <div
+                  className={`mb-3 flex items-start gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold shadow-lg backdrop-blur-md ${VALENTINA_TOKEN_ALERT_STYLES[activeTokenAlert.level]}`}
+                >
+                  <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                  <span className="min-w-0 flex-1 leading-snug">{activeTokenAlert.message}</span>
+                  {hasReachedTokenLimit && (
+                    <span className="shrink-0 rounded-md border border-red-300/30 bg-red-500/20 px-2 py-0.5 text-[10px] font-black tracking-widest text-red-50">
+                      STOP
+                    </span>
+                  )}
+                </div>
+              )}
               {selectedFiles.length > 0 && (
                 <div className="mb-3 flex flex-wrap gap-2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-xl p-3 border border-slate-200 dark:border-slate-700">
                   {selectedFiles.map((file, idx) => (
@@ -2017,15 +2203,23 @@ export default function App() {
                         sendMessage()
                       }
                     }}
-                    placeholder="Scrivi il tuo messaggio..."
+                    placeholder={
+                      isPreferenceLoading
+                        ? "Caricamento preferenze..."
+                        : !isPreferenceReady
+                          ? "Completa le preferenze di Valentina AI prima di chattare."
+                          : hasReachedTokenLimit
+                        ? "Limite token raggiunto. Valentina AI non accetta nuovi messaggi."
+                        : "Scrivi il tuo messaggio..."
+                    }
                     rows={1}
                     className="flex-1 bg-transparent text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm md:text-base resize-none focus:outline-none min-h-[24px] max-h-[200px] py-2"
-                    disabled={isLoading}
+                    disabled={isComposerDisabled}
                   />
                   <button
                     onClick={sendMessage}
-                    disabled={isLoading || (!inputValue.trim() && selectedFiles.length === 0)}
-                    className={`p-3 md:p-3.5 rounded-xl font-bold uppercase tracking-wider transition-all duration-300 shrink-0 border-2 ${isLoading || (!inputValue.trim() && selectedFiles.length === 0) ? "bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 border-transparent cursor-not-allowed" : "bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-600 hover:to-cyan-600 text-white shadow-lg shadow-sky-500/40 hover:shadow-sky-500/60 hover:scale-105 active:scale-95 border-sky-400 cursor-pointer"}`}
+                    disabled={isSendDisabled}
+                    className={`p-3 md:p-3.5 rounded-xl font-bold uppercase tracking-wider transition-all duration-300 shrink-0 border-2 ${isSendDisabled ? "bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 border-transparent cursor-not-allowed" : "bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-600 hover:to-cyan-600 text-white shadow-lg shadow-sky-500/40 hover:shadow-sky-500/60 hover:scale-105 active:scale-95 border-sky-400 cursor-pointer"}`}
                   >
                     <Send size={20} strokeWidth={2.5} />
                   </button>
@@ -2043,13 +2237,13 @@ export default function App() {
         agentName="JIM"
         onComplete={() => {
           setIsPrefsOpen(false)
-          if (user?.id) {
+          if (userEmail) {
             userPreferenceService
-              .getOrCreate(user.id, "JIM")
+              .get(userEmail, "JIM")
               .then(setUserPrefs)
           }
         }}
-        userId={user?.id || ""}
+        userId={userEmail}
       />
     </>
   )

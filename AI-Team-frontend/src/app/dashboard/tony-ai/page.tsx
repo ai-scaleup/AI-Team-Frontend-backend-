@@ -3,10 +3,6 @@
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import { UserButton, useUser } from "@clerk/nextjs"
-import PreferencesWizard from "@/components/preferences/PreferencesWizard"
-import PreferencesButton from "@/components/preferences/PreferencesButton"
-import { UserPreferences, UserPreference, AgentName } from "@/types/preferences"
-import { userPreferenceService } from "@/services/preferenceService"
 import { conversationService } from "@/services/conversationService"
 import { extractFileContent } from "@/utils/fileExtraction"
 import {
@@ -381,10 +377,25 @@ export default function App() {
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
 
-  // --- PREFERENCES STATE ---
   const { user } = useUser()
-  const [isPrefsOpen, setIsPrefsOpen] = useState(false)
-  const [userPrefs, setUserPrefs] = useState<UserPreference | null>(null)
+  const userEmail =
+    user?.primaryEmailAddress?.emailAddress ||
+    user?.emailAddresses?.[0]?.emailAddress ||
+    ""
+  const [tokenUsage, setTokenUsage] = useState<{
+    totalUsedTokens: number
+    totalTokenLimit: number
+    totalTokensLeft: number
+  } | null>(null)
+  const tokenUsagePercent = tokenUsage?.totalTokenLimit
+    ? Math.min(100, Math.max(0, (tokenUsage.totalUsedTokens / tokenUsage.totalTokenLimit) * 100))
+    : 0
+  const tokenProgressClass =
+    tokenUsagePercent >= 90
+      ? "bg-red-500"
+      : tokenUsagePercent >= 75
+        ? "bg-amber-500"
+        : "bg-sky-500"
 
   // --- REFS ---
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -395,6 +406,19 @@ export default function App() {
   const prevMessageCountRef = useRef(0)
 
   const N8N_ENDPOINT = process.env.NEXT_PUBLIC_TONY_AI_N8N_ENDPOINT || "https://n8n-c2lq.onrender.com/webhook/0c898053-01f4-494d-b013-165c8a9023d1/chat?action=sendMessage"
+
+  useEffect(() => {
+    if (!userEmail) return
+
+    const userIdentifier = encodeURIComponent(userEmail)
+    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""
+    fetch(`${API_BASE}/token-usage/${userIdentifier}/TONY`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data) setTokenUsage(data)
+      })
+      .catch(() => {})
+  }, [userEmail])
 
   // --- INITIALIZATION ---
   useEffect(() => {
@@ -659,6 +683,7 @@ export default function App() {
       } else {
         console.error(`❌ Tony AI: Migration failed - no chats were migrated. Will retry on next page load.`)
       }
+
     } catch (error) {
       console.error("❌ Tony AI: Migration failed:", error)
       console.error("❌ Parse error details:", error instanceof Error ? error.message : String(error))
@@ -715,15 +740,6 @@ export default function App() {
     }
 
     loadConversations()
-    userPreferenceService.getOrCreate(user.id, "JIM").then((prefs) => {
-      if (prefs) {
-        setUserPrefs(prefs)
-        if (prefs.oauthId) {
-          console.log("✅ Tony AI: Using oauthId for Pinecone namespace:", prefs.oauthId)
-          CURRENT_NAMESPACE.current = prefs.oauthId
-        }
-      }
-    })
   }, [user?.id])
 
   useEffect(() => {
@@ -1058,12 +1074,6 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
 
   // --- Message Sending Logic ---
   const sendMessage = async () => {
-    // --- AUTO-ONBOARDING CHECK ---
-    if (!userPrefs?.displayName) {
-      setIsPrefsOpen(true)
-      return
-    }
-
     if (!inputValue.trim() && selectedFiles.length === 0) return
 
     setIsLoading(true)
@@ -1183,11 +1193,10 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
         body: JSON.stringify({
           chatInput:
             capturedInput + (capturedFiles.length ? ` [Attached: ${capturedFiles.map((f) => f.name).join(", ")}]` : "") +
-            fileContext +
-            `\n\n<SYSTEM_CONTEXT_DO_NOT_REPLY>\nUSER_PROFILE_DATA: ${JSON.stringify(userPrefs)}\n</SYSTEM_CONTEXT_DO_NOT_REPLY>`,
+            fileContext,
           sessionId: sessionId,
           useMemory: useMemory,
-          metadata: { namespace: CURRENT_NAMESPACE.current, source: activeAgentId },
+          metadata: { namespace: CURRENT_NAMESPACE.current, source: activeAgentId, email: userEmail },
           chatId: currentChatIdForSend,
         }),
       })
@@ -1267,6 +1276,41 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
         } catch (error) {
           console.error("❌ Tony AI: Failed to save AI message:", error)
         }
+      }
+
+      const userIdentifier = userEmail ? encodeURIComponent(userEmail) : ""
+      const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""
+      try {
+        if (userIdentifier) {
+          const [inputCount, outputCount] = await Promise.all([
+            fetch(`${API_BASE}/token-usage/count`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ text: userMessage.text }),
+            }).then((r) => (r.ok ? r.json() : null)),
+            fetch(`${API_BASE}/token-usage/count`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ text: finalAiMessage.text }),
+            }).then((r) => (r.ok ? r.json() : null)),
+          ])
+
+          const totalUsedInputTokens = inputCount?.totalUsedInputTokens ?? 0
+          const totalUsedOutputTokens = outputCount?.totalUsedInputTokens ?? 0
+
+          await fetch(`${API_BASE}/token-usage/${userIdentifier}/TONY/usage`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ totalUsedInputTokens, totalUsedOutputTokens }),
+          })
+
+          const updated = await fetch(`${API_BASE}/token-usage/${userIdentifier}/TONY`).then((r) =>
+            r.ok ? r.json() : null,
+          )
+          if (updated) setTokenUsage(updated)
+        }
+      } catch (err) {
+        console.error("Tony AI: Failed to update token usage:", err)
       }
     } catch (error) {
       console.error("Error sending message:", error)
@@ -1902,6 +1946,19 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
                       >
                         {currentAgent.role}
                       </p>
+                      {tokenUsage && (
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <div className="w-28 h-1.5 rounded-full bg-slate-300/30 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${tokenProgressClass}`}
+                              style={{ width: `${tokenUsagePercent.toFixed(1)}%` }}
+                            />
+                          </div>
+                          <span className={`text-[11px] font-semibold tabular-nums ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+                            {tokenUsage.totalUsedTokens.toLocaleString()} / {tokenUsage.totalTokenLimit.toLocaleString()} token
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1920,9 +1977,6 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
                   >
                     <Home size={22} strokeWidth={2.5} className="group-hover:scale-110 transition-transform" />
                   </a>
-                  <div className="hidden sm:block">
-                    <PreferencesButton onClick={() => setIsPrefsOpen(true)} />
-                  </div>
                   <div className="hidden sm:block">
                     <UserButton
                       appearance={{
@@ -2053,20 +2107,6 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
             </div>
           </div>
 
-          <PreferencesWizard
-            isOpen={isPrefsOpen}
-            userId={user?.id || ""}
-            onClose={() => setIsPrefsOpen(false)}
-            onComplete={() => {
-              setIsPrefsOpen(false)
-              if (user?.id) {
-                console.log('🔄 Tony AI [PREFERENCES]: Reloading preferences...')
-                userPreferenceService.getOrCreate(user.id, 'JIM')
-                  .then((prefs) => { if (prefs) setUserPrefs(prefs) })
-              }
-            }}
-            agentName="JIM"
-          />
         </div>
       </div>
     </>
