@@ -260,7 +260,7 @@ export default function AssignAndMetricsPage() {
     setIsLoadingMemberships(true);
 
     try {
-      const response = await fetch(`${API_BASE}/admin/dashboard/memberships`, {
+      const response = await fetch(`${API_BASE}/admin/memberships`, {
         cache: "no-store",
       });
 
@@ -553,7 +553,7 @@ export default function AssignAndMetricsPage() {
 
       const selectedMembership = memberships.find((membership) => membership.id === selectedAssignment);
       const userId = await findUserIdByEmail(email);
-      const response = await fetch(`${API_BASE}/admin/dashboard/memberships/assign`, {
+      const response = await fetch(`${API_BASE}/admin/memberships/assign`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
