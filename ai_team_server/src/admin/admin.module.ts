@@ -6,8 +6,10 @@ import { AdminService } from './admin.service';
 import { AdminController } from './admin.controller';
 import { AdminDashboardService } from './admin-dashboard.service';
 import { AdminDashboardController } from './admin-dashboard.controller';
+import { MembershipModule } from 'src/membership/membership.module';
 
 @Module({
+  imports: [MembershipModule],
   controllers: [AdminController, AdminDashboardController],
   providers: [PrismaService, AdminService, AdminDashboardService],
   exports: [AdminService, AdminDashboardService],

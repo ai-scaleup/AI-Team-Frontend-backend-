@@ -41,8 +41,17 @@ export class UserService {
 
   // Get users with pagination
   async findAllUsers(query: ListUsersQueryDto) {
-    const { page, limit, search, usageFrom, usageTo } = query;
-    const skip = (page - 1) * limit;
+    const {
+      page: requestedPage,
+      limit,
+      search,
+      usageFrom,
+      usageTo,
+      membership,
+      status,
+      sortBy,
+      sortDir,
+    } = query;
     const searchTerm = search?.trim();
     const defaultUsageFrom = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const requestedUsageFrom = usageFrom ?? defaultUsageFrom;
@@ -64,7 +73,7 @@ export class UserService {
           agentName.includes(normalizedAgentSearch),
         )
       : [];
-    const where: Prisma.UserWhereInput | undefined = searchTerm
+    const searchWhere: Prisma.UserWhereInput | undefined = searchTerm
       ? {
           OR: [
             { email: { contains: searchTerm, mode: 'insensitive' } },
@@ -116,33 +125,189 @@ export class UserService {
         }
       : undefined;
 
-    const [total, users] = await this.prisma.$transaction([
-      this.prisma.user.count({ where }),
-      this.prisma.user.findMany({
-        where,
-        skip,
-        take: limit,
-        include: {
-          agents: true,
-          groups: {
-            where: { isActive: true },
-            include: { group: true },
-          },
-          memberships: { include: { template: true } },
-          dailyUsage: {
-            where: {
-              date: {
-                gte: rangeStart,
-                lte: rangeEnd,
+    const membershipWhere: Prisma.UserWhereInput | undefined = membership
+      ? membership.toLowerCase() === 'none'
+        ? { memberships: { none: { isActive: true } } }
+        : {
+            memberships: {
+              some: {
+                isActive: true,
+                template: {
+                  name: { equals: membership, mode: 'insensitive' },
+                },
               },
             },
-            orderBy: { date: 'desc' },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-      }),
-    ]);
+          }
+      : undefined;
+
+    // A user counts as having access beyond `boundary` when any assignment
+    // (membership, group, or agent) is active and not expired by then.
+    const now = new Date();
+    const expiringBoundary = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+    const hasAccessBeyond = (boundary: Date): Prisma.UserWhereInput => {
+      const live = {
+        isActive: true,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: boundary } }],
+      };
+      return {
+        OR: [
+          { memberships: { some: live } },
+          { groups: { some: live } },
+          { agents: { some: live } },
+        ],
+      };
+    };
+    const statusWhere: Prisma.UserWhereInput | undefined =
+      status === 'active'
+        ? hasAccessBeyond(expiringBoundary)
+        : status === 'expiring'
+          ? {
+              AND: [
+                hasAccessBeyond(now),
+                { NOT: hasAccessBeyond(expiringBoundary) },
+              ],
+            }
+          : status === 'expired'
+            ? { NOT: hasAccessBeyond(now) }
+            : undefined;
+
+    const filters = [searchWhere, membershipWhere, statusWhere].filter(
+      (item): item is Prisma.UserWhereInput => Boolean(item),
+    );
+    const where: Prisma.UserWhereInput | undefined =
+      filters.length === 0
+        ? undefined
+        : filters.length === 1
+          ? filters[0]
+          : { AND: filters };
+
+    // Resolve the full filtered set first (ids only) so sorting and the
+    // usage summary cover every matching user, not just the current page.
+    const matched = await this.prisma.user.findMany({
+      where,
+      select: {
+        id: true,
+        oauthId: true,
+        createdAt: true,
+        ...(sortBy === 'duration'
+          ? {
+              memberships: {
+                where: { isActive: true },
+                select: { template: { select: { durationDays: true } } },
+              },
+              groups: {
+                where: { isActive: true },
+                select: { durationDays: true },
+              },
+              agents: {
+                where: { isActive: true },
+                select: { durationDays: true },
+              },
+            }
+          : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const total = matched.length;
     const totalPages = Math.ceil(total / limit);
+    // Clamp so a stale page (e.g. after filters shrink the set) still
+    // returns the last page instead of an empty one.
+    const page = Math.min(requestedPage, Math.max(totalPages, 1));
+    const skip = (page - 1) * limit;
+
+    const oauthIds = matched.map((user) => user.oauthId);
+    const sumUsageByOauthId = async (from: Date, to: Date) => {
+      if (oauthIds.length === 0 || from > to) {
+        return new Map<string, number>();
+      }
+      const rows = await this.prisma.dailyTokenUsage.groupBy({
+        by: ['oauthId'],
+        where: { oauthId: { in: oauthIds }, date: { gte: from, lte: to } },
+        _sum: { inputTokens: true, outputTokens: true, totalTokens: true },
+      });
+      return new Map(
+        rows.map((row) => {
+          const inputTokens = row._sum.inputTokens ?? 0;
+          const outputTokens = row._sum.outputTokens ?? 0;
+          const totalTokens =
+            row._sum.totalTokens || inputTokens + outputTokens;
+          return [row.oauthId, totalTokens] as const;
+        }),
+      );
+    };
+
+    const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const todayUtc = new Date(now.toISOString().split('T')[0] + 'T00:00:00Z');
+    const laterDate = (a: Date, b: Date) => (a >= b ? a : b);
+
+    const monthlyTotals = await sumUsageByOauthId(rangeStart, rangeEnd);
+    const usageSortTotals =
+      sortBy === 'monthly'
+        ? monthlyTotals
+        : sortBy === 'weekly'
+          ? await sumUsageByOauthId(laterDate(rangeStart, weekStart), rangeEnd)
+          : sortBy === 'daily'
+            ? await sumUsageByOauthId(laterDate(rangeStart, todayUtc), rangeEnd)
+            : undefined;
+
+    type MatchedUser = (typeof matched)[number] & {
+      memberships?: { template: { durationDays: number } | null }[];
+      groups?: { durationDays: number | null }[];
+      agents?: { durationDays: number | null }[];
+    };
+    const durationOf = (user: MatchedUser) =>
+      user.memberships?.[0]?.template?.durationDays ??
+      user.groups?.[0]?.durationDays ??
+      user.agents?.[0]?.durationDays ??
+      0;
+
+    const direction = sortDir === 'asc' ? 1 : -1;
+    const sorted = [...matched].sort((a, b) => {
+      const aValue = usageSortTotals
+        ? (usageSortTotals.get(a.oauthId) ?? 0)
+        : sortBy === 'duration'
+          ? durationOf(a as MatchedUser)
+          : a.createdAt.getTime();
+      const bValue = usageSortTotals
+        ? (usageSortTotals.get(b.oauthId) ?? 0)
+        : sortBy === 'duration'
+          ? durationOf(b as MatchedUser)
+          : b.createdAt.getTime();
+      if (aValue !== bValue) return (aValue - bValue) * direction;
+      return b.createdAt.getTime() - a.createdAt.getTime();
+    });
+
+    const pageIds = sorted.slice(skip, skip + limit).map((user) => user.id);
+    const pageUsers = await this.prisma.user.findMany({
+      where: { id: { in: pageIds } },
+      include: {
+        agents: true,
+        groups: {
+          where: { isActive: true },
+          include: { group: true },
+        },
+        memberships: { include: { template: true } },
+        dailyUsage: {
+          where: {
+            date: {
+              gte: rangeStart,
+              lte: rangeEnd,
+            },
+          },
+          orderBy: { date: 'desc' },
+        },
+      },
+    });
+    const usersById = new Map(pageUsers.map((user) => [user.id, user]));
+    const users = pageIds
+      .map((id) => usersById.get(id))
+      .filter((user): user is (typeof pageUsers)[number] => Boolean(user));
+
+    let summaryMonthlyTokens = 0;
+    monthlyTotals.forEach((tokens) => {
+      summaryMonthlyTokens += tokens;
+    });
 
     return {
       data: users.map((user) => {
@@ -180,6 +345,10 @@ export class UserService {
         totalPages,
         hasNextPage: page < totalPages,
         hasPreviousPage: page > 1,
+        summary: {
+          // Monthly token total across ALL filtered users, not just this page.
+          monthlyTokens: summaryMonthlyTokens,
+        },
       },
     };
   }

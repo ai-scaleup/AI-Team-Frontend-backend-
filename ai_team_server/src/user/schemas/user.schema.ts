@@ -38,6 +38,13 @@ export const listUsersQuerySchema = z.object({
   search: z.string().trim().optional(),
   usageFrom: optionalQueryDate,
   usageTo: optionalQueryDate,
+  // Membership template name, or "none" for users without an active membership.
+  membership: z.string().trim().min(1).optional(),
+  status: z.enum(['active', 'expiring', 'expired']).optional(),
+  sortBy: z
+    .enum(['createdAt', 'duration', 'monthly', 'weekly', 'daily'])
+    .default('createdAt'),
+  sortDir: z.enum(['asc', 'desc']).default('desc'),
 });
 
 // We infer our TypeScript types directly from the schemas for type safety.
