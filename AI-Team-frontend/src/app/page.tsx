@@ -291,10 +291,13 @@ const Hero = () => (
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[110%] h-[110%] bg-gradient-to-r from-[#0ea5e9]/20 via-[#0284c7]/10 to-purple-600/20 blur-[80px] -z-10 rounded-full opacity-60 group-hover:opacity-80 transition duration-700"></div>
         <div className="relative floating-tech transform-style-3d">
           <div className="relative rounded-2xl p-2 bg-gradient-to-b from-white/40 to-white/10 dark:from-white/10 dark:to-transparent border border-white/40 dark:border-white/10 shadow-2xl backdrop-blur-sm transition duration-500 group-hover:border-[#0284c7]/30 dark:group-hover:border-[#0ea5e9]/30">
-            <img
-              src="https://www.ai-scaleup.com/wp-content/uploads/2025/08/Ai-Team-Header-DAshboard.png"
+            <Image
+              src="/assets/Ai-Team-Header-DAshboard.png"
               alt="AI Team Dashboard Full Width"
-              className="rounded-xl w-full h-auto shadow-[0_0_50px_-12px_rgba(0,0,0,0.2)] dark:shadow-[0_0_50px_-12px_rgba(0,0,0,0.6)]"
+              width={1536}
+              height={486}
+              priority
+              className="w-full rounded-xl object-cover shadow-[0_0_50px_-12px_rgba(0,0,0,0.2)] dark:shadow-[0_0_50px_-12px_rgba(0,0,0,0.6)]"
             />
             <div className="absolute -bottom-4 -left-4 glass-panel px-5 py-3 rounded-xl border border-[#0284c7]/20 dark:border-[#0ea5e9]/30 shadow-lg flex items-center gap-3 animate-[float-img_4s_ease-in-out_infinite_reverse] hidden md:flex">
               <div className="w-3 h-3 bg-green-500 rounded-full animate-ping"></div>
