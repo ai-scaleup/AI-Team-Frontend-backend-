@@ -16,52 +16,52 @@ const mockAgents: MockAgent[] = [
   {
     name: "Alex AI",
     role: "Cross-Platform Ads Manager",
-    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Alex-AI.png",
+    image: "/assets/agents/Alex-AI.png",
   },
   {
     name: "Tony AI",
     role: "Direttore Commerciale",
-    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Tony-AI.png",
+    image: "/assets/agents/Tony-AI.png",
   },
   {
     name: "Mike AI",
     role: "Direttore Marketing",
-    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Mike-AI.png",
+    image: "/assets/agents/Mike-AI.png",
   },
   {
     name: "Lara AI",
     role: "Social Media Manager",
-    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Lara-AI-1.png",
+    image: "/assets/agents/Lara-AI-1.png",
   },
   {
     name: "Simone AI",
     role: "SEO Copywriter",
-    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/SImone-ai.png",
+    image: "/assets/agents/SImone-ai.png",
   },
   {
     name: "Aladino AI",
     role: "Creatore di nuove offerte e prodotti",
-    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Aladdin-AI.png",
+    image: "/assets/agents/Aladdin-AI.png",
   },
   {
     name: "Valentina AI",
     role: "SEO Optimizer",
-    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Valentina-AI.png",
+    image: "/assets/agents/Valentina-AI.png",
   },
   {
     name: "Niko AI",
     role: "SEO Manager",
-    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Niko-AI.png",
+    image: "/assets/agents/Niko-AI.png",
   },
   {
     name: "Jim AI",
     role: "Coach di Vendite",
-    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/JIM-ai.png",
+    image: "/assets/agents/JIM-ai.png",
   },
   {
     name: "Daniele AI",
     role: "Copywriter per Vendere (Direct Response)",
-    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Daniele-ai.png",
+    image: "/assets/agents/Daniele-ai.png",
   },
 ]
 

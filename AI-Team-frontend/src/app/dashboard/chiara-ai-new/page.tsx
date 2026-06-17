@@ -43,7 +43,7 @@ interface ConversationMessage {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-const CHIARA_AVATAR = "https://www.ai-scaleup.com/wp-content/uploads/2025/02/Lara-AI-social-strategiest.png"
+const CHIARA_AVATAR = "/assets/agents/Lara-AI-social-strategiest.png"
 
 async function chiaraFetch(path: string, options?: RequestInit) {
   const res = await fetch(`/api/chiara-admin${path}`, {
