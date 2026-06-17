@@ -321,10 +321,35 @@ const MockAgentsShowcase = () => (
   >
     <div className="absolute inset-0 bg-tech-grid pointer-events-none"></div>
     <div className="relative z-10 mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8">
-      <h2 className="mb-4 flex items-center gap-3 text-xl font-bold tracking-wide text-white">
-        <span className="h-6 w-1.5 rounded-full bg-gradient-to-b from-blue-500 to-indigo-600"></span>
-        I tuoi Agenti AI assegnati
-      </h2>
+      <header className="relative mb-4">
+        <div className="mb-3 space-y-0.5">
+          <p className="pl-1 text-xs font-bold uppercase tracking-[0.15em] text-[#0ea5e9]">
+            Command Center
+          </p>
+          <h2 className="text-4xl font-bold leading-none tracking-tight text-white md:text-5xl">
+            IL TUO AI TEAM:
+            <br />
+            <span className="text-[#0ea5e9]">sfrutta i Super Poteri dei tuoi Ai Agents</span>
+            <br />
+            <span className="text-white">per Distruggere i Competitor</span>
+          </h2>
+        </div>
+
+        <div className="flex gap-4 sm:justify-end lg:-mt-14">
+          <div className="min-w-[130px] rounded-xl border border-white/5 bg-[#111827]/80 px-5 py-2 backdrop-blur-md">
+            <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+              Agenti Attivi
+            </p>
+            <p className="text-xl font-bold text-white">10/10</p>
+          </div>
+          <div className="min-w-[130px] rounded-xl border border-white/5 bg-[#111827]/80 px-5 py-2 backdrop-blur-md">
+            <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+              Task Completati
+            </p>
+            <p className="text-xl font-bold text-[#0ea5e9]">1,240</p>
+          </div>
+        </div>
+      </header>
 
       <div className="agents-scroll overflow-x-auto pb-4">
         <div className="grid min-w-[1200px] grid-cols-5 gap-4 lg:gap-5 xl:gap-6">

@@ -629,11 +629,6 @@ export default function HomePage() {
 
 
         <section>
-          <h2 className={`mb-3 text-xl font-bold tracking-wide flex items-center gap-3 ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
-            <span className="w-1.5 h-6 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-full"></span>
-            I tuoi Agenti AI assegnati
-          </h2>
-
           {visibleAgents.length === 0 ? (
             <p className={`text-xs sm:text-sm ${theme === "dark" ? "text-white/60" : "text-gray-600"}`}>
               Nessun agente AI ti è stato ancora assegnato.
