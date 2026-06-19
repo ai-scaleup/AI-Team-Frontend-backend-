@@ -8,7 +8,7 @@ import {
 
 // --- CONFIGURATION ---
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3000"
-const CHIARA_AVATAR = "https://www.ai-scaleup.com/wp-content/uploads/2025/02/Lara-AI-social-strategiest.png"
+const CHIARA_AVATAR = "/assets/agents/Lara-AI-social-strategiest.png"
 const USER_AVATAR_URL = "https://www.shutterstock.com/image-vector/vector-flat-illustration-grayscale-avatar-600nw-2264922221.jpg"
 
 // --- TYPES ---

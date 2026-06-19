@@ -11,7 +11,7 @@ import {
 
 // --- CONFIGURATION ---
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE
-const JENNIFER_AVATAR = "https://i.ibb.co.com/mVR9YXMD/Whats-App-Image-2026-02-25-at-15-34-49-1.jpg"
+const JENNIFER_AVATAR = "/assets/agents/chiara-ai-Whats-App-Image-2026-02-25-at-15-34-49-1.jpg"
 const USER_AVATAR_URL = "https://www.shutterstock.com/image-vector/vector-flat-illustration-grayscale-avatar-600nw-2264922221.jpg"
 
 // --- TYPES ---
