@@ -100,6 +100,31 @@ export class UserController {
     type: String,
     description: 'Inclusive ISO date/time upper bound for token usage totals',
   })
+  @ApiQuery({
+    name: 'membership',
+    required: false,
+    type: String,
+    description:
+      'Filter by membership template name, or "none" for users without an active membership',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['active', 'expiring', 'expired'],
+    description: 'Filter by access status',
+  })
+  @ApiQuery({
+    name: 'sortBy',
+    required: false,
+    enum: ['createdAt', 'duration', 'monthly', 'weekly', 'daily'],
+    description: 'Field to sort the full result set by (default createdAt)',
+  })
+  @ApiQuery({
+    name: 'sortDir',
+    required: false,
+    enum: ['asc', 'desc'],
+    description: 'Sort direction (default desc)',
+  })
   @ApiOkResponse({
     description: 'Users returned',
     schema: {
@@ -118,6 +143,14 @@ export class UserController {
             totalPages: { type: 'integer', example: 5 },
             hasNextPage: { type: 'boolean', example: true },
             hasPreviousPage: { type: 'boolean', example: false },
+            summary: {
+              type: 'object',
+              properties: {
+                monthlyTokens: { type: 'integer', example: 1100000 },
+                monthlyInputTokens: { type: 'integer', example: 700000 },
+                monthlyOutputTokens: { type: 'integer', example: 400000 },
+              },
+            },
           },
         },
       },

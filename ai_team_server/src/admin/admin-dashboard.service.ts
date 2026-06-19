@@ -19,6 +19,9 @@ type AgentUsageChartPoint = {
   [agentName: string]: string | number | undefined;
 };
 
+const inputKey = (agentName: string) => `${agentName}__input`;
+const outputKey = (agentName: string) => `${agentName}__output`;
+
 @Injectable()
 export class AdminDashboardService {
   constructor(private readonly prisma: PrismaService) {}
@@ -72,25 +75,42 @@ export class AdminDashboardService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return users.map((u) => ({
-      id: u.id,
-      oauthId: u.oauthId,
-      email: u.email,
-      username: u.username,
-      createdAt: u.createdAt,
-      agents: u.agents,
-      groups: u.groups,
-      memberships: u.memberships,
-      usage: {
-        monthly: u.dailyUsage.reduce((sum, item) => sum + item.totalTokens, 0),
-        weekly: u.dailyUsage
-          .filter((item) => item.date >= weekStart)
-          .reduce((sum, item) => sum + item.totalTokens, 0),
-        daily: u.dailyUsage
-          .filter((item) => item.date >= today)
-          .reduce((sum, item) => sum + item.totalTokens, 0),
-      },
-    }));
+    return users.map((u) => {
+      const sumUsage = (items: typeof u.dailyUsage) =>
+        items.reduce(
+          (sum, item) => ({
+            input: sum.input + item.inputTokens,
+            output: sum.output + item.outputTokens,
+            total: sum.total + item.totalTokens,
+          }),
+          { input: 0, output: 0, total: 0 },
+        );
+      const monthly = sumUsage(u.dailyUsage);
+      const weekly = sumUsage(u.dailyUsage.filter((item) => item.date >= weekStart));
+      const daily = sumUsage(u.dailyUsage.filter((item) => item.date >= today));
+
+      return {
+        id: u.id,
+        oauthId: u.oauthId,
+        email: u.email,
+        username: u.username,
+        createdAt: u.createdAt,
+        agents: u.agents,
+        groups: u.groups,
+        memberships: u.memberships,
+        usage: {
+          monthly: monthly.total,
+          monthlyInputTokens: monthly.input,
+          monthlyOutputTokens: monthly.output,
+          weekly: weekly.total,
+          weeklyInputTokens: weekly.input,
+          weeklyOutputTokens: weekly.output,
+          daily: daily.total,
+          dailyInputTokens: daily.input,
+          dailyOutputTokens: daily.output,
+        },
+      };
+    });
   }
 
   async listRecentAssignments(limit: number = 6): Promise<RecentAssignment[]> {
@@ -240,7 +260,10 @@ export class AdminDashboardService {
 
     const topUserMap = new Map<
       AgentName,
-      Map<string, { name: string; email: string; tokens: number }>
+      Map<
+        string,
+        { name: string; email: string; tokens: number; inputTokens: number; outputTokens: number }
+      >
     >();
 
     rows.forEach((row) => {
@@ -249,12 +272,19 @@ export class AdminDashboardService {
 
       if (point) {
         point[row.agentName] = Number(point[row.agentName] ?? 0) + row.totalTokens;
+        point[inputKey(row.agentName)] =
+          Number(point[inputKey(row.agentName)] ?? 0) + row.inputTokens;
+        point[outputKey(row.agentName)] =
+          Number(point[outputKey(row.agentName)] ?? 0) + row.outputTokens;
         point.total = Number(point.total ?? 0) + row.totalTokens;
       }
 
       const agentUsers =
         topUserMap.get(row.agentName) ??
-        new Map<string, { name: string; email: string; tokens: number }>();
+        new Map<
+          string,
+          { name: string; email: string; tokens: number; inputTokens: number; outputTokens: number }
+        >();
       const existing = agentUsers.get(row.oauthId);
       agentUsers.set(row.oauthId, {
         name:
@@ -263,6 +293,8 @@ export class AdminDashboardService {
           row.oauthId,
         email: row.user?.email ?? row.oauthId,
         tokens: (existing?.tokens ?? 0) + row.totalTokens,
+        inputTokens: (existing?.inputTokens ?? 0) + row.inputTokens,
+        outputTokens: (existing?.outputTokens ?? 0) + row.outputTokens,
       });
       topUserMap.set(row.agentName, agentUsers);
     });
@@ -282,6 +314,12 @@ export class AdminDashboardService {
       agentNames.forEach((agent) => {
         current[agent] =
           Number(current[agent] ?? 0) + Number(day[agent] ?? 0);
+        current[inputKey(agent)] =
+          Number(current[inputKey(agent)] ?? 0) +
+          Number(day[inputKey(agent)] ?? 0);
+        current[outputKey(agent)] =
+          Number(current[outputKey(agent)] ?? 0) +
+          Number(day[outputKey(agent)] ?? 0);
       });
       current.total = Number(current.total ?? 0) + Number(day.total ?? 0);
       weeklyByIndex.set(weekIndex, current);
