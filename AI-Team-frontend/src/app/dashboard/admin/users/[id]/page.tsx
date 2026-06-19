@@ -71,6 +71,32 @@ const formatChartValue = (value: number, currency: CurrencyMode): string => {
   return value >= 1000 ? `$${(value / 1000).toFixed(1)}k` : `$${value.toFixed(value >= 1 ? 2 : 3)}`;
 };
 
+const SortedTooltip = ({
+  active, payload, label, currency,
+}: {
+  active?: boolean;
+  payload?: Array<{ name: string; value: number; color: string }>;
+  label?: string;
+  currency: CurrencyMode;
+}) => {
+  if (!active || !payload || payload.length === 0) return null;
+  const sorted = [...payload].sort((a, b) => b.value - a.value);
+  return (
+    <div style={{ backgroundColor: "#0f172a", border: "1px solid #ffffff15", borderRadius: "10px", padding: "10px 14px", fontSize: "12px" }}>
+      <p style={{ color: "#ffffff80", marginBottom: 6 }}>{label}</p>
+      {sorted.map((entry) => (
+        <div key={entry.name} style={{ display: "flex", justifyContent: "space-between", gap: 20, color: "#fff", marginBottom: 2 }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: entry.color, display: "inline-block", flexShrink: 0 }} />
+            {entry.name}
+          </span>
+          <span style={{ fontVariantNumeric: "tabular-nums" }}>{formatChartValue(Number(entry.value), currency)}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 function CurrencyToggle({
   currency,
   onChange,
@@ -1169,12 +1195,7 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
               <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
               <XAxis dataKey="date" stroke="#ffffff40" fontSize={10} tickMargin={8} interval={2} />
               <YAxis stroke="#ffffff40" fontSize={10} tickFormatter={(v) => formatAxisValue(v, currency)} />
-              <Tooltip
-                contentStyle={{ backgroundColor: "#0f172a", borderColor: "#ffffff15", borderRadius: "10px", fontSize: "12px" }}
-                itemStyle={{ color: "#fff" }}
-                formatter={(value, name) => [formatChartValue(Number(value), currency), String(name)]}
-                labelStyle={{ color: "#ffffff80" }}
-              />
+              <Tooltip content={(props) => <SortedTooltip {...props} currency={currency} />} />
               {visibleUsageSeries.map((agent, index) => (
                 <Area
                   key={agent.name}
@@ -1229,11 +1250,7 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
               <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
               <XAxis dataKey="week" stroke="#ffffff40" fontSize={12} tickMargin={10} />
               <YAxis stroke="#ffffff40" fontSize={12} tickFormatter={(v) => formatAxisValue(v, currency)} />
-              <Tooltip
-                contentStyle={{ backgroundColor: "#0f172a", borderColor: "#ffffff15", borderRadius: "10px", fontSize: "12px" }}
-                cursor={{ fill: "#ffffff05" }}
-                formatter={(value, name) => [formatChartValue(Number(value), currency), String(name)]}
-              />
+              <Tooltip content={(props) => <SortedTooltip {...props} currency={currency} />} />
               <defs>
                 {visibleUsageSeries.map((agent, index) => (
                   <linearGradient key={agent.name} id={`gradWeek${index}`} x1="0" y1="0" x2="0" y2="1">
