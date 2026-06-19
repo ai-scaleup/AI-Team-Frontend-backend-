@@ -25,26 +25,19 @@ const ALL_AGENTS = [
 
 const DEFAULT_VISIBLE_AGENTS = ALL_AGENTS;
 
-const AGENT_COLORS: Record<string, string> = {
-  SARA_AI: "#38bdf8",
-  JENNIFER_AI: "#818cf8",
-  CHIARA_AI: "#34d399",
-  JIM: "#f472b6",
-  ALEX: "#fb923c",
-  MIKE: "#a78bfa",
-};
+const AGENT_COLORS: Record<string, string> = {};
 
 const COLOR_PALETTE = [
-  "#38bdf8",
-  "#818cf8",
-  "#34d399",
-  "#f472b6",
-  "#fb923c",
-  "#a78bfa",
-  "#fbbf24",
-  "#fb7185",
-  "#22d3ee",
-  "#c084fc",
+  "#38bdf8",  // sky blue   (~200°)
+  "#f87171",  // red        (~0°)
+  "#4ade80",  // green      (~142°)
+  "#fbbf24",  // amber      (~45°)
+  "#a855f7",  // violet     (~270°)
+  "#fb923c",  // orange     (~25°)
+  "#2dd4bf",  // teal       (~175°)
+  "#f472b6",  // pink       (~322°)
+  "#34d399",  // emerald    (~160°)
+  "#a3e635",  // lime       (~80°)
 ];
 
 const getAgentColor = (agent: string, index = 0) =>
@@ -173,27 +166,34 @@ const formatChartValue = (value: number, currency: CurrencyMode): string => {
 };
 
 const SortedTooltip = ({
-  active, payload, label, currency,
+  active, payload, label, currency, colorMap,
 }: {
   active?: boolean;
-  payload?: ReadonlyArray<{ name: string; value: number; color: string }>;
+  payload?: ReadonlyArray<{ name: string; value: number; color: string; stroke?: string }>;
   label?: string | number;
   currency: CurrencyMode;
+  colorMap?: Record<string, string>;
 }) => {
   if (!active || !payload || payload.length === 0) return null;
-  const sorted = [...payload].sort((a, b) => b.value - a.value);
+  const sorted = [...payload]
+    .filter((entry) => Number(entry.value) > 0)
+    .sort((a, b) => b.value - a.value);
+  if (sorted.length === 0) return null;
   return (
     <div style={{ backgroundColor: "#0f172a", border: "1px solid #ffffff15", borderRadius: "10px", padding: "10px 14px", fontSize: "12px" }}>
       <p style={{ color: "#ffffff80", marginBottom: 6 }}>{label}</p>
-      {sorted.map((entry) => (
-        <div key={entry.name} style={{ display: "flex", justifyContent: "space-between", gap: 20, color: "#fff", marginBottom: 2 }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: entry.color, display: "inline-block", flexShrink: 0 }} />
-            {entry.name}
-          </span>
-          <span style={{ fontVariantNumeric: "tabular-nums" }}>{formatChartValue(Number(entry.value), currency)}</span>
-        </div>
-      ))}
+      {sorted.map((entry) => {
+        const color = colorMap?.[entry.name] ?? entry.stroke ?? entry.color;
+        return (
+          <div key={entry.name} style={{ display: "flex", justifyContent: "space-between", gap: 20, color: "#fff", marginBottom: 2 }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: color, display: "inline-block", flexShrink: 0 }} />
+              {entry.name}
+            </span>
+            <span style={{ fontVariantNumeric: "tabular-nums" }}>{formatChartValue(Number(entry.value), currency)}</span>
+          </div>
+        );
+      })}
     </div>
   );
 };
@@ -655,6 +655,10 @@ export default function AssignAndMetricsPage() {
 
   const metricAgents = agentMetrics.agents.length > 0 ? agentMetrics.agents : DEFAULT_VISIBLE_AGENTS;
   const selectedTopUsers = agentMetrics.topUsersByAgent[selectedAgentTab] ?? [];
+  const agentColorMap = useMemo(
+    () => Object.fromEntries(metricAgents.map((agent, index) => [agent, getAgentColor(agent, index)])),
+    [metricAgents],
+  );
   const displayDailyUsage = useMemo(
     () => buildDisplayUsageData(agentMetrics.dailyUsage, metricAgents, currency),
     [agentMetrics.dailyUsage, metricAgents, currency],
@@ -948,7 +952,7 @@ export default function AssignAndMetricsPage() {
                 fontSize={10}
                 tickFormatter={(v) => formatAxisValue(v, currency)}
               />
-              <Tooltip content={(props) => <SortedTooltip {...props} currency={currency} />} />
+              <Tooltip content={(props) => <SortedTooltip {...props} currency={currency} colorMap={agentColorMap} />} />
               {metricAgents.map((agent, index) => {
                 const color = getAgentColor(agent, index);
                 return (
@@ -1024,7 +1028,7 @@ export default function AssignAndMetricsPage() {
                 fontSize={10}
                 tickFormatter={(v) => formatAxisValue(v, currency)}
               />
-              <Tooltip content={(props) => <SortedTooltip {...props} currency={currency} />} />
+              <Tooltip content={(props) => <SortedTooltip {...props} currency={currency} colorMap={agentColorMap} />} />
               {metricAgents.map((agent, index) => {
                 const color = getAgentColor(agent, index);
                 return (

@@ -71,28 +71,36 @@ const formatChartValue = (value: number, currency: CurrencyMode): string => {
   return value >= 1000 ? `$${(value / 1000).toFixed(1)}k` : `$${value.toFixed(value >= 1 ? 2 : 3)}`;
 };
 
+const EXCLUDED_TOOLTIP_KEYS = new Set(["stops", "total"]);
+
 const SortedTooltip = ({
   active, payload, label, currency,
 }: {
   active?: boolean;
-  payload?: ReadonlyArray<{ name: string; value: number; color: string }>;
+  payload?: ReadonlyArray<{ name: string; value: number; color: string; stroke?: string }>;
   label?: string | number;
   currency: CurrencyMode;
 }) => {
   if (!active || !payload || payload.length === 0) return null;
-  const sorted = [...payload].sort((a, b) => b.value - a.value);
+  const sorted = [...payload]
+    .filter((entry) => !EXCLUDED_TOOLTIP_KEYS.has(entry.name) && Number(entry.value) > 0)
+    .sort((a, b) => b.value - a.value);
+  if (sorted.length === 0) return null;
   return (
     <div style={{ backgroundColor: "#0f172a", border: "1px solid #ffffff15", borderRadius: "10px", padding: "10px 14px", fontSize: "12px" }}>
       <p style={{ color: "#ffffff80", marginBottom: 6 }}>{label}</p>
-      {sorted.map((entry) => (
-        <div key={entry.name} style={{ display: "flex", justifyContent: "space-between", gap: 20, color: "#fff", marginBottom: 2 }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: entry.color, display: "inline-block", flexShrink: 0 }} />
-            {entry.name}
-          </span>
-          <span style={{ fontVariantNumeric: "tabular-nums" }}>{formatChartValue(Number(entry.value), currency)}</span>
-        </div>
-      ))}
+      {sorted.map((entry) => {
+        const color = entry.stroke ?? entry.color;
+        return (
+          <div key={entry.name} style={{ display: "flex", justifyContent: "space-between", gap: 20, color: "#fff", marginBottom: 2 }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: color, display: "inline-block", flexShrink: 0 }} />
+              {entry.name}
+            </span>
+            <span style={{ fontVariantNumeric: "tabular-nums" }}>{formatChartValue(Number(entry.value), currency)}</span>
+          </div>
+        );
+      })}
     </div>
   );
 };
@@ -296,16 +304,16 @@ const buildSubscription = (details: ApiUserDetails | null): DisplaySubscription 
 };
 
 const TOKEN_USAGE_COLORS = [
-  "#38bdf8",
-  "#f472b6",
-  "#34d399",
-  "#fbbf24",
-  "#a78bfa",
-  "#fb7185",
-  "#60a5fa",
-  "#f97316",
-  "#22d3ee",
-  "#c084fc",
+  "#38bdf8",  // sky blue
+  "#f87171",  // red
+  "#4ade80",  // green
+  "#fbbf24",  // amber
+  "#a855f7",  // violet
+  "#fb923c",  // orange
+  "#2dd4bf",  // teal
+  "#f472b6",  // pink
+  "#34d399",  // emerald
+  "#a3e635",  // lime
 ];
 
 type AgentTokenUsageRow = {

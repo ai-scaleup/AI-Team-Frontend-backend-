@@ -14,6 +14,12 @@ type DailyUsageItem = {
   totalTokens: number;
 };
 
+type UsageTotals = {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+};
+
 const sumDailyUsage = (items: DailyUsageItem[]) =>
   items.reduce(
     (totals, item) => {
@@ -219,7 +225,7 @@ export class UserService {
     const oauthIds = matched.map((user) => user.oauthId);
     const sumUsageByOauthId = async (from: Date, to: Date) => {
       if (oauthIds.length === 0 || from > to) {
-        return new Map<string, number>();
+        return new Map<string, UsageTotals>();
       }
       const rows = await this.prisma.dailyTokenUsage.groupBy({
         by: ['oauthId'],
@@ -232,13 +238,17 @@ export class UserService {
           const outputTokens = row._sum.outputTokens ?? 0;
           const totalTokens =
             row._sum.totalTokens || inputTokens + outputTokens;
-          return [row.oauthId, totalTokens] as const;
+          return [
+            row.oauthId,
+            { inputTokens, outputTokens, totalTokens },
+          ] as const;
         }),
       );
     };
 
-    const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const todayUtc = new Date(now.toISOString().split('T')[0] + 'T00:00:00Z');
+    const weekStart = new Date(todayUtc);
+    weekStart.setUTCDate(todayUtc.getUTCDate() - 6);
     const laterDate = (a: Date, b: Date) => (a >= b ? a : b);
 
     const monthlyTotals = await sumUsageByOauthId(rangeStart, rangeEnd);
@@ -265,12 +275,12 @@ export class UserService {
     const direction = sortDir === 'asc' ? 1 : -1;
     const sorted = [...matched].sort((a, b) => {
       const aValue = usageSortTotals
-        ? (usageSortTotals.get(a.oauthId) ?? 0)
+        ? (usageSortTotals.get(a.oauthId)?.totalTokens ?? 0)
         : sortBy === 'duration'
           ? durationOf(a as MatchedUser)
           : a.createdAt.getTime();
       const bValue = usageSortTotals
-        ? (usageSortTotals.get(b.oauthId) ?? 0)
+        ? (usageSortTotals.get(b.oauthId)?.totalTokens ?? 0)
         : sortBy === 'duration'
           ? durationOf(b as MatchedUser)
           : b.createdAt.getTime();
@@ -305,16 +315,20 @@ export class UserService {
       .filter((user): user is (typeof pageUsers)[number] => Boolean(user));
 
     let summaryMonthlyTokens = 0;
+    let summaryMonthlyInputTokens = 0;
+    let summaryMonthlyOutputTokens = 0;
     monthlyTotals.forEach((tokens) => {
-      summaryMonthlyTokens += tokens;
+      summaryMonthlyTokens += tokens.totalTokens;
+      summaryMonthlyInputTokens += tokens.inputTokens;
+      summaryMonthlyOutputTokens += tokens.outputTokens;
     });
 
     return {
       data: users.map((user) => {
         const now = new Date();
-        const weekStart = new Date(now);
-        weekStart.setDate(now.getDate() - 7);
         const today = new Date(now.toISOString().split('T')[0] + 'T00:00:00Z');
+        const weekStart = new Date(today);
+        weekStart.setUTCDate(today.getUTCDate() - 6);
         const monthlyUsage = sumDailyUsage(user.dailyUsage);
         const weeklyUsage = sumDailyUsage(
           user.dailyUsage.filter((item) => item.date >= weekStart),
@@ -348,6 +362,8 @@ export class UserService {
         summary: {
           // Monthly token total across ALL filtered users, not just this page.
           monthlyTokens: summaryMonthlyTokens,
+          monthlyInputTokens: summaryMonthlyInputTokens,
+          monthlyOutputTokens: summaryMonthlyOutputTokens,
         },
       },
     };
