@@ -76,7 +76,7 @@ const SortedTooltip = ({
 }: {
   active?: boolean;
   payload?: ReadonlyArray<{ name: string; value: number; color: string }>;
-  label?: string;
+  label?: string | number;
   currency: CurrencyMode;
 }) => {
   if (!active || !payload || payload.length === 0) return null;
