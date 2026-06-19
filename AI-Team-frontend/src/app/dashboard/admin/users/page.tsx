@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Search, Calendar, MoreVertical, Edit2, Trash2,
-  ChevronDown, Users, Download, CreditCard, X,
+  ChevronDown, ChevronUp, Users, Download, CreditCard, X,
   Activity, DollarSign, Euro
 } from "lucide-react";
 
@@ -744,19 +744,39 @@ export default function AllUsersPage() {
                 <th className="px-4 py-4 font-semibold">User</th>
                 <th className="px-4 py-4 font-semibold">Assigned</th>
                 <th className="px-4 py-4 font-semibold">Membership</th>
-                <th className="px-4 py-4 font-semibold cursor-pointer hover:text-white transition" onClick={() => handleSort("duration")}>
-                  Duration {sortField === "duration" && (sortDir === "desc" ? "↓" : "↑")}
+                <th className={`px-4 py-4 font-semibold cursor-pointer hover:text-white transition select-none ${sortField === "duration" ? "text-white" : ""}`} onClick={() => handleSort("duration")}>
+                  <span className="inline-flex items-center gap-1">
+                    Duration
+                    {sortField === "duration"
+                      ? sortDir === "desc" ? <ChevronDown size={12} className="text-sky-400" /> : <ChevronUp size={12} className="text-sky-400" />
+                      : <ChevronDown size={12} className="opacity-20" />}
+                  </span>
                 </th>
                 <th className="px-4 py-4 font-semibold">Expiration</th>
                 <th className="px-4 py-4 font-semibold">Status</th>
-                <th className="px-4 py-4 font-semibold text-right cursor-pointer hover:text-white transition" onClick={() => handleSort("monthlyUsage")}>
-                  {usageColLabel("Monthly")} {sortField === "monthlyUsage" && (sortDir === "desc" ? "↓" : "↑")}
+                <th className={`px-4 py-4 font-semibold text-right cursor-pointer hover:text-white transition select-none ${sortField === "monthlyUsage" ? "text-white" : ""}`} onClick={() => handleSort("monthlyUsage")}>
+                  <span className="inline-flex items-center justify-end gap-1">
+                    {usageColLabel("Monthly")}
+                    {sortField === "monthlyUsage"
+                      ? sortDir === "desc" ? <ChevronDown size={12} className="text-sky-400" /> : <ChevronUp size={12} className="text-sky-400" />
+                      : <ChevronDown size={12} className="opacity-20" />}
+                  </span>
                 </th>
-                <th className="px-4 py-4 font-semibold text-right cursor-pointer hover:text-white transition" onClick={() => handleSort("weeklyUsage")}>
-                  {usageColLabel("Weekly")} {sortField === "weeklyUsage" && (sortDir === "desc" ? "↓" : "↑")}
+                <th className={`px-4 py-4 font-semibold text-right cursor-pointer hover:text-white transition select-none ${sortField === "weeklyUsage" ? "text-white" : ""}`} onClick={() => handleSort("weeklyUsage")}>
+                  <span className="inline-flex items-center justify-end gap-1">
+                    {usageColLabel("Weekly")}
+                    {sortField === "weeklyUsage"
+                      ? sortDir === "desc" ? <ChevronDown size={12} className="text-sky-400" /> : <ChevronUp size={12} className="text-sky-400" />
+                      : <ChevronDown size={12} className="opacity-20" />}
+                  </span>
                 </th>
-                <th className="px-4 py-4 font-semibold text-right cursor-pointer hover:text-white transition" onClick={() => handleSort("dailyUsage")}>
-                  {usageColLabel("Daily")} {sortField === "dailyUsage" && (sortDir === "desc" ? "↓" : "↑")}
+                <th className={`px-4 py-4 font-semibold text-right cursor-pointer hover:text-white transition select-none ${sortField === "dailyUsage" ? "text-white" : ""}`} onClick={() => handleSort("dailyUsage")}>
+                  <span className="inline-flex items-center justify-end gap-1">
+                    {usageColLabel("Daily")}
+                    {sortField === "dailyUsage"
+                      ? sortDir === "desc" ? <ChevronDown size={12} className="text-sky-400" /> : <ChevronUp size={12} className="text-sky-400" />
+                      : <ChevronDown size={12} className="opacity-20" />}
+                  </span>
                 </th>
                 <th className="px-4 py-4"></th>
               </tr>
