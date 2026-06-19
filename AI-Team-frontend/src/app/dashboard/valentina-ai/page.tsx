@@ -34,6 +34,7 @@ import {
   ExternalLink,
   Menu,
   Home,
+  AlertTriangle,
 } from "lucide-react"
 import PreferencesWizard from "@/components/preferences/PreferencesWizard"
 import PreferencesButton from "@/components/preferences/PreferencesButton"
@@ -69,10 +70,47 @@ interface FolderType {
   createdAt: string
 }
 
+type ValentinaTokenAlertLevel = "info" | "warning" | "critical" | "stop"
+
+interface ValentinaTokenAlert {
+  threshold: number
+  level: ValentinaTokenAlertLevel
+  message: string
+}
+
 // --- CONSTANTS ---
 const USER_AVATAR =
   "https://www.shutterstock.com/image-vector/vector-flat-illustration-grayscale-avatar-600nw-2264922221.jpg"
 
+const VALENTINA_TOKEN_ALERTS: ValentinaTokenAlert[] = [
+  {
+    threshold: 100,
+    level: "stop",
+    message: "100% reached. Valentina AI is stopped for this conversation.",
+  },
+  {
+    threshold: 90,
+    level: "critical",
+    message: "90% reached! Your conversation will end soon. Save important info now.",
+  },
+  {
+    threshold: 75,
+    level: "warning",
+    message: "75% of conversation tokens used. You're approaching the limit.",
+  },
+  {
+    threshold: 50,
+    level: "info",
+    message: "You've used 50% of your conversation tokens. Consider wrapping up soon.",
+  },
+]
+
+const VALENTINA_TOKEN_ALERT_STYLES: Record<ValentinaTokenAlertLevel, string> = {
+  info: "border-sky-500/30 bg-sky-500/15 text-sky-200 shadow-sky-500/10",
+  warning: "border-amber-500/35 bg-amber-500/15 text-amber-100 shadow-amber-500/10",
+  critical: "border-rose-500/35 bg-rose-500/15 text-rose-100 shadow-rose-500/10",
+  stop: "border-red-500/45 bg-red-500/20 text-red-100 shadow-red-500/15",
+}
 
 // --- ROBUST MARKDOWN SHIM v4 ---
 const simpleMarkdown = {
@@ -196,7 +234,7 @@ const AGENTS_DB: Record<string, any> = {
   "tony-ai": {
     name: "Tony AI",
     role: "Sales Manager",
-    image: "/assets/agents/Tony-AI.png",
+    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Tony-AI.png",
     description: "Il tuo consulente vendite digitale con 30 anni di esperienza. Analizzo i dati e ottimizzo il funnel.",
     primaryColor: "#0ea5e9",
     accentColor: "#22d3ee",
@@ -205,7 +243,7 @@ const AGENTS_DB: Record<string, any> = {
   "mike-ai": {
     name: "Mike AI",
     role: "Marketing Manager",
-    image: "/assets/agents/Mike-AI.png",
+    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Mike-AI.png",
     description: "Il tuo stratega di marketing. Definisco funnel e strategie integrate per scalare il business.",
     primaryColor: "#3b82f6",
     accentColor: "#60a5fa",
@@ -214,7 +252,7 @@ const AGENTS_DB: Record<string, any> = {
   "lara-ai": {
     name: "Lara AI",
     role: "Social Media Manager",
-    image: "/assets/agents/Lara-AI-1.png",
+    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Lara-AI-1.png",
     description: "Gestisco i tuoi social media, creo calendari editoriali e massimizzo l'engagement.",
     primaryColor: "#ec4899",
     accentColor: "#f472b6",
@@ -223,7 +261,7 @@ const AGENTS_DB: Record<string, any> = {
   "laura-ai": {
     name: "Laura AI",
     role: "Social Media Manager",
-    image: "/assets/agents/Laura-ai.png",
+    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Laura-ai.png",
     description: "Gestisco i tuoi social media, creo calendari editoriali e massimizzo l'engagement.",
     primaryColor: "#ec4899",
     accentColor: "#f472b6",
@@ -232,7 +270,7 @@ const AGENTS_DB: Record<string, any> = {
   "simone-ai": {
     name: "Simone AI",
     role: "SEO Copywriter",
-    image: "/assets/agents/SImone-ai.png",
+    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/SImone-ai.png",
     description: "Scrivo contenuti ottimizzati SEO che scalano le classifiche di Google e attraggono traffico.",
     primaryColor: "#10b981",
     accentColor: "#34d399",
@@ -241,7 +279,7 @@ const AGENTS_DB: Record<string, any> = {
   "niko-ai": {
     name: "Niko AI",
     role: "SEO Manager",
-    image: "/assets/agents/Niko-AI.png",
+    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Niko-AI.png",
     description: "Architetto della tua presenza online. Analizzo il sito e pianifico la strategia SEO tecnica.",
     primaryColor: "#f59e0b",
     accentColor: "#fbbf24",
@@ -250,7 +288,7 @@ const AGENTS_DB: Record<string, any> = {
   "valentina-ai": {
     name: "Valentina AI",
     role: "SEO Optimizer",
-    image: "/assets/agents/Valentina-AI.png",
+    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Valentina-AI.png",
     description: "Ottimizzo i contenuti esistenti per massimizzare il posizionamento e il CTR.",
     primaryColor: "#8b5cf6",
     accentColor: "#a78bfa",
@@ -259,7 +297,7 @@ const AGENTS_DB: Record<string, any> = {
   "alex-ai": {
     name: "Alex AI",
     role: "Ads Manager",
-    image: "/assets/agents/Alex-AI.png",
+    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Alex-AI.png",
     description: "Gestisco le tue campagne pubblicitarie su Meta, Google e LinkedIn per il massimo ROI.",
     primaryColor: "#ef4444",
     accentColor: "#f87171",
@@ -268,7 +306,7 @@ const AGENTS_DB: Record<string, any> = {
   "aladino-ai": {
     name: "Aladino AI",
     role: "Innovation Manager",
-    image: "/assets/agents/Aladdin-AI.png",
+    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Aladdin-AI.png",
     description: "Invento nuovi prodotti e servizi ad alta marginalità per differenziarti sul mercato.",
     primaryColor: "#6366f1",
     accentColor: "#818cf8",
@@ -277,7 +315,7 @@ const AGENTS_DB: Record<string, any> = {
   "jim-ai": {
     name: "Jim AI",
     role: "Sales Coach",
-    image: "/assets/agents/JIM-ai.png",
+    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/JIM-ai.png",
     description: "Alleno il tuo team di vendita con simulazioni e role-play per chiudere più contratti.",
     primaryColor: "#f97316",
     accentColor: "#fb923c",
@@ -286,7 +324,7 @@ const AGENTS_DB: Record<string, any> = {
   "daniele-ai": {
     name: "Daniele AI",
     role: "Direct Response Copywriter",
-    image: "/assets/agents/Daniele-ai.png",
+    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Daniele-ai.png",
     description:
       "Progetto e scrivo copy di direct response per trasformare traffico qualificato in lead e clienti paganti.",
     primaryColor: "#f97316",
@@ -296,7 +334,7 @@ const AGENTS_DB: Record<string, any> = {
   "dan-ai": {
     name: "Dan AI",
     role: "Test AI Agent",
-    image: "/assets/agents/Daniele-ai.png",
+    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Daniele-ai.png",
     description: "Sono Dan AI, un agente AI di test per verificare funzionalità e integrazioni.",
     primaryColor: "#6366f1",
     accentColor: "#818cf8",
@@ -305,7 +343,7 @@ const AGENTS_DB: Record<string, any> = {
   "max-ai": {
     name: "Max AI",
     role: "Business Development Manager",
-    image: "/placeholder.svg",
+    image: "https://www.ai-scaleup.com/wp-content/uploads/2025/02/Max-AI-business-development.png",
     description: "Sviluppo opportunità di business e partnership strategiche per accelerare la crescita aziendale.",
     primaryColor: "#10b981",
     accentColor: "#34d399",
@@ -314,7 +352,7 @@ const AGENTS_DB: Record<string, any> = {
   "sofia-ai": {
     name: "Sofia AI",
     role: "Content Marketing Strategist",
-    image: "/assets/agents/Sofia-ai-1.png",
+    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Sofia-ai-1.png",
     description: "Creo strategie di content marketing data-driven per aumentare brand awareness e conversioni.",
     primaryColor: "#ec4899",
     accentColor: "#f472b6",
@@ -323,7 +361,7 @@ const AGENTS_DB: Record<string, any> = {
   "roberta-ai": {
     name: "Roberta AI",
     role: "Customer Success Manager",
-    image: "/placeholder.svg",
+    image: "https://www.ai-scaleup.com/wp-content/uploads/2025/02/Roberta-AI-customer-success.png",
     description: "Gestisco la relazione con i clienti e ottimizzo la customer experience per massimizzare la retention.",
     primaryColor: "#8b5cf6",
     accentColor: "#f472b6",
@@ -367,6 +405,24 @@ export default function App() {
     user?.emailAddresses?.[0]?.emailAddress ||
     ""
 
+  // --- TOKEN USAGE ---
+  const [tokenUsage, setTokenUsage] = useState<{
+    totalUsedTokens: number
+    totalTokenLimit: number
+    totalTokensLeft: number
+  } | null>(null)
+
+  useEffect(() => {
+    if (!userEmail) return
+
+    const userIdentifier = encodeURIComponent(userEmail)
+    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""
+    fetch(`${API_BASE}/token-usage/${userIdentifier}/VALENTINA`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data) setTokenUsage(data) })
+      .catch(() => {})
+  }, [userEmail])
+
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [sidebarVisible, setSidebarVisible] = useState(true)
@@ -390,9 +446,31 @@ export default function App() {
   const [newFolderName, setNewFolderName] = useState("")
   const [showArchived, setShowArchived] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const hasNoValentinaTokensLeft = Boolean(
+    tokenUsage && tokenUsage.totalTokenLimit > 0 && tokenUsage.totalTokensLeft <= 0,
+  )
+  const tokenUsagePercent = tokenUsage?.totalTokenLimit
+    ? Math.min(
+        100,
+        Math.max(
+          0,
+          hasNoValentinaTokensLeft ? 100 : (tokenUsage.totalUsedTokens / tokenUsage.totalTokenLimit) * 100,
+        ),
+      )
+    : 0
+  const activeTokenAlert = tokenUsage
+    ? VALENTINA_TOKEN_ALERTS.find((alert) => tokenUsagePercent >= alert.threshold) ?? null
+    : null
+  const hasReachedTokenLimit = Boolean(activeTokenAlert?.level === "stop")
   const isPreferenceReady = Boolean(userPrefs?.onboardingCompleted)
-  const isComposerDisabled = isLoading || isPreferenceLoading || !isPreferenceReady
+  const isComposerDisabled = isLoading || hasReachedTokenLimit || isPreferenceLoading || !isPreferenceReady
   const isSendDisabled = isComposerDisabled || (!inputValue.trim() && selectedFiles.length === 0)
+  const tokenProgressClass =
+    activeTokenAlert?.level === "stop" || activeTokenAlert?.level === "critical"
+      ? "bg-red-500"
+      : activeTokenAlert?.level === "warning"
+        ? "bg-amber-500"
+        : "bg-violet-500"
 
   // --- REFS ---
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -1066,6 +1144,7 @@ export default function App() {
       setIsPrefsOpen(true)
       return
     }
+    if (hasReachedTokenLimit) return
     if (!inputValue.trim() && selectedFiles.length === 0) return
 
     setIsLoading(true)
@@ -1295,6 +1374,41 @@ export default function App() {
         }
       }
 
+      // Count tokens and update usage
+      const userIdentifier = userEmail ? encodeURIComponent(userEmail) : ""
+      const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""
+      try {
+        if (!userIdentifier) return
+
+        const [inputCount, outputCount] = await Promise.all([
+          fetch(`${API_BASE}/token-usage/count`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: userMessage.text }),
+          }).then((r) => r.ok ? r.json() : null),
+          fetch(`${API_BASE}/token-usage/count`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: finalAiMessage.text }),
+          }).then((r) => r.ok ? r.json() : null),
+        ])
+
+        const totalUsedInputTokens = inputCount?.totalUsedInputTokens ?? 0
+        const totalUsedOutputTokens = outputCount?.totalUsedInputTokens ?? 0
+
+        await fetch(`${API_BASE}/token-usage/${userIdentifier}/VALENTINA/usage`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ totalUsedInputTokens, totalUsedOutputTokens }),
+        })
+
+        // Refresh token usage display
+        const updated = await fetch(`${API_BASE}/token-usage/${userIdentifier}/VALENTINA`).then((r) => r.ok ? r.json() : null)
+        if (updated) setTokenUsage(updated)
+        console.log("✅ Valentina AI: Token usage updated", { totalUsedInputTokens, totalUsedOutputTokens })
+      } catch (err) {
+        console.error("❌ Valentina AI: Failed to update token usage:", err)
+      }
     } catch (error) {
       console.error("Error sending message:", error)
       setMessages((prev) => {
@@ -1929,6 +2043,19 @@ export default function App() {
                       >
                         {currentAgent.role}
                       </p>
+                      {tokenUsage && (
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <div className="w-28 h-1.5 rounded-full bg-slate-300/30 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${tokenProgressClass}`}
+                              style={{ width: `${tokenUsagePercent.toFixed(1)}%` }}
+                            />
+                          </div>
+                          <span className={`text-[11px] font-semibold tabular-nums ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+                            {tokenUsage.totalUsedTokens.toLocaleString()} / {tokenUsage.totalTokenLimit.toLocaleString()} token
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1977,7 +2104,7 @@ export default function App() {
                       <img
                         src={
                           currentAgent.image ||
-                          "/assets/agents/Valentina-AI.png"
+                          "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Valentina-AI.png"
                         }
                         alt={currentAgent.name}
                         className="w-full h-full object-cover"
@@ -2032,6 +2159,19 @@ export default function App() {
             className="sticky bottom-0 px-4 md:px-8 pb-4 md:pb-6"
           >
             <div className="max-w-6xl mx-auto">
+              {activeTokenAlert && (
+                <div
+                  className={`mb-3 flex items-start gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold shadow-lg backdrop-blur-md ${VALENTINA_TOKEN_ALERT_STYLES[activeTokenAlert.level]}`}
+                >
+                  <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                  <span className="min-w-0 flex-1 leading-snug">{activeTokenAlert.message}</span>
+                  {hasReachedTokenLimit && (
+                    <span className="shrink-0 rounded-md border border-red-300/30 bg-red-500/20 px-2 py-0.5 text-[10px] font-black tracking-widest text-red-50">
+                      STOP
+                    </span>
+                  )}
+                </div>
+              )}
               {selectedFiles.length > 0 && (
                 <div className="mb-3 flex flex-wrap gap-2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-xl p-3 border border-slate-200 dark:border-slate-700">
                   {selectedFiles.map((file, idx) => (
@@ -2068,7 +2208,9 @@ export default function App() {
                         ? "Caricamento preferenze..."
                         : !isPreferenceReady
                           ? "Completa le preferenze di Valentina AI prima di chattare."
-                          : "Scrivi il tuo messaggio..."
+                          : hasReachedTokenLimit
+                        ? "Limite token raggiunto. Valentina AI non accetta nuovi messaggi."
+                        : "Scrivi il tuo messaggio..."
                     }
                     rows={1}
                     className="flex-1 bg-transparent text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm md:text-base resize-none focus:outline-none min-h-[24px] max-h-[200px] py-2"

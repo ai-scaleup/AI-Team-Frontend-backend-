@@ -186,7 +186,7 @@ const AGENTS_DB: Record<string, any> = {
   "tony-ai": {
     name: "Tony AI",
     role: "Sales Advisor",
-    image: "/assets/agents/Tony-AI.png",
+    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Tony-AI.png",
     description: "Il tuo consulente vendite digitale con 30 anni di esperienza. Analizzo i dati e ottimizzo il funnel.",
     primaryColor: "#0ea5e9",
     accentColor: "#22d3ee",
@@ -195,7 +195,7 @@ const AGENTS_DB: Record<string, any> = {
   "mike-ai": {
     name: "Mike AI",
     role: "Marketing Manager",
-    image: "/assets/agents/Mike-AI.png",
+    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Mike-AI.png",
     description: "Il tuo stratega di marketing. Definisco funnel e strategie integrate per scalare il business.",
     primaryColor: "#3b82f6",
     accentColor: "#60a5fa",
@@ -204,7 +204,7 @@ const AGENTS_DB: Record<string, any> = {
   "lara-ai": {
     name: "Lara AI",
     role: "Social Media Mgr",
-    image: "/assets/agents/Lara-AI-social-strategiest.png",
+    image: "https://www.ai-scaleup.com/wp-content/uploads/2025/02/Lara-AI-social-strategiest.png",
     description: "Gestisco i tuoi social media, creo calendari editoriali e massimizzo l'engagement.",
     primaryColor: "#ec4899",
     accentColor: "#f472b6",
@@ -213,7 +213,7 @@ const AGENTS_DB: Record<string, any> = {
   "laura-ai": {
     name: "Laura AI",
     role: "Social Media Mgr",
-    image: "/assets/agents/Lara-AI-social-strategiest.png",
+    image: "https://www.ai-scaleup.com/wp-content/uploads/2025/02/Lara-AI-social-strategiest.png",
     description: "Gestisco i tuoi social media, creo calendari editoriali e massimizzo l'engagement.",
     primaryColor: "#ec4899",
     accentColor: "#f472b6",
@@ -222,7 +222,7 @@ const AGENTS_DB: Record<string, any> = {
   "simone-ai": {
     name: "Simone AI",
     role: "SEO Copywriter",
-    image: "/assets/agents/SImone-ai.png",
+    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/SImone-ai.png",
     description: "Scrivo contenuti ottimizzati SEO che scalano le classifiche di Google e attraggono traffico.",
     primaryColor: "#10b981",
     accentColor: "#34d399",
@@ -231,7 +231,7 @@ const AGENTS_DB: Record<string, any> = {
   "niko-ai": {
     name: "Niko AI",
     role: "SEO Strategist",
-    image: "/assets/agents/Niko-AI.png",
+    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Niko-AI.png",
     description: "Architetto della tua presenza online. Analizzo il sito e pianifico la strategia SEO tecnica.",
     primaryColor: "#f59e0b",
     accentColor: "#fbbf24",
@@ -240,7 +240,7 @@ const AGENTS_DB: Record<string, any> = {
   "valentina-ai": {
     name: "Valentina AI",
     role: "SEO Optimizer",
-    image: "/assets/agents/Valentina-AI.png",
+    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Valentina-AI.png",
     description: "Ottimizzo i contenuti esistenti per massimizzare il posizionamento e il CTR.",
     primaryColor: "#8b5cf6",
     accentColor: "#a78bfa",
@@ -249,7 +249,7 @@ const AGENTS_DB: Record<string, any> = {
   "alex-ai": {
     name: "Alex AI",
     role: "Ads Specialist",
-    image: "/assets/agents/Alex-AI.png",
+    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Alex-AI.png",
     description: "Gestisco le tue campagne pubblicitarie su Meta, Google e LinkedIn per il massimo ROI.",
     primaryColor: "#ef4444",
     accentColor: "#f87171",
@@ -258,7 +258,7 @@ const AGENTS_DB: Record<string, any> = {
   "aladino-ai": {
     name: "Aladino AI",
     role: "New Products",
-    image: "/assets/agents/Aladdin-AI.png",
+    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Aladdin-AI.png",
     description: "Invento nuovi prodotti e servizi ad alta marginalità per differenziarti sul mercato.",
     primaryColor: "#6366f1",
     accentColor: "#818cf8",
@@ -267,7 +267,7 @@ const AGENTS_DB: Record<string, any> = {
   "jim-ai": {
     name: "Jim AI",
     role: "Sales Coach",
-    image: "/assets/agents/JIM-ai.png",
+    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/JIM-ai.png",
     description: "Alleno il tuo team di vendita con simulazioni e role-play per chiudere più contratti.",
     primaryColor: "#f97316",
     accentColor: "#fb923c",
@@ -276,7 +276,7 @@ const AGENTS_DB: Record<string, any> = {
   "daniele-ai": {
     name: "Daniele AI",
     role: "Response Copywriter",
-    image: "/assets/agents/Daniele-ai.png",
+    image: "https://www.ai-scaleup.com/wp-content/uploads/2026/01/Daniele-ai.png",
     description: "Progetto e scrivo copy di direct response per trasformare traffico qualificato in lead e clienti paganti.",
     primaryColor: "#f97316",
     accentColor: "#fb923c",
@@ -1502,7 +1502,7 @@ export default function App() {
                   {msg.sender === "ai" && (
                     <div className="w-9 h-9 md:w-10 md:h-10 rounded-full shadow-lg shadow-sky-500/30 shrink-0 border-2 border-white dark:border-slate-900 overflow-hidden">
                       <img
-                        src={currentAgent.image || "/assets/agents/Lara-AI-social-strategiest.png"}
+                        src={currentAgent.image || "https://www.ai-scaleup.com/wp-content/uploads/2025/02/Lara-AI-social-strategiest.png"}
                         alt={currentAgent.name}
                         className="w-full h-full object-cover"
                       />

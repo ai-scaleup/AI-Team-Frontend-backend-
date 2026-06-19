@@ -1,29 +1,60 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Bot,
-  ShieldAlert,
   Loader2,
   CreditCard,
   Users,
-  LogOut
+  LogOut,
+  Lock,
+  Mail,
+  KeyRound
 } from "lucide-react";
 
-const ADMIN_EMAILS = [
-  "digitalcoachai@gmail.com",
-  "luca.papa.digital@gmail.com",
-];
+// Frontend-only admin gate credentials (no database involved)
+const PANEL_CREDENTIALS: Record<string, string> = {
+  "digitalcoachai@gmail.com": "Dca!2026#wQ5n",
+  "luca.papa.digital@gmail.com": "Lcp@2026!hB8s",
+  "natali@digital-coach.com": "Ntl!2026#vK9q",
+  "giuseppe@digital-coach.com": "Gsp@2026!mR4x",
+  "giuseppe.grimaldi.digitalcoach@gmail.com": "Grm#2026@pT7z",
+};
+
+const GATE_STORAGE_KEY = "admin_panel_gate";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, isLoaded } = useUser();
   const pathname = usePathname();
-  const email = user?.primaryEmailAddress?.emailAddress;
-  const isAdmin = !!email && ADMIN_EMAILS.includes(email);
+  const [gateChecked, setGateChecked] = useState(false);
+  const [gateAuthed, setGateAuthed] = useState(false);
+  const [gateEmail, setGateEmail] = useState("");
+  const [gatePassword, setGatePassword] = useState("");
+  const [gateError, setGateError] = useState("");
 
-  if (!isLoaded) {
+  useEffect(() => {
+    setGateAuthed(sessionStorage.getItem(GATE_STORAGE_KEY) === "ok");
+    setGateChecked(true);
+  }, []);
+
+  const handleGateSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const email = gateEmail.trim().toLowerCase();
+    if (PANEL_CREDENTIALS[email] && PANEL_CREDENTIALS[email] === gatePassword) {
+      sessionStorage.setItem(GATE_STORAGE_KEY, "ok");
+      setGateAuthed(true);
+      setGateError("");
+    } else {
+      setGateError("Invalid email or password.");
+    }
+  };
+
+  const handleExitAdmin = () => {
+    sessionStorage.removeItem(GATE_STORAGE_KEY);
+  };
+
+  if (!gateChecked) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#020617]">
         <Loader2 className="h-8 w-8 animate-spin text-sky-500" />
@@ -31,15 +62,61 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  if (!isAdmin) {
+  if (!gateAuthed) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#020617]">
-        <ShieldAlert className="h-16 w-16 text-red-500" />
-        <h1 className="text-2xl font-bold text-white">Access Denied</h1>
-        <p className="text-sm text-white/50">This panel is restricted to administrators.</p>
-        <Link href="/dashboard" className="mt-2 rounded-xl bg-sky-600 px-5 py-2 font-semibold text-white transition-colors hover:bg-sky-500">
-          Back to Dashboard
-        </Link>
+      <div className="flex min-h-screen items-center justify-center bg-[#020617] px-4">
+        <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0B1221] p-8">
+          <div className="mb-6 flex flex-col items-center gap-3">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-500/10">
+              <Lock className="h-7 w-7 text-sky-400" />
+            </div>
+            <h1 className="text-xl font-bold text-white">Admin Access</h1>
+            <p className="text-center text-sm text-white/50">
+              Enter your admin email and password to continue.
+            </p>
+          </div>
+          <form onSubmit={handleGateSubmit} className="flex flex-col gap-4">
+            <div className="relative">
+              <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+              <input
+                type="email"
+                required
+                autoComplete="email"
+                placeholder="Email"
+                value={gateEmail}
+                onChange={(e) => setGateEmail(e.target.value)}
+                className="w-full rounded-xl border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-sm text-white placeholder:text-white/30 focus:border-sky-500 focus:outline-none"
+              />
+            </div>
+            <div className="relative">
+              <KeyRound className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+              <input
+                type="password"
+                required
+                autoComplete="current-password"
+                placeholder="Password"
+                value={gatePassword}
+                onChange={(e) => setGatePassword(e.target.value)}
+                className="w-full rounded-xl border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-sm text-white placeholder:text-white/30 focus:border-sky-500 focus:outline-none"
+              />
+            </div>
+            {gateError && (
+              <p className="text-center text-sm text-red-400">{gateError}</p>
+            )}
+            <button
+              type="submit"
+              className="rounded-xl bg-sky-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-sky-500"
+            >
+              Enter Admin Panel
+            </button>
+            <Link
+              href="/dashboard"
+              className="text-center text-sm text-white/50 transition-colors hover:text-white"
+            >
+              Back to Dashboard
+            </Link>
+          </form>
+        </div>
       </div>
     );
   }
@@ -80,6 +157,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="absolute bottom-4 w-64 px-4">
           <Link
             href="/dashboard"
+            onClick={handleExitAdmin}
             className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-white/60 transition-all hover:bg-white/5 hover:text-red-400"
           >
             <LogOut size={18} />

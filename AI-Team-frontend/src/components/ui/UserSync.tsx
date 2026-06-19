@@ -7,39 +7,38 @@ import { markUserSynced } from "@/lib/userSyncGate"
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "https://ai-team-server.onrender.com"
 
 export default function UserSync() {
-    const { user, isLoaded } = useUser()
-    const synced = useRef(false)
+  const { user, isLoaded } = useUser()
+  const synced = useRef(false)
 
-    useEffect(() => {
-        if (!isLoaded || !user || synced.current) return
+  useEffect(() => {
+    if (!isLoaded || !user || synced.current) return
 
-        const email = user.primaryEmailAddress?.emailAddress
-        if (!email) return
+    const email = user.primaryEmailAddress?.emailAddress
+    if (!email) return
 
-        synced.current = true
+    synced.current = true
 
-        const username = user.fullName?.trim() || user.username?.trim() || undefined
+    const username = user.fullName?.trim() || user.username?.trim() || undefined
 
-        fetch(`${API_BASE}/users/sync`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ oauthId: user.id, email, username }),
-        })
-            .then((res) => {
-                if (res.ok) {
-                    markUserSynced()
-                } else {
-                    console.error("[UserSync] sync failed:", res.status)
-                    synced.current = false
-                    markUserSynced() // unblock pages even on failure
-                }
-            })
-            .catch(() => {
-                console.error("[UserSync] sync network error")
-                synced.current = false
-                markUserSynced() // unblock pages even on error
-            })
-    }, [isLoaded, user])
+    fetch(`${API_BASE}/users/sync`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ oauthId: user.id, email, username }),
+    })
+      .then((res) => {
+        if (!res.ok) {
+          console.error("[UserSync] sync failed:", res.status)
+          synced.current = false
+        }
 
-    return null
+        markUserSynced()
+      })
+      .catch(() => {
+        console.error("[UserSync] sync network error")
+        synced.current = false
+        markUserSynced()
+      })
+  }, [isLoaded, user])
+
+  return null
 }

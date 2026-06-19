@@ -142,7 +142,7 @@ export default function AgentsAndTeamsPage() {
     setMembershipError(null);
 
     try {
-      const response = await fetch(`${API_BASE}/admin/dashboard/memberships`, {
+      const response = await fetch(`${API_BASE}/admin/memberships`, {
         cache: "no-store",
       });
 
@@ -352,7 +352,7 @@ export default function AgentsAndTeamsPage() {
     setIsCreatingMembership(true);
 
     try {
-      const response = await fetch(`${API_BASE}/admin/dashboard/memberships`, {
+      const response = await fetch(`${API_BASE}/admin/memberships`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

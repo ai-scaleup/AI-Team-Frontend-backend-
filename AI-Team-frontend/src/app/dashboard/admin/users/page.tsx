@@ -4,24 +4,40 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Search, Calendar, MoreVertical, Edit2, Trash2,
-  ChevronDown, Users, Download, CreditCard, X,
+  ChevronDown, ChevronUp, Users, Download, CreditCard, X,
   Activity, DollarSign, Euro
 } from "lucide-react";
 
 /* ──────────────── CURRENCY HELPERS ──────────────── */
 
-const USD_PER_TOKEN = 0.00003;
+const SONNET_4_6_INPUT_USD_PER_TOKEN = 3 / 1000000;
+const SONNET_4_6_OUTPUT_USD_PER_TOKEN = 15 / 1000000;
 const EUR_RATE = 0.92;
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "https://ai-team-server.onrender.com";
 
 type CurrencyMode = "tokens" | "USD" | "EUR";
 
-const formatTokensAsCost = (tokens: number, currency: CurrencyMode): string => {
+const getClaudeSonnet46Usd = (
+  inputTokens = 0,
+  outputTokens = 0,
+): number => {
+  return (
+    inputTokens * SONNET_4_6_INPUT_USD_PER_TOKEN +
+    outputTokens * SONNET_4_6_OUTPUT_USD_PER_TOKEN
+  );
+};
+
+const formatTokensAsCost = (
+  tokens: number,
+  currency: CurrencyMode,
+  inputTokens?: number,
+  outputTokens?: number,
+): string => {
   if (currency === "tokens") {
     if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)}M`;
     return `${(tokens / 1000).toFixed(1)}k`;
   }
-  const usd = tokens * USD_PER_TOKEN;
+  const usd = getClaudeSonnet46Usd(inputTokens, outputTokens);
   if (currency === "EUR") {
     const eur = usd * EUR_RATE;
     if (eur >= 1000) return `€${(eur / 1000).toFixed(1)}k`;
@@ -103,8 +119,14 @@ type ApiUser = {
   memberships?: ApiMembershipAssignment[];
   usage?: {
     monthly?: number;
+    monthlyInputTokens?: number;
+    monthlyOutputTokens?: number;
     weekly?: number;
+    weeklyInputTokens?: number;
+    weeklyOutputTokens?: number;
     daily?: number;
+    dailyInputTokens?: number;
+    dailyOutputTokens?: number;
   };
 };
 
@@ -117,6 +139,11 @@ type UsersResponse = {
     totalPages: number;
     hasNextPage: boolean;
     hasPreviousPage: boolean;
+    summary?: {
+      monthlyTokens?: number;
+      monthlyInputTokens?: number;
+      monthlyOutputTokens?: number;
+    };
   };
 };
 
@@ -129,8 +156,14 @@ type UserRow = {
   duration: number;
   expiration: string;
   monthlyUsage: number;
+  monthlyInputUsage: number;
+  monthlyOutputUsage: number;
   weeklyUsage: number;
+  weeklyInputUsage: number;
+  weeklyOutputUsage: number;
   dailyUsage: number;
+  dailyInputUsage: number;
+  dailyOutputUsage: number;
   status: "active" | "expiring" | "expired";
 };
 
@@ -181,8 +214,14 @@ const mapUser = (user: ApiUser): UserRow => {
     duration: primaryMembership?.template?.durationDays ?? primaryTimedAssignment?.durationDays ?? 0,
     expiration: formatDate(primaryMembership?.expiresAt ?? primaryTimedAssignment?.expiresAt),
     monthlyUsage: user.usage?.monthly ?? 0,
+    monthlyInputUsage: user.usage?.monthlyInputTokens ?? 0,
+    monthlyOutputUsage: user.usage?.monthlyOutputTokens ?? 0,
     weeklyUsage: user.usage?.weekly ?? 0,
+    weeklyInputUsage: user.usage?.weeklyInputTokens ?? 0,
+    weeklyOutputUsage: user.usage?.weeklyOutputTokens ?? 0,
     dailyUsage: user.usage?.daily ?? 0,
+    dailyInputUsage: user.usage?.dailyInputTokens ?? 0,
+    dailyOutputUsage: user.usage?.dailyOutputTokens ?? 0,
     status: hasActiveAccess
       ? getStatus(
           primaryMembership?.expiresAt ?? primaryTimedAssignment?.expiresAt,
@@ -198,6 +237,107 @@ const TIMEFRAME_PRESETS = [
 ];
 
 const STATUS_OPTIONS = ["All", "Active", "Expiring", "Expired"];
+
+const startOfDay = (d: Date) => { const r = new Date(d); r.setHours(0, 0, 0, 0); return r; };
+const endOfDay = (d: Date) => { const r = new Date(d); r.setHours(23, 59, 59, 999); return r; };
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const getUsageRange = (
+  timeframe: string,
+  customDays: string,
+  customFrom: string,
+  customTo: string,
+): { from?: Date; to?: Date } => {
+  const now = new Date();
+  if (customFrom && customTo) {
+    const from = new Date(customFrom);
+    const to = new Date(customTo);
+    if (!Number.isNaN(from.getTime()) && !Number.isNaN(to.getTime())) {
+      return { from: startOfDay(from), to: endOfDay(to) };
+    }
+  }
+  const days = Number(customDays);
+  if (customDays && Number.isFinite(days) && days > 0) {
+    return { from: new Date(now.getTime() - days * DAY_MS), to: now };
+  }
+  switch (timeframe) {
+    case "Today":
+      return { from: startOfDay(now), to: now };
+    case "Yesterday": {
+      const y = new Date(now.getTime() - DAY_MS);
+      return { from: startOfDay(y), to: endOfDay(y) };
+    }
+    case "Last 7 Days":
+      return { from: new Date(now.getTime() - 7 * DAY_MS), to: now };
+    case "This Week": {
+      const start = startOfDay(now);
+      start.setDate(start.getDate() - ((start.getDay() + 6) % 7)); // back to Monday
+      return { from: start, to: now };
+    }
+    case "Last Week": {
+      const start = startOfDay(now);
+      start.setDate(start.getDate() - ((start.getDay() + 6) % 7) - 7);
+      const end = new Date(start);
+      end.setDate(start.getDate() + 6);
+      return { from: start, to: endOfDay(end) };
+    }
+    case "This Month":
+      return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: now };
+    case "Last Month":
+      return {
+        from: new Date(now.getFullYear(), now.getMonth() - 1, 1),
+        to: endOfDay(new Date(now.getFullYear(), now.getMonth(), 0)),
+      };
+    default:
+      return {};
+  }
+};
+
+const SORT_PARAM: Record<SortableUserField, string> = {
+  duration: "duration",
+  monthlyUsage: "monthly",
+  weeklyUsage: "weekly",
+  dailyUsage: "daily",
+};
+
+type UsersQueryOptions = {
+  page: number;
+  limit: number;
+  searchTerm: string;
+  membershipFilter: string;
+  statusFilter: string;
+  timeframe: string;
+  customDays: string;
+  customFrom: string;
+  customTo: string;
+  sortField: SortableUserField;
+  sortDir: "asc" | "desc";
+};
+
+const buildUsersQuery = (options: UsersQueryOptions): URLSearchParams => {
+  const params = new URLSearchParams();
+  params.set("page", String(options.page));
+  params.set("limit", String(options.limit));
+  if (options.searchTerm.trim()) params.set("search", options.searchTerm.trim());
+  if (options.membershipFilter !== "All Memberships") {
+    params.set(
+      "membership",
+      options.membershipFilter === "No membership" ? "none" : options.membershipFilter,
+    );
+  }
+  if (options.statusFilter !== "All") params.set("status", options.statusFilter.toLowerCase());
+  const range = getUsageRange(
+    options.timeframe,
+    options.customDays,
+    options.customFrom,
+    options.customTo,
+  );
+  if (range.from) params.set("usageFrom", range.from.toISOString());
+  if (range.to) params.set("usageTo", range.to.toISOString());
+  params.set("sortBy", SORT_PARAM[options.sortField]);
+  params.set("sortDir", options.sortDir);
+  return params;
+};
 
 /* ──────────────────────────── COMPONENT ──────────────────────────── */
 
@@ -217,8 +357,10 @@ export default function AllUsersPage() {
   const [currency, setCurrency] = useState<CurrencyMode>("tokens");
   const [users, setUsers] = useState<UserRow[]>([]);
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [pagination, setPagination] = useState<UsersResponse["meta"]>(undefined);
   const [isLoading, setIsLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -229,10 +371,10 @@ export default function AllUsersPage() {
       setError(null);
 
       try {
-        const params = new URLSearchParams();
-        params.set("page", String(page));
-        params.set("limit", "10");
-        if (searchTerm.trim()) params.set("search", searchTerm.trim());
+        const params = buildUsersQuery({
+          page, limit, searchTerm, membershipFilter, statusFilter,
+          timeframe, customDays, customFrom, customTo, sortField, sortDir,
+        });
         const response = await fetch(`${API_BASE}/users?${params.toString()}`, {
           signal: controller.signal,
         });
@@ -244,6 +386,8 @@ export default function AllUsersPage() {
         const data = (await response.json()) as UsersResponse;
         setUsers(Array.isArray(data.data) ? data.data.map(mapUser) : []);
         setPagination(data.meta);
+        // The server clamps out-of-range pages; keep local state in sync.
+        if (data.meta && data.meta.page !== page) setPage(data.meta.page);
       } catch (err) {
         if ((err as Error).name !== "AbortError") {
           setError((err as Error).message || "Failed to load users");
@@ -260,36 +404,57 @@ export default function AllUsersPage() {
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [page, searchTerm]);
+  }, [page, limit, searchTerm, membershipFilter, statusFilter, timeframe, customDays, customFrom, customTo, sortField, sortDir]);
 
   useEffect(() => {
     setPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, membershipFilter, statusFilter, timeframe, customDays, customFrom, customTo, sortField, sortDir, limit]);
+
+  // Load membership template names once so the filter lists all of them,
+  // not just the ones present on the current page.
+  const [membershipNames, setMembershipNames] = useState<string[]>([]);
+  useEffect(() => {
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const response = await fetch(`${API_BASE}/admin/memberships`, { signal: controller.signal });
+        if (!response.ok) return;
+        const data = (await response.json()) as { name?: string }[];
+        const names = (Array.isArray(data) ? data : [])
+          .map((template) => template?.name)
+          .filter(Boolean) as string[];
+        setMembershipNames(Array.from(new Set(names)));
+      } catch {
+        /* fall back to names derived from loaded rows */
+      }
+    })();
+    return () => controller.abort();
+  }, []);
 
   const toggleUser = (id: string) => {
     setSelectedUsers((prev) => prev.includes(id) ? prev.filter((u) => u !== id) : [...prev, id]);
   };
+  // Select-all operates on the current page; selections on other pages persist.
+  const allOnPageSelected = users.length > 0 && users.every((u) => selectedUsers.includes(u.id));
   const toggleAll = () => {
-    if (selectedUsers.length === filteredUsers.length) setSelectedUsers([]);
-    else setSelectedUsers(filteredUsers.map((u) => u.id));
+    const pageIds = users.map((u) => u.id);
+    setSelectedUsers((prev) =>
+      allOnPageSelected
+        ? prev.filter((id) => !pageIds.includes(id))
+        : Array.from(new Set([...prev, ...pageIds])),
+    );
   };
 
-  const membershipOptions = useMemo(
-    () => ["All Memberships", ...Array.from(new Set(users.map((u) => u.membership).filter(Boolean)))],
-    [users],
-  );
+  const membershipOptions = useMemo(() => {
+    const names = new Set([
+      ...membershipNames,
+      ...users.map((u) => u.membership).filter((m) => m && m !== "No membership"),
+    ]);
+    return ["All Memberships", ...Array.from(names), "No membership"];
+  }, [membershipNames, users]);
 
-  const filteredUsers = users
-    .filter((u) => {
-      const matchesMembership = membershipFilter === "All Memberships" || u.membership === membershipFilter;
-      const matchesStatus = statusFilter === "All" || u.status === statusFilter.toLowerCase();
-      return matchesMembership && matchesStatus;
-    })
-    .sort((a, b) => {
-      const aVal = a[sortField];
-      const bVal = b[sortField];
-      return sortDir === "desc" ? bVal - aVal : aVal - bVal;
-    });
+  // Filtering and sorting both happen server-side across the full result set.
+  const filteredUsers = users;
 
   const handleSort = (field: SortableUserField) => {
     if (sortField === field) setSortDir((d) => (d === "desc" ? "asc" : "desc"));
@@ -312,7 +477,87 @@ export default function AllUsersPage() {
   };
 
   const totalUsers = pagination?.total ?? filteredUsers.length;
-  const totalMonthlyTokens = filteredUsers.reduce((s, u) => s + u.monthlyUsage, 0);
+  // Prefer the server-side summary (all filtered users); fall back to the page sum.
+  const totalMonthlyTokens =
+    pagination?.summary?.monthlyTokens ??
+    filteredUsers.reduce((s, u) => s + u.monthlyUsage, 0);
+  const totalMonthlyInputTokens =
+    pagination?.summary?.monthlyInputTokens ??
+    filteredUsers.reduce((s, u) => s + u.monthlyInputUsage, 0);
+  const totalMonthlyOutputTokens =
+    pagination?.summary?.monthlyOutputTokens ??
+    filteredUsers.reduce((s, u) => s + u.monthlyOutputUsage, 0);
+
+  const totalPages = Math.max(pagination?.totalPages ?? 1, 1);
+  const currentPage = pagination?.page ?? page;
+  const pageItems = useMemo<(number | "left-gap" | "right-gap")[]>(() => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    const items: (number | "left-gap" | "right-gap")[] = [1];
+    if (currentPage > 3) items.push("left-gap");
+    for (
+      let i = Math.max(2, currentPage - 1);
+      i <= Math.min(totalPages - 1, currentPage + 1);
+      i++
+    ) {
+      items.push(i);
+    }
+    if (currentPage < totalPages - 2) items.push("right-gap");
+    items.push(totalPages);
+    return items;
+  }, [currentPage, totalPages]);
+
+  const exportCsv = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    try {
+      // Walk every page with the current filters and sort so the export
+      // covers the full result set, not just the visible page.
+      const rows: UserRow[] = [];
+      let exportPage = 1;
+      for (;;) {
+        const params = buildUsersQuery({
+          page: exportPage, limit: 100, searchTerm, membershipFilter, statusFilter,
+          timeframe, customDays, customFrom, customTo, sortField, sortDir,
+        });
+        const response = await fetch(`${API_BASE}/users?${params.toString()}`);
+        if (!response.ok) throw new Error(`Export failed with ${response.status}`);
+        const data = (await response.json()) as UsersResponse;
+        rows.push(...(Array.isArray(data.data) ? data.data.map(mapUser) : []));
+        if (!data.meta?.hasNextPage || exportPage >= 1000) break;
+        exportPage += 1;
+      }
+      const escapeCell = (value: string | number) => {
+        const text = String(value);
+        return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+      };
+      const header = [
+        "Email", "Assigned", "Membership", "Duration (days)", "Expiration",
+        "Status", "Monthly Tokens", "Weekly Tokens", "Daily Tokens",
+      ];
+      const lines = [
+        header.join(","),
+        ...rows.map((u) =>
+          [
+            u.email, u.assigned.join("; "), u.membership, u.duration,
+            u.expiration, u.status, u.monthlyUsage, u.weeklyUsage, u.dailyUsage,
+          ].map(escapeCell).join(","),
+        ),
+      ];
+      const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `users-export-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError((err as Error).message || "Export failed");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const usageColLabel = (base: string) => {
     if (currency === "USD") return `${base} ($)`;
@@ -347,7 +592,7 @@ export default function AllUsersPage() {
               {currency === "tokens" ? "Total Monthly Tokens" : currency === "USD" ? "Total Monthly Cost ($)" : "Total Monthly Cost (€)"}
             </p>
             <p className="text-xl font-bold font-mono text-sky-400">
-              {formatTokensAsCost(totalMonthlyTokens, currency)}
+              {formatTokensAsCost(totalMonthlyTokens, currency, totalMonthlyInputTokens, totalMonthlyOutputTokens)}
             </p>
           </div>
         </div>
@@ -494,24 +739,44 @@ export default function AllUsersPage() {
             <thead className="bg-white/5 border-b border-white/10 text-[10px] uppercase tracking-wider text-white/40">
               <tr>
                 <th className="px-4 py-4 w-12 text-center">
-                  <input type="checkbox" checked={selectedUsers.length === filteredUsers.length && filteredUsers.length > 0} onChange={toggleAll} className="rounded border-white/20 bg-transparent text-sky-500 focus:ring-sky-500" />
+                  <input type="checkbox" checked={allOnPageSelected} onChange={toggleAll} className="rounded border-white/20 bg-transparent text-sky-500 focus:ring-sky-500" />
                 </th>
                 <th className="px-4 py-4 font-semibold">User</th>
                 <th className="px-4 py-4 font-semibold">Assigned</th>
                 <th className="px-4 py-4 font-semibold">Membership</th>
-                <th className="px-4 py-4 font-semibold cursor-pointer hover:text-white transition" onClick={() => handleSort("duration")}>
-                  Duration {sortField === "duration" && (sortDir === "desc" ? "↓" : "↑")}
+                <th className={`px-4 py-4 font-semibold cursor-pointer hover:text-white transition select-none ${sortField === "duration" ? "text-white" : ""}`} onClick={() => handleSort("duration")}>
+                  <span className="inline-flex items-center gap-1">
+                    Duration
+                    {sortField === "duration"
+                      ? sortDir === "desc" ? <ChevronDown size={12} className="text-sky-400" /> : <ChevronUp size={12} className="text-sky-400" />
+                      : <ChevronDown size={12} className="opacity-20" />}
+                  </span>
                 </th>
                 <th className="px-4 py-4 font-semibold">Expiration</th>
                 <th className="px-4 py-4 font-semibold">Status</th>
-                <th className="px-4 py-4 font-semibold text-right cursor-pointer hover:text-white transition" onClick={() => handleSort("monthlyUsage")}>
-                  {usageColLabel("Monthly")} {sortField === "monthlyUsage" && (sortDir === "desc" ? "↓" : "↑")}
+                <th className={`px-4 py-4 font-semibold text-right cursor-pointer hover:text-white transition select-none ${sortField === "monthlyUsage" ? "text-white" : ""}`} onClick={() => handleSort("monthlyUsage")}>
+                  <span className="inline-flex items-center justify-end gap-1">
+                    {usageColLabel("Monthly")}
+                    {sortField === "monthlyUsage"
+                      ? sortDir === "desc" ? <ChevronDown size={12} className="text-sky-400" /> : <ChevronUp size={12} className="text-sky-400" />
+                      : <ChevronDown size={12} className="opacity-20" />}
+                  </span>
                 </th>
-                <th className="px-4 py-4 font-semibold text-right cursor-pointer hover:text-white transition" onClick={() => handleSort("weeklyUsage")}>
-                  {usageColLabel("Weekly")} {sortField === "weeklyUsage" && (sortDir === "desc" ? "↓" : "↑")}
+                <th className={`px-4 py-4 font-semibold text-right cursor-pointer hover:text-white transition select-none ${sortField === "weeklyUsage" ? "text-white" : ""}`} onClick={() => handleSort("weeklyUsage")}>
+                  <span className="inline-flex items-center justify-end gap-1">
+                    {usageColLabel("Weekly")}
+                    {sortField === "weeklyUsage"
+                      ? sortDir === "desc" ? <ChevronDown size={12} className="text-sky-400" /> : <ChevronUp size={12} className="text-sky-400" />
+                      : <ChevronDown size={12} className="opacity-20" />}
+                  </span>
                 </th>
-                <th className="px-4 py-4 font-semibold text-right cursor-pointer hover:text-white transition" onClick={() => handleSort("dailyUsage")}>
-                  {usageColLabel("Daily")} {sortField === "dailyUsage" && (sortDir === "desc" ? "↓" : "↑")}
+                <th className={`px-4 py-4 font-semibold text-right cursor-pointer hover:text-white transition select-none ${sortField === "dailyUsage" ? "text-white" : ""}`} onClick={() => handleSort("dailyUsage")}>
+                  <span className="inline-flex items-center justify-end gap-1">
+                    {usageColLabel("Daily")}
+                    {sortField === "dailyUsage"
+                      ? sortDir === "desc" ? <ChevronDown size={12} className="text-sky-400" /> : <ChevronUp size={12} className="text-sky-400" />
+                      : <ChevronDown size={12} className="opacity-20" />}
+                  </span>
                 </th>
                 <th className="px-4 py-4"></th>
               </tr>
@@ -564,13 +829,13 @@ export default function AllUsersPage() {
                     </span>
                   </td>
                   <td className="px-4 py-4 text-right font-mono text-sky-300">
-                    {formatTokensAsCost(user.monthlyUsage, currency)}
+                    {formatTokensAsCost(user.monthlyUsage, currency, user.monthlyInputUsage, user.monthlyOutputUsage)}
                   </td>
                   <td className="px-4 py-4 text-right font-mono text-sky-400/70">
-                    {formatTokensAsCost(user.weeklyUsage, currency)}
+                    {formatTokensAsCost(user.weeklyUsage, currency, user.weeklyInputUsage, user.weeklyOutputUsage)}
                   </td>
                   <td className="px-4 py-4 text-right font-mono text-sky-400/50">
-                    {formatTokensAsCost(user.dailyUsage, currency)}
+                    {formatTokensAsCost(user.dailyUsage, currency, user.dailyInputUsage, user.dailyOutputUsage)}
                   </td>
                   <td className="px-4 py-4 text-right">
                     <button className="text-white/30 hover:text-white transition opacity-0 group-hover:opacity-100"><MoreVertical size={16} /></button>
@@ -587,13 +852,28 @@ export default function AllUsersPage() {
         </div>
 
         {/* Table Footer */}
-        <div className="flex items-center justify-between border-t border-white/10 px-4 py-3 text-xs text-white/40">
-          <span>
-            Showing {filteredUsers.length} of {pagination?.total ?? users.length} users
-            {pagination ? ` - Page ${pagination.page} of ${Math.max(pagination.totalPages, 1)}` : ""}
-          </span>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 px-4 py-3 text-xs text-white/40">
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
+            <span>
+              {totalUsers > 0
+                ? `Showing ${(currentPage - 1) * limit + 1}-${(currentPage - 1) * limit + filteredUsers.length} of ${totalUsers} users`
+                : "No users"}
+            </span>
+            <label className="flex items-center gap-1.5">
+              Rows per page
+              <select
+                value={limit}
+                onChange={(e) => setLimit(Number(e.target.value))}
+                className="rounded-md border border-white/10 bg-[#0F172A] px-1.5 py-1 text-white/60 outline-none hover:bg-white/5 transition"
+              >
+                {[10, 25, 50, 100].map((n) => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1">
               <button
                 disabled={!pagination?.hasPreviousPage || isLoading}
                 onClick={() => setPage((current) => Math.max(current - 1, 1))}
@@ -601,6 +881,24 @@ export default function AllUsersPage() {
               >
                 Previous
               </button>
+              {pageItems.map((item) =>
+                typeof item === "number" ? (
+                  <button
+                    key={item}
+                    disabled={isLoading}
+                    onClick={() => setPage(item)}
+                    className={`min-w-[28px] rounded-md border px-2 py-1 transition disabled:cursor-not-allowed ${
+                      item === currentPage
+                        ? "border-sky-500/40 bg-sky-500/15 font-semibold text-sky-400"
+                        : "border-white/10 text-white/50 hover:text-white"
+                    }`}
+                  >
+                    {item}
+                  </button>
+                ) : (
+                  <span key={item} className="px-1 text-white/30">…</span>
+                ),
+              )}
               <button
                 disabled={!pagination?.hasNextPage || isLoading}
                 onClick={() => setPage((current) => current + 1)}
@@ -609,8 +907,12 @@ export default function AllUsersPage() {
                 Next
               </button>
             </div>
-            <button className="flex items-center gap-1.5 text-white/50 hover:text-white transition">
-              <Download size={13} /> Export CSV
+            <button
+              onClick={exportCsv}
+              disabled={isExporting}
+              className="flex items-center gap-1.5 text-white/50 hover:text-white transition disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Download size={13} /> {isExporting ? "Exporting..." : "Export CSV"}
             </button>
           </div>
         </div>

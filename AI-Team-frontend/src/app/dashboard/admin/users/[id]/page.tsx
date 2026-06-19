@@ -9,25 +9,42 @@ import {
 } from "lucide-react";
 import {
   Area, Line, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   ComposedChart
 } from "recharts";
 
 /* ──────────────── CURRENCY HELPERS ──────────────── */
 
-const USD_PER_TOKEN = 0.00003;
+const SONNET_4_6_INPUT_USD_PER_TOKEN = 3 / 1000000;
+const SONNET_4_6_OUTPUT_USD_PER_TOKEN = 15 / 1000000;
 const EUR_RATE = 0.92;
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "https://ai-team-server.onrender.com";
 
 type CurrencyMode = "tokens" | "USD" | "EUR";
 
-const formatTokensAsCost = (tokens: number, currency: CurrencyMode): string => {
+const getClaudeSonnet46Usd = (
+  inputTokens = 0,
+  outputTokens = 0,
+): number => {
+  return (
+    inputTokens * SONNET_4_6_INPUT_USD_PER_TOKEN +
+    outputTokens * SONNET_4_6_OUTPUT_USD_PER_TOKEN
+  );
+};
+
+const formatTokensAsCost = (
+  tokens: number,
+  currency: CurrencyMode,
+  inputTokens?: number,
+  outputTokens?: number,
+): string => {
   if (tokens === 0) return "0";
   if (currency === "tokens") {
     if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)}M`;
     return `${(tokens / 1000).toFixed(1)}k`;
   }
-  const usd = tokens * USD_PER_TOKEN;
+  if (inputTokens === undefined || outputTokens === undefined) return "—";
+  const usd = getClaudeSonnet46Usd(inputTokens, outputTokens);
   if (currency === "EUR") {
     const eur = usd * EUR_RATE;
     if (eur >= 1000) return `€${(eur / 1000).toFixed(1)}k`;
@@ -41,14 +58,51 @@ const formatTokensAsCost = (tokens: number, currency: CurrencyMode): string => {
 
 const formatAxisValue = (value: number, currency: CurrencyMode): string => {
   if (currency === "tokens") return `${(value / 1000).toFixed(0)}k`;
-  const usd = value * USD_PER_TOKEN;
-  if (currency === "EUR") {
-    const eur = usd * EUR_RATE;
-    if (eur >= 1) return `€${eur.toFixed(1)}`;
-    return `€${eur.toFixed(2)}`;
+  if (currency === "EUR") return `€${value >= 1 ? value.toFixed(1) : value.toFixed(2)}`;
+  return `$${value >= 1 ? value.toFixed(1) : value.toFixed(2)}`;
+};
+
+const formatChartValue = (value: number, currency: CurrencyMode): string => {
+  if (currency === "tokens") {
+    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+    return `${(value / 1000).toFixed(1)}k`;
   }
-  if (usd >= 1) return `$${usd.toFixed(1)}`;
-  return `$${usd.toFixed(2)}`;
+  if (currency === "EUR") return value >= 1000 ? `€${(value / 1000).toFixed(1)}k` : `€${value.toFixed(value >= 1 ? 2 : 3)}`;
+  return value >= 1000 ? `$${(value / 1000).toFixed(1)}k` : `$${value.toFixed(value >= 1 ? 2 : 3)}`;
+};
+
+const EXCLUDED_TOOLTIP_KEYS = new Set(["stops", "total"]);
+
+const SortedTooltip = ({
+  active, payload, label, currency,
+}: {
+  active?: boolean;
+  payload?: ReadonlyArray<{ name: string; value: number; color: string; stroke?: string }>;
+  label?: string | number;
+  currency: CurrencyMode;
+}) => {
+  if (!active || !payload || payload.length === 0) return null;
+  const sorted = [...payload]
+    .filter((entry) => !EXCLUDED_TOOLTIP_KEYS.has(entry.name) && Number(entry.value) > 0)
+    .sort((a, b) => b.value - a.value);
+  if (sorted.length === 0) return null;
+  return (
+    <div style={{ backgroundColor: "#0f172a", border: "1px solid #ffffff15", borderRadius: "10px", padding: "10px 14px", fontSize: "12px" }}>
+      <p style={{ color: "#ffffff80", marginBottom: 6 }}>{label}</p>
+      {sorted.map((entry) => {
+        const color = entry.stroke ?? entry.color;
+        return (
+          <div key={entry.name} style={{ display: "flex", justifyContent: "space-between", gap: 20, color: "#fff", marginBottom: 2 }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: color, display: "inline-block", flexShrink: 0 }} />
+              {entry.name}
+            </span>
+            <span style={{ fontVariantNumeric: "tabular-nums" }}>{formatChartValue(Number(entry.value), currency)}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
 };
 
 function CurrencyToggle({
@@ -129,6 +183,8 @@ type ApiTokenUsage = {
 type ApiDailyUsage = {
   agentName?: string;
   date?: string;
+  inputTokens?: number | null;
+  outputTokens?: number | null;
   totalTokens?: number | null;
 };
 
@@ -154,6 +210,8 @@ type DisplaySubscription = {
   expiration: string;
   monthlyLimit: number;
   usedThisCycle: number;
+  usedThisCycleInput: number;
+  usedThisCycleOutput: number;
   status: "Active" | "Expired";
   agents: string[];
 };
@@ -172,15 +230,12 @@ const isActiveAssignment = (item?: { isActive?: boolean; expiresAt?: string | nu
   return Number.isNaN(expiry.getTime()) || expiry > new Date();
 };
 
-const buildSubscription = (details: ApiUserDetails | null): DisplaySubscription => {
+const collectAssignedAgentNames = (details: ApiUserDetails | null): string[] => {
   const activeMemberships = (details?.user.memberships ?? []).filter(isActiveAssignment);
   const activeGroups = (details?.user.groups ?? []).filter(isActiveAssignment);
   const activeAgents = (details?.user.agents ?? []).filter(isActiveAssignment);
-  const primaryMembership = activeMemberships[0];
-  const primaryGroup = activeGroups[0];
-  const primaryAgent = activeAgents[0];
-
   const assignedAgents = new Set<string>();
+
   activeAgents.forEach((agent) => agent.agentName && assignedAgents.add(agent.agentName));
   activeGroups.forEach((assignment) => {
     assignment.group?.items?.forEach((item) => item.agentName && assignedAgents.add(item.agentName));
@@ -189,10 +244,18 @@ const buildSubscription = (details: ApiUserDetails | null): DisplaySubscription 
     assignment.template?.includedAgents?.forEach((agentName) => assignedAgents.add(agentName));
   });
 
-  const usedThisCycle = (details?.dailyUsage ?? []).reduce(
-    (sum, item) => sum + (item.totalTokens ?? 0),
-    0,
-  );
+  return Array.from(assignedAgents);
+};
+
+const buildSubscription = (details: ApiUserDetails | null): DisplaySubscription => {
+  const activeMemberships = (details?.user.memberships ?? []).filter(isActiveAssignment);
+  const activeGroups = (details?.user.groups ?? []).filter(isActiveAssignment);
+  const activeAgents = (details?.user.agents ?? []).filter(isActiveAssignment);
+  const primaryMembership = activeMemberships[0];
+  const primaryGroup = activeGroups[0];
+  const primaryAgent = activeAgents[0];
+  const assignedAgents = collectAssignedAgentNames(details);
+
   const legacyTokenLimit = (details?.user.tokenUsage ?? []).reduce(
     (sum, item) => sum + (item.totalTokenLimit ?? 0),
     0,
@@ -201,6 +264,15 @@ const buildSubscription = (details: ApiUserDetails | null): DisplaySubscription 
     (sum, item) => sum + (item.totalUsedTokens ?? 0),
     0,
   );
+  const usedThisCycle = Array.isArray(details?.dailyUsage)
+    ? details.dailyUsage.reduce((sum, item) => sum + (item.totalTokens ?? 0), 0)
+    : legacyTokenUsage;
+  const usedThisCycleInput = Array.isArray(details?.dailyUsage)
+    ? details.dailyUsage.reduce((sum, item) => sum + (item.inputTokens ?? 0), 0)
+    : (details?.user.tokenUsage ?? []).reduce((sum, item) => sum + (item.totalUsedInputTokens ?? 0), 0);
+  const usedThisCycleOutput = Array.isArray(details?.dailyUsage)
+    ? details.dailyUsage.reduce((sum, item) => sum + (item.outputTokens ?? 0), 0)
+    : (details?.user.tokenUsage ?? []).reduce((sum, item) => sum + (item.totalUsedOutputTokens ?? 0), 0);
 
   const assignmentMonthlyLimit =
     primaryMembership?.template?.monthlyTokenLimit ||
@@ -223,25 +295,25 @@ const buildSubscription = (details: ApiUserDetails | null): DisplaySubscription 
     startsAt: formatDate(primaryMembership?.startsAt ?? primaryGroup?.startsAt ?? primaryAgent?.startsAt),
     expiration: formatDate(primaryMembership?.expiresAt ?? primaryGroup?.expiresAt ?? primaryAgent?.expiresAt),
     monthlyLimit: assignmentMonthlyLimit || legacyTokenLimit,
-    usedThisCycle:
-      usedThisCycle ||
-      legacyTokenUsage,
+    usedThisCycle,
+    usedThisCycleInput,
+    usedThisCycleOutput,
     status: primaryMembership || primaryGroup || primaryAgent ? "Active" : "Expired",
-    agents: Array.from(assignedAgents),
+    agents: assignedAgents,
   };
 };
 
 const TOKEN_USAGE_COLORS = [
-  "#38bdf8",
-  "#f472b6",
-  "#34d399",
-  "#fbbf24",
-  "#a78bfa",
-  "#fb7185",
-  "#60a5fa",
-  "#f97316",
-  "#22d3ee",
-  "#c084fc",
+  "#38bdf8",  // sky blue
+  "#f87171",  // red
+  "#4ade80",  // green
+  "#fbbf24",  // amber
+  "#a855f7",  // violet
+  "#fb923c",  // orange
+  "#2dd4bf",  // teal
+  "#f472b6",  // pink
+  "#34d399",  // emerald
+  "#a3e635",  // lime
 ];
 
 type AgentTokenUsageRow = {
@@ -261,6 +333,9 @@ type DailyUsagePoint = {
   [agentName: string]: string | number;
 };
 
+const inputKey = (agentName: string) => `${agentName}__input`;
+const outputKey = (agentName: string) => `${agentName}__output`;
+
 type AgentUsageSeries = {
   name: string;
   color: string;
@@ -278,25 +353,82 @@ type StopDotProps = {
 
 const buildAgentTokenUsage = (details: ApiUserDetails | null): AgentTokenUsageRow[] => {
   const rows = details?.user.tokenUsage ?? [];
+  const assignedAgents = collectAssignedAgentNames(details);
+  const seenAgents = new Set<string>();
+  const dailyUsageRows = details?.dailyUsage;
+  const hasDailyUsagePayload = Array.isArray(dailyUsageRows);
+  const dailyUsedByAgent = new Map<string, number>();
+  const dailyInputByAgent = new Map<string, number>();
+  const dailyOutputByAgent = new Map<string, number>();
 
-  return rows
+  if (hasDailyUsagePayload) {
+    dailyUsageRows.forEach((item) => {
+      if (!item.agentName) return;
+      dailyUsedByAgent.set(
+        item.agentName,
+        (dailyUsedByAgent.get(item.agentName) ?? 0) + (item.totalTokens ?? 0),
+      );
+      dailyInputByAgent.set(
+        item.agentName,
+        (dailyInputByAgent.get(item.agentName) ?? 0) + (item.inputTokens ?? 0),
+      );
+      dailyOutputByAgent.set(
+        item.agentName,
+        (dailyOutputByAgent.get(item.agentName) ?? 0) + (item.outputTokens ?? 0),
+      );
+    });
+  }
+
+  const tokenRows = rows
     .map((item, index) => {
       const limit = item.totalTokenLimit ?? 0;
-      const used = item.totalUsedTokens ?? 0;
-      const left = item.totalTokensLeft ?? Math.max(0, limit - used);
+      const cumulativeUsed = item.totalUsedTokens ?? 0;
+      const name = item.agentName ?? "UNKNOWN_AGENT";
+      const used = hasDailyUsagePayload ? dailyUsedByAgent.get(name) ?? 0 : cumulativeUsed;
+      const left = item.totalTokensLeft ?? Math.max(0, limit - cumulativeUsed);
+      seenAgents.add(name);
 
       return {
-        name: item.agentName ?? "UNKNOWN_AGENT",
+        name,
         limit,
         used,
         left,
-        input: item.totalUsedInputTokens ?? 0,
-        output: item.totalUsedOutputTokens ?? 0,
+        input: hasDailyUsagePayload ? dailyInputByAgent.get(name) ?? 0 : item.totalUsedInputTokens ?? 0,
+        output: hasDailyUsagePayload ? dailyOutputByAgent.get(name) ?? 0 : item.totalUsedOutputTokens ?? 0,
         color: TOKEN_USAGE_COLORS[index % TOKEN_USAGE_COLORS.length],
       };
     })
-    .filter((item) => item.limit > 0 || item.used > 0)
-    .sort((a, b) => b.used - a.used);
+    .filter((item) => item.name !== "UNKNOWN_AGENT" || item.limit > 0 || item.used > 0);
+
+  assignedAgents.forEach((name) => {
+    if (!seenAgents.has(name)) {
+      tokenRows.push({
+        name,
+        limit: 0,
+        used: 0,
+        left: 0,
+        input: 0,
+        output: 0,
+        color: TOKEN_USAGE_COLORS[tokenRows.length % TOKEN_USAGE_COLORS.length],
+      });
+    }
+  });
+
+  dailyUsedByAgent.forEach((used, name) => {
+    if (!seenAgents.has(name)) {
+      tokenRows.push({
+        name,
+        limit: 0,
+        used,
+        left: 0,
+        input: dailyInputByAgent.get(name) ?? 0,
+        output: dailyOutputByAgent.get(name) ?? 0,
+        color: TOKEN_USAGE_COLORS[tokenRows.length % TOKEN_USAGE_COLORS.length],
+      });
+    }
+  });
+
+  return tokenRows.sort((a, b) => b.used - a.used);
 };
 
 const generateDailyData = () => {
@@ -338,14 +470,14 @@ const buildUsedAgentSeries = (
   details: ApiUserDetails | null,
   agentTokenUsage: AgentTokenUsageRow[],
 ): AgentUsageSeries[] => {
-  const agentNames = new Set<string>();
+  const agentNames = new Set<string>(collectAssignedAgentNames(details));
 
   agentTokenUsage.forEach((agent) => {
-    if (agent.used > 0) agentNames.add(agent.name);
+    agentNames.add(agent.name);
   });
 
   (details?.dailyUsage ?? []).forEach((item) => {
-    if (item.agentName && (item.totalTokens ?? 0) > 0) {
+    if (item.agentName) {
       agentNames.add(item.agentName);
     }
   });
@@ -362,19 +494,53 @@ const buildDailyUsageData = (
   details: ApiUserDetails | null,
   series: AgentUsageSeries[],
   agentTokenUsage: AgentTokenUsageRow[],
+  usageRange?: UsageDateRange,
 ): DailyUsagePoint[] => {
   const seriesNames = new Set(series.map((item) => item.name));
   const rows = (details?.dailyUsage ?? []).filter(
     (item) => item.agentName && seriesNames.has(item.agentName),
   );
+  const buildEmptyPoint = (dateKey: string): DailyUsagePoint => {
+    const point: DailyUsagePoint = {
+      dateKey,
+      date: formatUsageDate(dateKey),
+      total: 0,
+      stops: 0,
+    };
+    series.forEach((agent) => {
+      point[agent.name] = 0;
+      point[inputKey(agent.name)] = 0;
+      point[outputKey(agent.name)] = 0;
+    });
+    return point;
+  };
+  const buildRangePoints = () => {
+    if (!usageRange) return null;
+
+    const points: DailyUsagePoint[] = [];
+    let current = startOfLocalDay(usageRange.from);
+    const end = startOfLocalDay(usageRange.to);
+
+    while (current <= end && points.length < 367) {
+      points.push(buildEmptyPoint(formatDateParam(current)));
+      current = addDays(current, 1);
+    }
+
+    return points;
+  };
 
   if (!rows.length) {
+    const rangePoints = buildRangePoints();
+    if (rangePoints) return rangePoints;
     if (!series.length) return MOCK_DAILY_USAGE;
 
     const totalPoint: DailyUsagePoint = { date: "Total", total: 0, stops: 0 };
     series.forEach((agent) => {
-      const used = agentTokenUsage.find((item) => item.name === agent.name)?.used ?? 0;
+      const agentUsage = agentTokenUsage.find((item) => item.name === agent.name);
+      const used = agentUsage?.used ?? 0;
       totalPoint[agent.name] = used;
+      totalPoint[inputKey(agent.name)] = agentUsage?.input ?? 0;
+      totalPoint[outputKey(agent.name)] = agentUsage?.output ?? 0;
       totalPoint.total = Number(totalPoint.total) + used;
     });
 
@@ -388,20 +554,38 @@ const buildDailyUsageData = (
 
     const dateKey = item.date.slice(0, 10);
     const tokens = item.totalTokens ?? 0;
+    const inputTokens = item.inputTokens ?? 0;
+    const outputTokens = item.outputTokens ?? 0;
     const current = grouped.get(dateKey) ?? {
+      dateKey,
       date: formatUsageDate(item.date),
       total: 0,
       stops: 0,
     };
 
     current[item.agentName] = Number(current[item.agentName] ?? 0) + tokens;
+    current[inputKey(item.agentName)] = Number(current[inputKey(item.agentName)] ?? 0) + inputTokens;
+    current[outputKey(item.agentName)] = Number(current[outputKey(item.agentName)] ?? 0) + outputTokens;
     current.total = Number(current.total) + tokens;
     grouped.set(dateKey, current);
   });
 
-  return Array.from(grouped.entries())
+  const sortedPoints = Array.from(grouped.entries())
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([, value]) => value);
+    .map(([, value]) => {
+      series.forEach((agent) => {
+        value[agent.name] = Number(value[agent.name] ?? 0);
+        value[inputKey(agent.name)] = Number(value[inputKey(agent.name)] ?? 0);
+        value[outputKey(agent.name)] = Number(value[outputKey(agent.name)] ?? 0);
+      });
+      return value;
+    });
+
+  if (!usageRange) return sortedPoints;
+
+  const pointsByDateKey = new Map(sortedPoints.map((point) => [String(point.dateKey), point]));
+  const rangePoints = buildRangePoints();
+  return rangePoints?.map((point) => pointsByDateKey.get(String(point.dateKey)) ?? point) ?? sortedPoints;
 };
 
 const buildWeeklyUsageData = (
@@ -424,6 +608,10 @@ const buildWeeklyUsageData = (
     series.forEach((agent) => {
       current[agent.name] =
         Number(current[agent.name] ?? 0) + Number(day[agent.name] ?? 0);
+      current[inputKey(agent.name)] =
+        Number(current[inputKey(agent.name)] ?? 0) + Number(day[inputKey(agent.name)] ?? 0);
+      current[outputKey(agent.name)] =
+        Number(current[outputKey(agent.name)] ?? 0) + Number(day[outputKey(agent.name)] ?? 0);
     });
     current.total = Number(current.total) + Number(day.total ?? 0);
     current.stops = Number(current.stops) + Number(day.stops ?? 0);
@@ -431,6 +619,31 @@ const buildWeeklyUsageData = (
   });
 
   return Array.from(grouped.values());
+};
+
+const buildDisplayUsageData = (
+  usageData: DailyUsagePoint[],
+  series: AgentUsageSeries[],
+  currency: CurrencyMode,
+): DailyUsagePoint[] => {
+  if (currency === "tokens") return usageData;
+
+  const currencyMultiplier = currency === "EUR" ? EUR_RATE : 1;
+  return usageData.map((point) => {
+    const displayPoint: DailyUsagePoint = { ...point, total: 0 };
+
+    series.forEach((agent) => {
+      const cost =
+        getClaudeSonnet46Usd(
+          Number(point[inputKey(agent.name)] ?? 0),
+          Number(point[outputKey(agent.name)] ?? 0),
+        ) * currencyMultiplier;
+      displayPoint[agent.name] = cost;
+      displayPoint.total = Number(displayPoint.total) + cost;
+    });
+
+    return displayPoint;
+  });
 };
 
 /* ─────── TIMEFRAME PRESETS ─────── */
@@ -445,6 +658,119 @@ const PRESETS = [
 ];
 
 /* ─────── COMPONENT ─────── */
+type UsageDateRange = {
+  from: Date;
+  to: Date;
+  label: string;
+};
+
+const startOfLocalDay = (date: Date) =>
+  new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+const addDays = (date: Date, days: number) => {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+};
+
+const formatDateParam = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const formatRangeLabel = (from: Date, to: Date) =>
+  `${formatDateParam(from)} -> ${formatDateParam(to)}`;
+
+const parseDateInput = (value: string) => {
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return null;
+
+  const date = new Date(year, month - 1, day);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return date;
+};
+
+const normalizeRange = (from: Date, to: Date): UsageDateRange => {
+  const start = startOfLocalDay(from);
+  const end = startOfLocalDay(to);
+  return start <= end
+    ? { from: start, to: end, label: formatRangeLabel(start, end) }
+    : { from: end, to: start, label: formatRangeLabel(end, start) };
+};
+
+const getPresetRange = (preset: string): UsageDateRange => {
+  const today = startOfLocalDay(new Date());
+
+  switch (preset) {
+    case "today":
+      return { from: today, to: today, label: "Today" };
+    case "yesterday": {
+      const yesterday = addDays(today, -1);
+      return { from: yesterday, to: yesterday, label: "Yesterday" };
+    }
+    case "last_7":
+      return { from: addDays(today, -6), to: today, label: "Last 7 Days" };
+    case "this_week": {
+      const mondayOffset = (today.getDay() + 6) % 7;
+      return { from: addDays(today, -mondayOffset), to: today, label: "This Week" };
+    }
+    case "last_week": {
+      const mondayOffset = (today.getDay() + 6) % 7;
+      const thisWeekStart = addDays(today, -mondayOffset);
+      return {
+        from: addDays(thisWeekStart, -7),
+        to: addDays(thisWeekStart, -1),
+        label: "Last Week",
+      };
+    }
+    case "last_month": {
+      const firstOfThisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      const firstOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      return { from: firstOfLastMonth, to: addDays(firstOfThisMonth, -1), label: "Last Month" };
+    }
+    case "this_month":
+    default:
+      return {
+        from: new Date(today.getFullYear(), today.getMonth(), 1),
+        to: today,
+        label: "This Month",
+      };
+  }
+};
+
+const resolveUsageRange = (
+  selectedPreset: string,
+  appliedCustomDays: string,
+  appliedCustomFrom: string,
+  appliedCustomTo: string,
+): UsageDateRange => {
+  const parsedDays = Number.parseInt(appliedCustomDays, 10);
+  if (Number.isFinite(parsedDays) && parsedDays > 0) {
+    const days = Math.min(parsedDays, 366);
+    const today = startOfLocalDay(new Date());
+    return {
+      from: addDays(today, -(days - 1)),
+      to: today,
+      label: `Last ${days} days`,
+    };
+  }
+
+  const from = parseDateInput(appliedCustomFrom);
+  const to = parseDateInput(appliedCustomTo);
+  if (from && to) return normalizeRange(from, to);
+
+  return getPresetRange(selectedPreset || "this_month");
+};
+
 export default function SingleUserPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
 
@@ -452,12 +778,20 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
   const [customDays, setCustomDays] = useState("");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
+  const [appliedCustomDays, setAppliedCustomDays] = useState("");
+  const [appliedCustomFrom, setAppliedCustomFrom] = useState("");
+  const [appliedCustomTo, setAppliedCustomTo] = useState("");
   const [showPicker, setShowPicker] = useState(false);
   const [currency, setCurrency] = useState<CurrencyMode>("tokens");
   const [details, setDetails] = useState<ApiUserDetails | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [userError, setUserError] = useState<string | null>(null);
+  const [visibleAgents, setVisibleAgents] = useState<string[]>([]);
   const pickerRef = useRef<HTMLDivElement>(null);
+  const usageRange = useMemo(
+    () => resolveUsageRange(selectedPreset, appliedCustomDays, appliedCustomFrom, appliedCustomTo),
+    [selectedPreset, appliedCustomDays, appliedCustomFrom, appliedCustomTo],
+  );
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -477,7 +811,12 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
       setUserError(null);
 
       try {
-        const response = await fetch(`${API_BASE}/admin/dashboard/users/${resolvedParams.id}?days=30`, {
+        const query = new URLSearchParams({
+          usageFrom: formatDateParam(usageRange.from),
+          usageTo: formatDateParam(usageRange.to),
+        });
+
+        const response = await fetch(`${API_BASE}/admin/dashboard/users/${resolvedParams.id}?${query.toString()}`, {
           signal: controller.signal,
         });
 
@@ -498,28 +837,43 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
 
     loadUserDetails();
     return () => controller.abort();
-  }, [resolvedParams.id]);
+  }, [resolvedParams.id, usageRange]);
 
-  const activeLabel = (() => {
-    if (customFrom && customTo) return `${customFrom} → ${customTo}`;
-    if (customDays) return `Last ${customDays} days`;
-    return PRESETS.find((p) => p.value === selectedPreset)?.label ?? "This Month";
-  })();
+  const activeLabel = usageRange.label;
 
   const handlePreset = (value: string) => {
     setSelectedPreset(value);
     setCustomDays("");
     setCustomFrom("");
     setCustomTo("");
+    setAppliedCustomDays("");
+    setAppliedCustomFrom("");
+    setAppliedCustomTo("");
     setShowPicker(false);
   };
 
   const handleCustomDays = () => {
-    if (customDays) { setSelectedPreset(""); setCustomFrom(""); setCustomTo(""); setShowPicker(false); }
+    const parsedDays = Number.parseInt(customDays, 10);
+    if (Number.isFinite(parsedDays) && parsedDays > 0) {
+      setSelectedPreset("");
+      setAppliedCustomDays(String(parsedDays));
+      setAppliedCustomFrom("");
+      setAppliedCustomTo("");
+      setCustomFrom("");
+      setCustomTo("");
+      setShowPicker(false);
+    }
   };
 
   const handleCustomRange = () => {
-    if (customFrom && customTo) { setSelectedPreset(""); setCustomDays(""); setShowPicker(false); }
+    if (parseDateInput(customFrom) && parseDateInput(customTo)) {
+      setSelectedPreset("");
+      setAppliedCustomDays("");
+      setAppliedCustomFrom(customFrom);
+      setAppliedCustomTo(customTo);
+      setCustomDays("");
+      setShowPicker(false);
+    }
   };
 
   const subscription = useMemo(() => buildSubscription(details), [details]);
@@ -528,19 +882,74 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
     () => buildUsedAgentSeries(details, agentTokenUsage),
     [details, agentTokenUsage],
   );
+  const visibleUsageSeries = useMemo(
+    () => usageSeries.filter((agent) => visibleAgents.includes(agent.name)),
+    [usageSeries, visibleAgents],
+  );
   const dailyUsageData = useMemo(
-    () => buildDailyUsageData(details, usageSeries, agentTokenUsage),
-    [details, usageSeries, agentTokenUsage],
+    () => buildDailyUsageData(details, usageSeries, agentTokenUsage, usageRange),
+    [details, usageSeries, agentTokenUsage, usageRange],
   );
   const weeklyUsageData = useMemo(
     () => buildWeeklyUsageData(dailyUsageData, usageSeries),
     [dailyUsageData, usageSeries],
   );
+  const displayDailyUsageData = useMemo(
+    () => buildDisplayUsageData(dailyUsageData, usageSeries, currency),
+    [dailyUsageData, usageSeries, currency],
+  );
+  const displayWeeklyUsageData = useMemo(
+    () => buildDisplayUsageData(weeklyUsageData, usageSeries, currency),
+    [weeklyUsageData, usageSeries, currency],
+  );
   const tokenUsageChartData = agentTokenUsage.map((agent) => ({
     name: agent.name,
-    value: agent.used,
+    value:
+      currency === "tokens"
+        ? agent.used
+        : getClaudeSonnet46Usd(agent.input, agent.output) * (currency === "EUR" ? EUR_RATE : 1),
     color: agent.color,
   }));
+
+  useEffect(() => {
+    setVisibleAgents(usageSeries.map((agent) => agent.name));
+  }, [usageSeries]);
+
+  const toggleAgent = (agentName: string) => {
+    setVisibleAgents((current) =>
+      current.includes(agentName)
+        ? current.filter((agent) => agent !== agentName)
+        : [...current, agentName],
+    );
+  };
+
+  const agentSelector = (
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      <CurrencyToggle currency={currency} onChange={setCurrency} size="small" />
+      {usageSeries.map((agent) => {
+        const isVisible = visibleAgents.includes(agent.name);
+
+        return (
+          <button
+            key={agent.name}
+            type="button"
+            onClick={() => toggleAgent(agent.name)}
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[11px] font-semibold transition ${
+              isVisible
+                ? "border-white/15 bg-white/5 text-white"
+                : "border-white/10 bg-white/[0.02] text-white/35"
+            }`}
+          >
+            <span
+              className="h-2 w-2 rounded-full transition-opacity"
+              style={{ backgroundColor: agent.color, opacity: isVisible ? 1 : 0.35 }}
+            />
+            {agent.name}
+          </button>
+        );
+      })}
+    </div>
+  );
   const displayName = details?.user.username || details?.user.email?.split("@")[0] || (isLoadingUser ? "Loading user..." : "Unknown user");
   const displayEmail = details?.user.email ?? "";
   const displayOauthId = details?.user.oauthId ?? "";
@@ -603,7 +1012,7 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
                     key={p.value}
                     onClick={() => handlePreset(p.value)}
                     className={`rounded-lg px-3 py-2 text-xs font-medium transition ${
-                      selectedPreset === p.value && !customDays && !customFrom
+                      selectedPreset === p.value
                         ? "bg-sky-500/20 text-sky-400 ring-1 ring-sky-500/30"
                         : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
                     }`}
@@ -684,7 +1093,12 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
         <div className={`rounded-xl border p-4 ${usagePercent >= 90 ? "border-red-500/30 bg-red-500/[0.04]" : "border-white/10 bg-white/[0.03]"}`}>
           <p className={`text-[10px] uppercase tracking-wider mb-1.5 ${usagePercent >= 90 ? "text-red-400/60" : "text-white/35"}`}>Used This Cycle</p>
           <p className={`font-mono text-lg ${usagePercent >= 90 ? "text-red-400" : "text-white"}`}>
-            {formatTokensAsCost(subscription.usedThisCycle, currency)}
+            {formatTokensAsCost(
+              subscription.usedThisCycle,
+              currency,
+              subscription.usedThisCycleInput,
+              subscription.usedThisCycleOutput,
+            )}
           </p>
           <p className={`text-[10px] mt-1 uppercase tracking-wider ${usagePercent >= 90 ? "text-red-400/50" : "text-white/30"}`}>
             {usagePercent.toFixed(1)}% used · {stopCount} stops
@@ -763,33 +1177,23 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
           <h2 className="text-lg font-bold">Usage Analytics</h2>
           <span className="rounded-md bg-white/5 px-2.5 py-1 text-[11px] text-white/50">{activeLabel}</span>
         </div>
-        {/* Currency Toggle */}
-        <CurrencyToggle currency={currency} onChange={setCurrency} />
       </div>
 
       {/* ──────── ROW 1: Daily Area Chart (same style as Assignments page) ──────── */}
       <div className="rounded-2xl border border-white/10 bg-[#0F172A] p-6 mb-8">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-5">
-          <h3 className="font-semibold flex items-center gap-2 text-sm">
-            <Activity size={16} className="text-sky-400" />
-            {currency === "tokens" ? "Token Usage by Days" : `Cost by Days — ${currency === "USD" ? "$ USD" : "€ EUR"}`}
+          <h3 className="font-semibold flex items-center gap-2 text-base">
+            <Activity size={18} className="text-emerald-400" />
+            {currency === "tokens" ? "Token Usage by Days (All Agents)" : `Cost by Days — ${currency === "USD" ? "$ USD" : "€ EUR"} (All Agents)`}
           </h3>
-          <div className="flex flex-wrap items-center gap-4 text-[11px] text-white/50">
-            {usageSeries.map((agent) => (
-              <span key={agent.name} className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: agent.color }} />
-                {agent.name}
-              </span>
-            ))}
-            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-red-500" /> Stops</span>
-          </div>
+          {agentSelector}
         </div>
 
         <div className="h-[320px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={dailyUsageData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <ComposedChart data={displayDailyUsageData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <defs>
-                {usageSeries.map((agent, index) => (
+                {visibleUsageSeries.map((agent, index) => (
                   <linearGradient key={agent.name} id={`gradDay${index}`} x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor={agent.color} stopOpacity={0.75} />
                     <stop offset="95%" stopColor={agent.color} stopOpacity={0.25} />
@@ -799,13 +1203,8 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
               <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
               <XAxis dataKey="date" stroke="#ffffff40" fontSize={10} tickMargin={8} interval={2} />
               <YAxis stroke="#ffffff40" fontSize={10} tickFormatter={(v) => formatAxisValue(v, currency)} />
-              <Tooltip
-                contentStyle={{ backgroundColor: "#0f172a", borderColor: "#ffffff15", borderRadius: "10px", fontSize: "12px" }}
-                itemStyle={{ color: "#fff" }}
-                formatter={(value, name) => [formatTokensAsCost(Number(value), currency), String(name)]}
-                labelStyle={{ color: "#ffffff80" }}
-              />
-              {usageSeries.map((agent, index) => (
+              <Tooltip content={(props) => <SortedTooltip {...props} currency={currency} />} />
+              {visibleUsageSeries.map((agent, index) => (
                 <Area
                   key={agent.name}
                   type="monotone"
@@ -846,42 +1245,29 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
       {/* ──────── ROW 2: Weekly Area Chart ──────── */}
       <div className="rounded-2xl border border-white/10 bg-[#0F172A] p-6 mb-8">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-5">
-          <h3 className="font-semibold flex items-center gap-2 text-sm">
-            <Calendar size={16} className="text-emerald-400" />
-            {currency === "tokens" ? "Token Usage by Weeks" : `Cost by Weeks — ${currency === "USD" ? "$ USD" : "€ EUR"}`}
+          <h3 className="font-semibold flex items-center gap-2 text-base">
+            <Calendar size={18} className="text-emerald-400" />
+            {currency === "tokens" ? "Token Usage by Weeks (All Agents)" : `Cost by Weeks — ${currency === "USD" ? "$ USD" : "€ EUR"} (All Agents)`}
           </h3>
-          <div className="flex flex-wrap items-center gap-4 text-[11px] text-white/50">
-            {usageSeries.map((agent) => (
-              <span key={agent.name} className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: agent.color }} />
-                {agent.name}
-              </span>
-            ))}
-            <span className="flex items-center gap-1.5"><OctagonAlert size={11} className="text-red-400" /> Stops</span>
-          </div>
+          {agentSelector}
         </div>
 
         <div className="h-[300px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={weeklyUsageData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+            <ComposedChart data={displayWeeklyUsageData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
               <XAxis dataKey="week" stroke="#ffffff40" fontSize={12} tickMargin={10} />
               <YAxis stroke="#ffffff40" fontSize={12} tickFormatter={(v) => formatAxisValue(v, currency)} />
-              <Tooltip
-                contentStyle={{ backgroundColor: "#0f172a", borderColor: "#ffffff15", borderRadius: "10px", fontSize: "12px" }}
-                cursor={{ fill: "#ffffff05" }}
-                formatter={(value, name) => [formatTokensAsCost(Number(value), currency), String(name)]}
-              />
-              <Legend iconType="circle" />
+              <Tooltip content={(props) => <SortedTooltip {...props} currency={currency} />} />
               <defs>
-                {usageSeries.map((agent, index) => (
+                {visibleUsageSeries.map((agent, index) => (
                   <linearGradient key={agent.name} id={`gradWeek${index}`} x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor={agent.color} stopOpacity={0.75} />
                     <stop offset="95%" stopColor={agent.color} stopOpacity={0.25} />
                   </linearGradient>
                 ))}
               </defs>
-              {usageSeries.map((agent, index) => (
+              {visibleUsageSeries.map((agent, index) => (
                 <Area
                   key={agent.name}
                   type="monotone"
@@ -937,7 +1323,7 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
                 </Pie>
                 <Tooltip
                   contentStyle={{ backgroundColor: "#0f172a", borderColor: "#ffffff15", borderRadius: "10px", fontSize: "12px" }}
-                  formatter={(value) => [formatTokensAsCost(Number(value), currency), ""]}
+                  formatter={(value) => [formatChartValue(Number(value), currency), ""]}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -949,7 +1335,7 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
                   <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: a.color }} />
                   <span className="text-white/70">{a.name}</span>
                 </div>
-                <span className="font-mono text-white/90">{formatTokensAsCost(a.value, currency)}</span>
+                <span className="font-mono text-white/90">{formatChartValue(a.value, currency)}</span>
               </div>
             ))}
           </div>

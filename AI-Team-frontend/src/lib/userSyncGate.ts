@@ -1,27 +1,27 @@
 // Single promise that resolves once the user has been synced to the backend.
-// UserSync component resolves it; services await it before API calls.
+// UserSync resolves it; services await it before API calls.
 
-let _resolve: () => void = () => {}
-let _done = false
+let resolveSync: () => void = () => {}
+let done = false
 
 export const userSyncGate: Promise<void> = new Promise<void>((resolve) => {
-    _resolve = resolve
+  resolveSync = resolve
 })
 
 export function markUserSynced() {
-    _done = true
-    _resolve()
+  done = true
+  resolveSync()
 }
 
 export function isUserSynced() {
-    return _done
+  return done
 }
 
-// Waits for sync with a timeout so pages don't hang forever if sync fails.
 export async function waitForUserSync(timeoutMs = 5000): Promise<void> {
-    if (_done) return
-    await Promise.race([
-        userSyncGate,
-        new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
-    ])
+  if (done) return
+
+  await Promise.race([
+    userSyncGate,
+    new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
+  ])
 }

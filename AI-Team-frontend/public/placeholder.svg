@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="AI agent placeholder">
-  <rect width="512" height="512" fill="#020617"/>
-  <circle cx="256" cy="190" r="86" fill="#0f172a" stroke="#0ea5e9" stroke-width="14"/>
-  <path d="M112 448c24-88 82-132 144-132s120 44 144 132" fill="#0f172a" stroke="#0ea5e9" stroke-width="14" stroke-linecap="round"/>
-  <circle cx="204" cy="182" r="12" fill="#38bdf8"/>
-  <circle cx="308" cy="182" r="12" fill="#38bdf8"/>
-  <path d="M220 230h72" stroke="#38bdf8" stroke-width="12" stroke-linecap="round"/>
-</svg>
