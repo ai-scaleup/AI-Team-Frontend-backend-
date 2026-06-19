@@ -6,6 +6,7 @@ import {
     DEFAULT_PREFERENCES,
     PREFERENCE_LABELS,
 } from '@/types/preferences';
+import { waitForUserSync } from '@/lib/userSyncGate';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "https://ai-team-server.onrender.com";
 
@@ -24,6 +25,7 @@ export const userPreferenceService = {
      * @param agentName - Which agent these preferences are for
      */
     async getOrCreate(oauthId: string, agentName: AgentName): Promise<UserPreference | null> {
+        await waitForUserSync();
         const url = `${API_BASE}/user-preferences/${encodeURIComponent(oauthId)}/${encodeURIComponent(agentName)}/or-create`;
 
         console.log('🔄 [PreferenceService] getOrCreate called');

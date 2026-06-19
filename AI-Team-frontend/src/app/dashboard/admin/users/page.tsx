@@ -10,18 +10,34 @@ import {
 
 /* ──────────────── CURRENCY HELPERS ──────────────── */
 
-const USD_PER_TOKEN = 0.00003;
+const SONNET_4_6_INPUT_USD_PER_TOKEN = 3 / 1000000;
+const SONNET_4_6_OUTPUT_USD_PER_TOKEN = 15 / 1000000;
 const EUR_RATE = 0.92;
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "https://ai-team-server.onrender.com";
 
 type CurrencyMode = "tokens" | "USD" | "EUR";
 
-const formatTokensAsCost = (tokens: number, currency: CurrencyMode): string => {
+const getClaudeSonnet46Usd = (
+  inputTokens = 0,
+  outputTokens = 0,
+): number => {
+  return (
+    inputTokens * SONNET_4_6_INPUT_USD_PER_TOKEN +
+    outputTokens * SONNET_4_6_OUTPUT_USD_PER_TOKEN
+  );
+};
+
+const formatTokensAsCost = (
+  tokens: number,
+  currency: CurrencyMode,
+  inputTokens?: number,
+  outputTokens?: number,
+): string => {
   if (currency === "tokens") {
     if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)}M`;
     return `${(tokens / 1000).toFixed(1)}k`;
   }
-  const usd = tokens * USD_PER_TOKEN;
+  const usd = getClaudeSonnet46Usd(inputTokens, outputTokens);
   if (currency === "EUR") {
     const eur = usd * EUR_RATE;
     if (eur >= 1000) return `€${(eur / 1000).toFixed(1)}k`;
@@ -103,8 +119,14 @@ type ApiUser = {
   memberships?: ApiMembershipAssignment[];
   usage?: {
     monthly?: number;
+    monthlyInputTokens?: number;
+    monthlyOutputTokens?: number;
     weekly?: number;
+    weeklyInputTokens?: number;
+    weeklyOutputTokens?: number;
     daily?: number;
+    dailyInputTokens?: number;
+    dailyOutputTokens?: number;
   };
 };
 
@@ -119,6 +141,8 @@ type UsersResponse = {
     hasPreviousPage: boolean;
     summary?: {
       monthlyTokens?: number;
+      monthlyInputTokens?: number;
+      monthlyOutputTokens?: number;
     };
   };
 };
@@ -132,8 +156,14 @@ type UserRow = {
   duration: number;
   expiration: string;
   monthlyUsage: number;
+  monthlyInputUsage: number;
+  monthlyOutputUsage: number;
   weeklyUsage: number;
+  weeklyInputUsage: number;
+  weeklyOutputUsage: number;
   dailyUsage: number;
+  dailyInputUsage: number;
+  dailyOutputUsage: number;
   status: "active" | "expiring" | "expired";
 };
 
@@ -184,8 +214,14 @@ const mapUser = (user: ApiUser): UserRow => {
     duration: primaryMembership?.template?.durationDays ?? primaryTimedAssignment?.durationDays ?? 0,
     expiration: formatDate(primaryMembership?.expiresAt ?? primaryTimedAssignment?.expiresAt),
     monthlyUsage: user.usage?.monthly ?? 0,
+    monthlyInputUsage: user.usage?.monthlyInputTokens ?? 0,
+    monthlyOutputUsage: user.usage?.monthlyOutputTokens ?? 0,
     weeklyUsage: user.usage?.weekly ?? 0,
+    weeklyInputUsage: user.usage?.weeklyInputTokens ?? 0,
+    weeklyOutputUsage: user.usage?.weeklyOutputTokens ?? 0,
     dailyUsage: user.usage?.daily ?? 0,
+    dailyInputUsage: user.usage?.dailyInputTokens ?? 0,
+    dailyOutputUsage: user.usage?.dailyOutputTokens ?? 0,
     status: hasActiveAccess
       ? getStatus(
           primaryMembership?.expiresAt ?? primaryTimedAssignment?.expiresAt,
@@ -445,6 +481,12 @@ export default function AllUsersPage() {
   const totalMonthlyTokens =
     pagination?.summary?.monthlyTokens ??
     filteredUsers.reduce((s, u) => s + u.monthlyUsage, 0);
+  const totalMonthlyInputTokens =
+    pagination?.summary?.monthlyInputTokens ??
+    filteredUsers.reduce((s, u) => s + u.monthlyInputUsage, 0);
+  const totalMonthlyOutputTokens =
+    pagination?.summary?.monthlyOutputTokens ??
+    filteredUsers.reduce((s, u) => s + u.monthlyOutputUsage, 0);
 
   const totalPages = Math.max(pagination?.totalPages ?? 1, 1);
   const currentPage = pagination?.page ?? page;
@@ -550,7 +592,7 @@ export default function AllUsersPage() {
               {currency === "tokens" ? "Total Monthly Tokens" : currency === "USD" ? "Total Monthly Cost ($)" : "Total Monthly Cost (€)"}
             </p>
             <p className="text-xl font-bold font-mono text-sky-400">
-              {formatTokensAsCost(totalMonthlyTokens, currency)}
+              {formatTokensAsCost(totalMonthlyTokens, currency, totalMonthlyInputTokens, totalMonthlyOutputTokens)}
             </p>
           </div>
         </div>
@@ -767,13 +809,13 @@ export default function AllUsersPage() {
                     </span>
                   </td>
                   <td className="px-4 py-4 text-right font-mono text-sky-300">
-                    {formatTokensAsCost(user.monthlyUsage, currency)}
+                    {formatTokensAsCost(user.monthlyUsage, currency, user.monthlyInputUsage, user.monthlyOutputUsage)}
                   </td>
                   <td className="px-4 py-4 text-right font-mono text-sky-400/70">
-                    {formatTokensAsCost(user.weeklyUsage, currency)}
+                    {formatTokensAsCost(user.weeklyUsage, currency, user.weeklyInputUsage, user.weeklyOutputUsage)}
                   </td>
                   <td className="px-4 py-4 text-right font-mono text-sky-400/50">
-                    {formatTokensAsCost(user.dailyUsage, currency)}
+                    {formatTokensAsCost(user.dailyUsage, currency, user.dailyInputUsage, user.dailyOutputUsage)}
                   </td>
                   <td className="px-4 py-4 text-right">
                     <button className="text-white/30 hover:text-white transition opacity-0 group-hover:opacity-100"><MoreVertical size={16} /></button>

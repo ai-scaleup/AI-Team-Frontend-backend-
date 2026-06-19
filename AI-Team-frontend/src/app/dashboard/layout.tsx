@@ -1,5 +1,6 @@
 import GiuliaWidget from '@/components/ui/GiuliaWidget';
 import TokenAlertsAnnouncer from '@/components/ui/TokenAlertsAnnouncer';
+import UserSync from '@/components/ui/UserSync';
 import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
@@ -20,6 +21,7 @@ export default function DashboardLayout({
       {/* Your existing dashboard shell/header/sidebar goes here */}
       {children}
 
+      <UserSync />
       <TokenAlertsAnnouncer />
       {/* Mount Giulia widget globally on all dashboard pages */}
       <GiuliaWidget />

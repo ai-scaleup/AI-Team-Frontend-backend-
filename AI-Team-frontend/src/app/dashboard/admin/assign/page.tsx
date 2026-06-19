@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from "recharts";
@@ -52,8 +52,8 @@ const getAgentColor = (agent: string, index = 0) =>
 
 /* ──────────────── CURRENCY HELPERS ──────────────── */
 
-// Mock cost rate: $0.03 per 1,000 tokens
-const USD_PER_TOKEN = 0.00003;
+const SONNET_4_6_INPUT_USD_PER_TOKEN = 3 / 1000000;
+const SONNET_4_6_OUTPUT_USD_PER_TOKEN = 15 / 1000000;
 const EUR_RATE = 0.92; // 1 USD = 0.92 EUR
 
 type CurrencyMode = "tokens" | "USD" | "EUR";
@@ -112,6 +112,8 @@ type TopUserByAgent = {
   name: string;
   email: string;
   tokens: number;
+  inputTokens?: number;
+  outputTokens?: number;
 };
 
 type AgentMetricsResponse = {
@@ -121,12 +123,25 @@ type AgentMetricsResponse = {
   topUsersByAgent: Record<string, TopUserByAgent[]>;
 };
 
-const formatTokensAsCost = (tokens: number, currency: CurrencyMode): string => {
+const inputKey = (agentName: string) => `${agentName}__input`;
+const outputKey = (agentName: string) => `${agentName}__output`;
+
+const getClaudeSonnet46Usd = (inputTokens = 0, outputTokens = 0) =>
+  inputTokens * SONNET_4_6_INPUT_USD_PER_TOKEN +
+  outputTokens * SONNET_4_6_OUTPUT_USD_PER_TOKEN;
+
+const formatTokensAsCost = (
+  tokens: number,
+  currency: CurrencyMode,
+  inputTokens?: number,
+  outputTokens?: number,
+): string => {
   if (currency === "tokens") {
     if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)}M`;
     return `${(tokens / 1000).toFixed(1)}k`;
   }
-  const usd = tokens * USD_PER_TOKEN;
+  if (inputTokens === undefined || outputTokens === undefined) return "—";
+  const usd = getClaudeSonnet46Usd(inputTokens, outputTokens);
   if (currency === "EUR") {
     const eur = usd * EUR_RATE;
     if (eur >= 1000) return `€${(eur / 1000).toFixed(1)}k`;
@@ -141,12 +156,45 @@ const formatTokensAsCost = (tokens: number, currency: CurrencyMode): string => {
 
 const formatAxisValue = (value: number, currency: CurrencyMode): string => {
   if (currency === "tokens") return `${value / 1000}k`;
-  const usd = value * USD_PER_TOKEN;
+  const usd = currency === "EUR" ? value / EUR_RATE : value;
   if (currency === "EUR") {
-    const eur = usd * EUR_RATE;
-    return `€${eur.toFixed(2)}`;
+    return `€${value.toFixed(value >= 1 ? 1 : 2)}`;
   }
-  return `$${usd.toFixed(2)}`;
+  return `$${usd.toFixed(usd >= 1 ? 1 : 2)}`;
+};
+
+const formatChartValue = (value: number, currency: CurrencyMode): string => {
+  if (currency === "tokens") {
+    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+    return `${(value / 1000).toFixed(1)}k`;
+  }
+  if (currency === "EUR") return value >= 1000 ? `€${(value / 1000).toFixed(1)}k` : `€${value.toFixed(value >= 1 ? 2 : 3)}`;
+  return value >= 1000 ? `$${(value / 1000).toFixed(1)}k` : `$${value.toFixed(value >= 1 ? 2 : 3)}`;
+};
+
+const buildDisplayUsageData = (
+  usageData: AgentUsagePoint[],
+  agents: string[],
+  currency: CurrencyMode,
+): AgentUsagePoint[] => {
+  if (currency === "tokens") return usageData;
+
+  const currencyMultiplier = currency === "EUR" ? EUR_RATE : 1;
+  return usageData.map((point) => {
+    const displayPoint: AgentUsagePoint = { ...point, total: 0 };
+
+    agents.forEach((agent) => {
+      const cost =
+        getClaudeSonnet46Usd(
+          Number(point[inputKey(agent)] ?? 0),
+          Number(point[outputKey(agent)] ?? 0),
+        ) * currencyMultiplier;
+      displayPoint[agent] = cost;
+      displayPoint.total = Number(displayPoint.total ?? 0) + cost;
+    });
+
+    return displayPoint;
+  });
 };
 
 const formatRecentAssignmentDate = (value: string) =>
@@ -581,6 +629,14 @@ export default function AssignAndMetricsPage() {
 
   const metricAgents = agentMetrics.agents.length > 0 ? agentMetrics.agents : DEFAULT_VISIBLE_AGENTS;
   const selectedTopUsers = agentMetrics.topUsersByAgent[selectedAgentTab] ?? [];
+  const displayDailyUsage = useMemo(
+    () => buildDisplayUsageData(agentMetrics.dailyUsage, metricAgents, currency),
+    [agentMetrics.dailyUsage, metricAgents, currency],
+  );
+  const displayWeeklyUsage = useMemo(
+    () => buildDisplayUsageData(agentMetrics.weeklyUsage, metricAgents, currency),
+    [agentMetrics.weeklyUsage, metricAgents, currency],
+  );
 
   return (
     <div className="p-8 max-w-[1600px] mx-auto">
@@ -847,7 +903,7 @@ export default function AssignAndMetricsPage() {
         )}
         <div className="h-[400px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={agentMetrics.dailyUsage} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <AreaChart data={displayDailyUsage} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <defs>
                 {metricAgents.map((agent, index) => {
                   const color = getAgentColor(agent, index);
@@ -869,7 +925,7 @@ export default function AssignAndMetricsPage() {
               <Tooltip
                 contentStyle={{ backgroundColor: "#0f172a", borderColor: "#ffffff15", borderRadius: "10px", fontSize: "12px" }}
                 itemStyle={{ color: "#fff" }}
-                formatter={(value, name) => [formatTokensAsCost(Number(value), currency), String(name)]}
+                formatter={(value, name) => [formatChartValue(Number(value), currency), String(name)]}
                 labelStyle={{ color: "#ffffff80" }}
               />
               {metricAgents.map((agent, index) => {
@@ -928,7 +984,7 @@ export default function AssignAndMetricsPage() {
 
         <div className="h-[360px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={agentMetrics.weeklyUsage} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <AreaChart data={displayWeeklyUsage} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <defs>
                 {metricAgents.map((agent, index) => {
                   const color = getAgentColor(agent, index);
@@ -950,7 +1006,7 @@ export default function AssignAndMetricsPage() {
               <Tooltip
                 contentStyle={{ backgroundColor: "#0f172a", borderColor: "#ffffff15", borderRadius: "10px", fontSize: "12px" }}
                 itemStyle={{ color: "#fff" }}
-                formatter={(value, name) => [formatTokensAsCost(Number(value), currency), String(name)]}
+                formatter={(value, name) => [formatChartValue(Number(value), currency), String(name)]}
                 labelStyle={{ color: "#ffffff80" }}
               />
               {metricAgents.map((agent, index) => {
@@ -1062,7 +1118,7 @@ export default function AssignAndMetricsPage() {
                     <td className="px-4 py-3.5 font-medium text-white">{user.name}</td>
                     <td className="px-4 py-3.5 text-white/50">{user.email}</td>
                     <td className="px-4 py-3.5 text-right font-mono text-sky-400">
-                      {formatTokensAsCost(user.tokens, currency)}
+                      {formatTokensAsCost(user.tokens, currency, user.inputTokens, user.outputTokens)}
                     </td>
                     <td className="px-4 py-3.5 text-right">
                       <div className="flex items-center justify-end gap-2">
