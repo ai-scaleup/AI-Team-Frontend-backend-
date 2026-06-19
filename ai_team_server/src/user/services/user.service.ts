@@ -434,10 +434,35 @@ export class UserService {
     email: string,
     username?: string,
   ): Promise<User> {
-    return this.prisma.user.upsert({
-      where: { oauthId },
-      create: { oauthId, email, username },
-      update: { email, username },
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // 1. Known oauthId → just refresh contact fields.
+    const byOauthId = await this.prisma.user.findUnique({ where: { oauthId } });
+    if (byOauthId) {
+      return this.prisma.user.update({
+        where: { oauthId },
+        data: { email: normalizedEmail, username },
+      });
+    }
+
+    // 2. Unknown oauthId but the email already exists (e.g. the user
+    //    re-authenticated and Clerk issued a new id, or the row was seeded
+    //    from an export). Reconcile by moving the existing account to the new
+    //    oauthId instead of trying to create a duplicate and hitting the
+    //    `email @unique` constraint.
+    const byEmail = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
+    if (byEmail) {
+      return this.prisma.user.update({
+        where: { id: byEmail.id },
+        data: { oauthId, username: username ?? byEmail.username ?? undefined },
+      });
+    }
+
+    // 3. Brand new user.
+    return this.prisma.user.create({
+      data: { oauthId, email: normalizedEmail, username },
     });
   }
 
