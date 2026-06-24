@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 export const dynamic = "force-dynamic"
 
@@ -34,6 +34,7 @@ import {
   ExternalLink,
   Menu,
   Home,
+  BookOpen,
 } from "lucide-react"
 import { useUser } from "@clerk/nextjs"
 import { conversationService } from "@/services/conversationService"
@@ -2173,6 +2174,14 @@ export default function App() {
                     className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-cyan-500 hover:bg-cyan-400 text-white shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 transition-all border-t border-white/20 flex items-center justify-center group cursor-pointer"
                   >
                     <Home size={18} strokeWidth={2.5} className="group-hover:scale-110 transition-transform" />
+                  </a>
+
+                  <a
+                    href="/dashboard/knowledgebase"
+                    className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50 transition-all border-t border-white/20 flex items-center justify-center group cursor-pointer"
+                    title="Knowledgebase"
+                  >
+                    <BookOpen size={18} strokeWidth={2.5} className="group-hover:scale-110 transition-transform" />
                   </a>
                   <div className="hidden sm:block">
                     <UserButton

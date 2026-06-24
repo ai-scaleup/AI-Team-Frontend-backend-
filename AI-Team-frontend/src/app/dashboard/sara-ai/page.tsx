@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 
 
@@ -20,7 +20,7 @@ import {
     ChevronRight, Users, LayoutGrid, ChevronLeft, BrainCircuit, FolderPlus, Folder,
     FolderOpen, ChevronDown, MoreHorizontal, Share, Archive, X, RotateCcw, FileText,
     ExternalLink, Menu, Home, BarChart3, Smartphone, Search, Filter, Download,
-    ArrowDownRight, RefreshCw, Book, Tag, ArrowLeft, QrCode
+    ArrowDownRight, RefreshCw, Book, Tag, ArrowLeft, QrCode, BookOpen
 } from "lucide-react"
 import { saraAiService } from "@/services/saraAiService"
 import type { ChatSession as SaraSession, ChatMessage as SaraMessage, StatsResponse, DailyAnalyticsBucket } from "@/types/sara-ai"
@@ -1740,6 +1740,13 @@ export default function App() {
                                 </div>
                                 <div className="flex items-center gap-4">
                                     <button onClick={() => setIsDark(!isDark)} className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 transition text-slate-300"><Sun size={20} /></button>
+                                    <a
+                                        href="/dashboard/knowledgebase"
+                                        className="p-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50 transition-all border-t border-white/20 flex items-center justify-center group cursor-pointer"
+                                        title="Knowledgebase"
+                                    >
+                                        <BookOpen size={20} strokeWidth={2.5} className="group-hover:scale-110 transition-transform" />
+                                    </a>
                                     <MockUserButton />
                                 </div>
                             </div>
