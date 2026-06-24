@@ -35,6 +35,7 @@ import {
   Menu,
   Home,
   AlertTriangle,
+  BookOpen,
 } from "lucide-react"
 import PreferencesWizard from "@/components/preferences/PreferencesWizard"
 import PreferencesButton from "@/components/preferences/PreferencesButton"
@@ -2042,7 +2043,7 @@ export default function App() {
                         className={`text-sm leading-tight max-w-md ${isDark ? "text-slate-300" : "text-slate-700"} font-medium`}
                       >
                         {currentAgent.role}
-                      </p>
+                      </p>
                     </div>
                   </div>
                 </div>
