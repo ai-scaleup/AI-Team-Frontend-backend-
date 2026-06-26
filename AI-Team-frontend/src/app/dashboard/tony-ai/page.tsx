@@ -430,7 +430,7 @@ export default function App() {
     fetch(`${API_BASE}/token-usage/${userIdentifier}/TONY`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (data) setTokenUsage(data)
+        if (data) { /* token usage UI disabled */ }
       })
       .catch(() => {})
   }, [userEmail])
@@ -1333,7 +1333,7 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
           const updated = await fetch(`${API_BASE}/token-usage/${userIdentifier}/TONY`).then((r) =>
             r.ok ? r.json() : null,
           )
-          if (updated) setTokenUsage(updated)
+          if (updated) { /* token usage UI disabled */ }
         }
       } catch (err) {
         console.error("Tony AI: Failed to update token usage:", err)

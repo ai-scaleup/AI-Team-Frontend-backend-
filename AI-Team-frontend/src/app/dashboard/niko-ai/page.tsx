@@ -435,7 +435,7 @@ export default function App() {
     fetch(`${API_BASE}/token-usage/${userIdentifier}/NIKO`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (data) setTokenUsage(data)
+        if (data) { /* token usage UI disabled */ }
       })
       .catch(() => {})
   }, [userEmail])
@@ -1348,7 +1348,7 @@ export default function App() {
           const updated = await fetch(`${API_BASE}/token-usage/${userIdentifier}/NIKO`).then((r) =>
             r.ok ? r.json() : null,
           )
-          if (updated) setTokenUsage(updated)
+          if (updated) { /* token usage UI disabled */ }
         }
       } catch (err) {
         console.error("Niko AI: Failed to update token usage:", err)

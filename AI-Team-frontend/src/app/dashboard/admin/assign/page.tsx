@@ -25,7 +25,19 @@ const ALL_AGENTS = [
 
 const DEFAULT_VISIBLE_AGENTS = ALL_AGENTS;
 
-const AGENT_COLORS: Record<string, string> = {};
+// Keep agent colors stable even when the API returns agents in a different order.
+const AGENT_COLORS: Record<string, string> = {
+  SARA_AI: "#06b6d4", JENNIFER_AI: "#e879f9", CHIARA_AI: "#f472b6",
+  JIM: "#f59e0b", ALEX: "#f87171", MIKE: "#8b5cf6", TONY: "#fb7185",
+  LARA: "#fbbf24", VALENTINA: "#ec4899", DANIELE: "#4ade80",
+  SIMONE: "#2dd4bf", NIKO: "#fb923c", ALADINO: "#38bdf8", LAURA: "#c084fc",
+  DAN: "#84cc16", MAX: "#14b8a6", SOFIA: "#fde047", ROBERTA: "#a855f7",
+  TEST_SARA_AI: "#0ea5e9", TEST_JENNIFER_AI: "#d946ef", TEST_CHIARA_AI: "#db2777",
+  TEST_JIM: "#d97706", TEST_ALEX: "#ef4444", TEST_MIKE: "#7c3aed", TEST_TONY: "#e11d48",
+  TEST_LARA: "#eab308", TEST_VALENTINA: "#be185d", TEST_DANIELE: "#22c55e",
+  TEST_SIMONE: "#0d9488", TEST_NIKO: "#ea580c", TEST_ALADINO: "#2563eb", TEST_LAURA: "#9333ea",
+  TEST_DAN: "#65a30d", TEST_MAX: "#0f766e", TEST_SOFIA: "#ca8a04", TEST_ROBERTA: "#7e22ce",
+};
 
 const COLOR_PALETTE = [
   "#38bdf8",  // sky blue   (~200°)
@@ -939,8 +951,8 @@ export default function AssignAndMetricsPage() {
                   const color = getAgentColor(agent, index);
                   return (
                   <linearGradient key={agent} id={`grad-${agent}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={color} stopOpacity={0.6} />
-                    <stop offset="95%" stopColor={color} stopOpacity={0.05} />
+                    <stop offset="5%" stopColor={color} stopOpacity={0.24} />
+                    <stop offset="95%" stopColor={color} stopOpacity={0.02} />
                   </linearGradient>
                   );
                 })}
@@ -961,7 +973,6 @@ export default function AssignAndMetricsPage() {
                     key={agent}
                     type="monotone"
                     dataKey={agent}
-                    stackId="1"
                     stroke={color}
                     fill={`url(#grad-${agent})`}
                     strokeWidth={1.5}
@@ -1015,8 +1026,8 @@ export default function AssignAndMetricsPage() {
                   const color = getAgentColor(agent, index);
                   return (
                   <linearGradient key={agent} id={`wgrad-${agent}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor={color} stopOpacity={0.65} />
-                    <stop offset="95%" stopColor={color} stopOpacity={0.05} />
+                    <stop offset="5%"  stopColor={color} stopOpacity={0.24} />
+                    <stop offset="95%" stopColor={color} stopOpacity={0.02} />
                   </linearGradient>
                   );
                 })}
@@ -1037,7 +1048,6 @@ export default function AssignAndMetricsPage() {
                     key={agent}
                     type="monotone"
                     dataKey={agent}
-                    stackId="w"
                     stroke={color}
                     fill={`url(#wgrad-${agent})`}
                     strokeWidth={1.5}
