@@ -449,32 +449,6 @@ export default function App() {
       setSidebarVisible(false)
     }
 
-    const savedChats = localStorage.getItem("simone-ai-chats")
-    if (savedChats) {
-      try {
-        const parsedChats = JSON.parse(savedChats) as Record<string, ChatSession>
-        setChats(parsedChats)
-        if (Object.keys(parsedChats).length > 0) {
-          const sorted = Object.entries(parsedChats).sort(
-            ([, a], [, b]) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime(),
-          )
-          const recentChatId = sorted[0][0]
-          setCurrentChatId(recentChatId)
-          setMessages(parsedChats[recentChatId].messages || [])
-          if (parsedChats[recentChatId].agentId) {
-            setActiveAgentId(parsedChats[recentChatId].agentId)
-          }
-        } else {
-          initNewChatForAgent(currentAgent)
-        }
-      } catch (e) {
-        console.error("Failed to parse saved chats", e)
-        initNewChatForAgent(currentAgent)
-      }
-    } else {
-      initNewChatForAgent(currentAgent)
-    }
-
     const savedFolders = localStorage.getItem("simone-ai-folders")
     if (savedFolders) {
       try {
@@ -493,11 +467,11 @@ export default function App() {
     console.log("🔍 API Base URL:", API_BASE || "(empty - will use relative path)")
 
     const migrationKey = "simone-ai-migrated"
-    const migrationVersionKey = "simone-ai-migration-v5"
+    const migrationVersionKey = "simone-ai-migration-v6"
 
-    const hasMigrationV5 = localStorage.getItem(migrationVersionKey)
-    if (!hasMigrationV5) {
-      console.log("🔄 Simone AI: Migration v5 not found, forcing re-migration...")
+    const hasMigrationV6 = localStorage.getItem(migrationVersionKey)
+    if (!hasMigrationV6) {
+      console.log("🔄 Simone AI: Migration v6 not found, forcing re-migration...")
       localStorage.removeItem(migrationKey)
       localStorage.setItem(migrationVersionKey, "true")
     }
@@ -824,7 +798,7 @@ export default function App() {
     }
   }
 
-  const initNewChatForAgent = (agent: any, specificAgentId?: string) => {
+  const initNewChatForAgent = async (agent: any, specificAgentId?: string) => {
     const targetAgentId = specificAgentId || activeAgentId
     const newChatId = "chat_" + Date.now()
     const newSessionId = "session_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9)
@@ -844,21 +818,39 @@ export default function App() {
     setCurrentChatId(newChatId)
     setMessages([welcomeMsg])
 
+    const newChat: ChatSession = {
+      id: newChatId,
+      messages: [welcomeMsg],
+      title: `Missione con ${agent.name}`,
+      lastUpdated: new Date().toISOString(),
+      folderId: null,
+      archived: false,
+      agentId: targetAgentId,
+      sessionId: newSessionId,
+    }
+
     setChats((prev) => {
-      const newChat: ChatSession = {
-        id: newChatId,
-        messages: [welcomeMsg],
-        title: `Missione con ${agent.name}`,
-        lastUpdated: new Date().toISOString(),
-        folderId: null,
-        archived: false,
-        agentId: targetAgentId,
-        sessionId: newSessionId, // Store sessionId with the chat
-      }
       const newChats = { [newChatId]: newChat, ...prev }
       localStorage.setItem("simone-ai-chats", JSON.stringify(newChats))
       return newChats
     })
+
+    if (user?.id) {
+      try {
+        await conversationService.createConversation(user.id, {
+          id: newChatId,
+          title: `Missione con ${agent.name}`,
+          agentId: targetAgentId,
+          sessionId: newSessionId,
+          folderId: null,
+          archived: false,
+          messages: [welcomeMsg],
+        })
+        console.log("Simone AI: Conversation created in database:", newChatId)
+      } catch (error) {
+        console.error("Simone AI: Failed to create conversation in database:", error)
+      }
+    }
   }
 
   const updateChatState = (chatId: string, updates: Partial<ChatSession>) => {
@@ -872,13 +864,13 @@ export default function App() {
     })
   }
 
-  const createNewChat = () => {
-    initNewChatForAgent(currentAgent)
+  const createNewChat = async () => {
+    await initNewChatForAgent(currentAgent)
     setSidebarVisible(true)
     setSidebarMode("chats")
   }
 
-  const loadChat = (chatId: string) => {
+  const loadChat = async (chatId: string) => {
     if (!chats[chatId]) return
     setCurrentChatId(chatId)
     setMessages(chats[chatId].messages || [])
@@ -888,6 +880,22 @@ export default function App() {
     setActiveMenu(null)
     if (window.innerWidth < 768) {
       setSidebarVisible(false)
+    }
+
+    if (user?.id) {
+      try {
+        const apiMessages = await conversationService.getMessages(user.id, chatId)
+        if (apiMessages && apiMessages.length > 0) {
+          setMessages(apiMessages)
+          setChats((prev) => ({
+            ...prev,
+            [chatId]: { ...prev[chatId], messages: apiMessages },
+          }))
+          console.log("Simone AI: Loaded", apiMessages.length, "messages from API for chat:", chatId)
+        }
+      } catch (error) {
+        console.error("Simone AI: Failed to load messages from API:", error)
+      }
     }
   }
 
@@ -948,7 +956,7 @@ export default function App() {
   }
 
   // --- CONTEXT MENU ACTIONS ---
-  const deleteChat = (chatIdToDelete: string, e?: React.MouseEvent) => {
+  const deleteChat = async (chatIdToDelete: string, e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault()
       e.stopPropagation()
@@ -959,6 +967,15 @@ export default function App() {
 
     if (!confirm("Sei sicuro di voler eliminare questa chat?")) return
 
+    if (user?.id) {
+      try {
+        await conversationService.deleteConversation(user.id, chatIdToDelete)
+        console.log("Simone AI: Conversation deleted from database:", chatIdToDelete)
+      } catch (error) {
+        console.error("Simone AI: Failed to delete conversation from database:", error)
+      }
+    }
+
     const updatedChats = { ...chats }
     if (!updatedChats[chatIdToDelete]) return
 
@@ -966,31 +983,7 @@ export default function App() {
     const remainingIds = Object.keys(updatedChats)
 
     if (remainingIds.length === 0) {
-      const agent = AGENTS_DB[activeAgentId]
-      const newChatId = "chat_" + Date.now()
-      const welcomeMsg: Message = {
-        text: `Ciao! Sono **${agent.name}**. ${agent.description} Come posso aiutarti?`,
-        sender: "ai",
-        time: new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }),
-      }
-
-      const newChatState = {
-        [newChatId]: {
-          id: newChatId,
-          messages: [welcomeMsg],
-          title: `Missione con ${agent.name}`,
-          lastUpdated: new Date().toISOString(),
-          folderId: null,
-          archived: false,
-          agentId: activeAgentId,
-          sessionId: "session_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9),
-        },
-      }
-
-      localStorage.setItem("simone-ai-chats", JSON.stringify(newChatState))
-      setChats(newChatState)
-      setCurrentChatId(newChatId)
-      setMessages([welcomeMsg])
+      await initNewChatForAgent(AGENTS_DB[activeAgentId])
     } else {
       localStorage.setItem("simone-ai-chats", JSON.stringify(updatedChats))
       setChats(updatedChats)
@@ -1026,12 +1019,24 @@ export default function App() {
     setActiveMenu(null)
   }
 
-  const confirmRename = (chatId: string) => {
+  const confirmRename = async (chatId: string) => {
     if (!renameValue.trim()) {
       setRenamingChat(null)
       return
     }
-    updateChatState(chatId, { title: renameValue.trim() })
+
+    const newTitle = renameValue.trim()
+    updateChatState(chatId, { title: newTitle })
+
+    if (user?.id) {
+      try {
+        await conversationService.updateConversation(user.id, chatId, { title: newTitle })
+        console.log("Simone AI: Conversation renamed in database:", chatId, "->", newTitle)
+      } catch (error) {
+        console.error("Simone AI: Failed to rename conversation in database:", error)
+      }
+    }
+
     setRenamingChat(null)
     setRenameValue("")
   }
@@ -1069,6 +1074,59 @@ export default function App() {
       return simpleMarkdown.parse(text)
     } catch (e) {
       return text
+    }
+  }
+
+  const toPersistableMessage = (message: Message) => ({
+    text: message.text.trim() || `[File: ${message.files?.join(", ") || "attachment"}]`,
+    sender: message.sender,
+    time: message.time,
+  })
+
+  const isNotFoundError = (error: unknown) => {
+    if (!(error instanceof Error)) return false
+    const message = error.message.toLowerCase()
+    return message.includes("404") || message.includes("not found")
+  }
+
+  const createConversationFromChat = async (chatId: string, chat: ChatSession, chatMessages: Message[]) => {
+    if (!user?.id) return
+
+    await conversationService.createConversation(user.id, {
+      id: chatId,
+      title: chat.title || "Nuova Missione",
+      agentId: chat.agentId || activeAgentId,
+      sessionId: chat.sessionId || `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      folderId: chat.folderId || null,
+      archived: chat.archived || false,
+      messages: chatMessages.map(toPersistableMessage),
+    })
+  }
+
+  const saveMessageToApi = async (
+    chatId: string,
+    chat: ChatSession,
+    message: Message,
+    chatMessages: Message[],
+    label: string,
+  ) => {
+    if (!user?.id) return
+
+    try {
+      await conversationService.addMessage(user.id, chatId, toPersistableMessage(message))
+      console.log(`Simone AI: ${label} message saved to API`)
+    } catch (error) {
+      if (!isNotFoundError(error)) {
+        console.error(`Simone AI: Failed to save ${label} message:`, error)
+        return
+      }
+
+      try {
+        await createConversationFromChat(chatId, chat, chatMessages)
+        console.log("Simone AI: Missing conversation recreated in API:", chatId)
+      } catch (recreateError) {
+        console.error("Simone AI: Failed to recreate missing conversation:", recreateError)
+      }
     }
   }
 
@@ -1113,6 +1171,7 @@ export default function App() {
 
     // Handle creating a new chat if none is active
     let currentChatIdForSend = currentChatId
+    let activeChatForSend = currentChatIdForSend ? chats[currentChatIdForSend] : undefined
     if (!currentChatIdForSend) {
       const newChatId = "chat_" + Date.now()
       const newSessionId = "session_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9)
@@ -1138,20 +1197,47 @@ export default function App() {
       setCurrentChatId(newChatId)
       currentChatIdForSend = newChatId
       currentMessages = [welcomeMsg, userMessage]
+      activeChatForSend = newChat
       setMessages(currentMessages)
       localStorage.setItem("simone-ai-chats", JSON.stringify(updatedChatsState))
+
+      if (user?.id) {
+        try {
+          await conversationService.createConversation(user.id, {
+            id: newChatId,
+            title: `Missione con ${agent.name}`,
+            agentId: activeAgentId,
+            sessionId: newSessionId,
+            folderId: null,
+            archived: false,
+            messages: currentMessages.map(toPersistableMessage),
+          })
+          console.log("✅ Simone AI: New conversation created with messages")
+        } catch (error) {
+          console.error("❌ Simone AI: Failed to create conversation:", error)
+        }
+      }
     } else {
       // Add user message to existing chat
-      const updatedChatSession = {
-        ...chats[currentChatIdForSend],
+      const existingChat = chats[currentChatIdForSend]
+      const updatedChatSession: ChatSession = {
+        id: currentChatIdForSend,
         messages: currentMessages,
         lastUpdated: new Date().toISOString(),
-        title: chats[currentChatIdForSend]?.title || inputValue.slice(0, 30) || "Nuova Missione",
+        title: existingChat?.title || inputValue.slice(0, 30) || "Nuova Missione",
+        folderId: existingChat?.folderId || null,
+        archived: existingChat?.archived || false,
+        agentId: existingChat?.agentId || activeAgentId,
+        sessionId:
+          existingChat?.sessionId || `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       }
       const updatedChatsState = { ...chats, [currentChatIdForSend]: updatedChatSession }
       setChats(updatedChatsState)
       setMessages(currentMessages)
       localStorage.setItem("simone-ai-chats", JSON.stringify(updatedChatsState))
+      activeChatForSend = updatedChatSession
+
+      await saveMessageToApi(currentChatIdForSend, updatedChatSession, userMessage, currentMessages, "User")
     }
 
     // Add a placeholder for the AI's response
@@ -1159,15 +1245,25 @@ export default function App() {
     setMessages((prev) => [...prev, aiResponsePlaceholder])
 
     try {
-      const currentChat = chats[currentChatIdForSend!]
+      const currentChat = activeChatForSend || chats[currentChatIdForSend!]
       let sessionId = currentChat?.sessionId
 
       if (!sessionId) {
         sessionId = "session_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9)
-        const updatedChat = { ...currentChat, sessionId }
+        const updatedChat: ChatSession = {
+          id: currentChatIdForSend!,
+          title: currentChat?.title || "Nuova Missione",
+          messages: currentMessages,
+          lastUpdated: new Date().toISOString(),
+          folderId: currentChat?.folderId || null,
+          archived: currentChat?.archived || false,
+          agentId: currentChat?.agentId || activeAgentId,
+          sessionId,
+        }
         const updatedChatsState = { ...chats, [currentChatIdForSend!]: updatedChat }
         setChats(updatedChatsState)
         localStorage.setItem("simone-ai-chats", JSON.stringify(updatedChatsState))
+        activeChatForSend = updatedChat
       }
 
       if (!currentChatIdForSend) throw new Error("currentChatIdForSend is null")
@@ -1237,20 +1333,30 @@ export default function App() {
         raw: rawText,
       }
 
-      setMessages((prev) => {
-        const newMsgs = [...prev]
-        newMsgs[newMsgs.length - 1] = finalAiMessage
-        // Update the chat in state and localStorage
-        const updatedChatSession = {
-          ...chats[currentChatIdForSend!],
-          messages: newMsgs,
-          lastUpdated: new Date().toISOString(),
-        }
-        const updatedChatsState = { ...chats, [currentChatIdForSend!]: updatedChatSession }
-        localStorage.setItem("simone-ai-chats", JSON.stringify(updatedChatsState))
-        setChats(updatedChatsState)
-        return newMsgs
-      })
+      const finalMessages = [...currentMessages, finalAiMessage]
+      const updatedChatSession: ChatSession = {
+        id: currentChatIdForSend!,
+        title: activeChatForSend?.title || chats[currentChatIdForSend!]?.title || "Nuova Missione",
+        messages: finalMessages,
+        lastUpdated: new Date().toISOString(),
+        folderId: activeChatForSend?.folderId || chats[currentChatIdForSend!]?.folderId || null,
+        archived: activeChatForSend?.archived || chats[currentChatIdForSend!]?.archived || false,
+        agentId: activeChatForSend?.agentId || chats[currentChatIdForSend!]?.agentId || activeAgentId,
+        sessionId:
+          activeChatForSend?.sessionId ||
+          chats[currentChatIdForSend!]?.sessionId ||
+          sessionId ||
+          `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      }
+      const updatedChatsState = { ...chats, [currentChatIdForSend!]: updatedChatSession }
+      setMessages(finalMessages)
+      setChats(updatedChatsState)
+      localStorage.setItem("simone-ai-chats", JSON.stringify(updatedChatsState))
+      activeChatForSend = updatedChatSession
+
+      if (currentChatIdForSend) {
+        await saveMessageToApi(currentChatIdForSend, updatedChatSession, finalAiMessage, finalMessages, "AI")
+      }
 
       const userIdentifier = userEmail ? encodeURIComponent(userEmail) : ""
       const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""
@@ -1919,7 +2025,7 @@ export default function App() {
                         className={`text-sm leading-tight max-w-md ${isDark ? "text-slate-300" : "text-slate-700"} font-medium`}
                       >
                         {currentAgent.role}
-                      </p>
+                      </p>
                     </div>
                   </div>
                 </div>
