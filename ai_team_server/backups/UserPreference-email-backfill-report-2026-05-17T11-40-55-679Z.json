@@ -1,0 +1,989 @@
+{
+  "generatedAt": "2026-05-17T11:40:55.679Z",
+  "backupPath": "E:\\DIGITAL_COACH\\AI-Team-Frontend-backend-\\ai_team_server\\backups\\UserPreference-before-email-backfill-2026-05-17T11-40-21-159Z.json",
+  "clerkUsers": 178,
+  "totalPreferenceRows": 163,
+  "updated": 163,
+  "alreadyCorrect": 0,
+  "unresolvedOauthIds": [],
+  "rows": [
+    {
+      "id": "7e8a0d91-f65a-4c82-8e4e-00d5cd08e977",
+      "oauthId": "user_36bddm1gNyuAak2Hm6yI9ax2rkR",
+      "agentName": "JIM",
+      "email": "meridavini@gmail.com"
+    },
+    {
+      "id": "7b99a833-4ac1-46b4-81ef-bcebfaaee37d",
+      "oauthId": "user_36bxxc0jkDEELZPdjWnbAMVvgBT",
+      "agentName": "JIM",
+      "email": "minadileo@gmail.com"
+    },
+    {
+      "id": "7edb0b1a-0f70-4b6b-a45d-76d601bda84e",
+      "oauthId": "user_36cbGOOOMIIzJFsTcNodHKoetTB",
+      "agentName": "JIM",
+      "email": "info@stefanobattistella.it"
+    },
+    {
+      "id": "0efec807-0c16-4c49-a66f-c81f5ba26f02",
+      "oauthId": "user_36cbGOOOMIIzJFsTcNodHKoetTB",
+      "agentName": "MIKE",
+      "email": "info@stefanobattistella.it"
+    },
+    {
+      "id": "89b6465a-214d-4af7-9f10-e3318276e663",
+      "oauthId": "user_36gekrClbS1cS3CVIOhBSLgpLGr",
+      "agentName": "JIM",
+      "email": "digitalcoachai@gmail.com"
+    },
+    {
+      "id": "8c93894a-f27d-494b-8cff-808e1d45ad0a",
+      "oauthId": "user_36k1ODRutpv5uFy2fPwK1V5SHQL",
+      "agentName": "JIM",
+      "email": "alexolystica@gmail.com"
+    },
+    {
+      "id": "a4bc0390-ed7d-41e3-aab5-fca8c4277204",
+      "oauthId": "user_36k1ODRutpv5uFy2fPwK1V5SHQL",
+      "agentName": "LARA",
+      "email": "alexolystica@gmail.com"
+    },
+    {
+      "id": "9d758099-1ccc-4bda-a06f-656aecabdba6",
+      "oauthId": "user_36KmQKfJ7U9mz3RW8FGyTeYX8f7",
+      "agentName": "JIM",
+      "email": "fulviore60@gmail.com"
+    },
+    {
+      "id": "3280c539-84bb-4b39-ac7f-c8d5600262dd",
+      "oauthId": "user_36KP64ulIBXrOQvb3yC253i2drz",
+      "agentName": "JIM",
+      "email": "mahshidkhorasani69@gmail.com"
+    },
+    {
+      "id": "6161ef17-3df8-43bb-9d4f-052cd1ab2d85",
+      "oauthId": "user_36L1aqNgJDF8cH9E4kUIrcQeUrv",
+      "agentName": "JIM",
+      "email": "paolaorange@gmail.com"
+    },
+    {
+      "id": "440f4638-3f41-4b3b-8c25-d30096aa9110",
+      "oauthId": "user_36N893m9wdNSBxlJ2AahQtoea3d",
+      "agentName": "JIM",
+      "email": "giuseppe.zeta90@gmail.com"
+    },
+    {
+      "id": "544c61d5-6159-41e3-896f-660770c35ff0",
+      "oauthId": "user_36N893m9wdNSBxlJ2AahQtoea3d",
+      "agentName": "MIKE",
+      "email": "giuseppe.zeta90@gmail.com"
+    },
+    {
+      "id": "1b6a1f87-60fc-404a-90ff-5ee42c86d8ad",
+      "oauthId": "user_36OhKsmKebYgXypvFyOe0F1CffV",
+      "agentName": "JIM",
+      "email": "marios72@tiscali.it"
+    },
+    {
+      "id": "6626c757-44ca-4d66-94e8-91669dc3a176",
+      "oauthId": "user_36QFrma15C5EUkyl4lKhzcP7U9p",
+      "agentName": "JIM",
+      "email": "rossana.capparelli79@gmail.com"
+    },
+    {
+      "id": "9f91e369-2adb-4146-89ce-3a2fc0a72bf6",
+      "oauthId": "user_36QHfuB0wRIuhNO6cviRvmD7Q6C",
+      "agentName": "JIM",
+      "email": "lucarobu@gmail.com"
+    },
+    {
+      "id": "72b07b7d-3a1e-4959-90f9-796af09d2dd6",
+      "oauthId": "user_36QNiLUziDeF6GYh0wrYhPtcrqE",
+      "agentName": "JIM",
+      "email": "russotecsolution@gmail.com"
+    },
+    {
+      "id": "a9598591-4874-4fb6-ae9b-ee6baa3483f5",
+      "oauthId": "user_36qQNyKdCOd1y2Og4BtqDkcxUN1",
+      "agentName": "JIM",
+      "email": "eliana0534@gmail.com"
+    },
+    {
+      "id": "b4d62005-164e-41e4-8115-2f95d2526cd5",
+      "oauthId": "user_36QvMl8RSgpKlVAcqP2n0csaFlm",
+      "agentName": "JIM",
+      "email": "g.grimaldi192@gmail.com"
+    },
+    {
+      "id": "55c7d97c-2d7a-48fa-b60b-6415bd50c3b7",
+      "oauthId": "user_36RCeOOnmUGfvMNpV4W8or9AlMU",
+      "agentName": "JIM",
+      "email": "luca.papa.digital@gmail.com"
+    },
+    {
+      "id": "d62f7fdd-b4e4-4991-b7b7-42da90f8892c",
+      "oauthId": "user_374UQQwiLss50dorMfLL5qeWU11",
+      "agentName": "JIM",
+      "email": "marios1972@libero.it"
+    },
+    {
+      "id": "f227525b-4cb7-4213-9976-3333fb342b6f",
+      "oauthId": "user_374UQQwiLss50dorMfLL5qeWU11",
+      "agentName": "MIKE",
+      "email": "marios1972@libero.it"
+    },
+    {
+      "id": "aef9fa34-d145-4bf9-9f0a-4d92931f4b5a",
+      "oauthId": "user_37O1aLpog0EzldKfJkV4uM0lhfs",
+      "agentName": "JIM",
+      "email": "mirko.bena@gmail.com"
+    },
+    {
+      "id": "ffe53178-dd0a-4890-bd68-20a0de45db24",
+      "oauthId": "user_37vPujTWLYjHtTYqqlcLxdyIoDJ",
+      "agentName": "JIM",
+      "email": "advspecialistdc@gmail.com"
+    },
+    {
+      "id": "ec10477c-9dd8-438f-aef3-29b62b8cbcd1",
+      "oauthId": "user_3816GiShLxx5l2RgHyFxcBqHdp9",
+      "agentName": "JIM",
+      "email": "luca.papa.digital+test@gmail.com"
+    },
+    {
+      "id": "7a10801e-8309-4f47-ba9e-0449c81210d1",
+      "oauthId": "user_381A03WTxaLAXGE0pBhojiviTYc",
+      "agentName": "JIM",
+      "email": "miasanches03072003@gmail.com"
+    },
+    {
+      "id": "2b1b21a6-ef5c-43e2-925e-67b8452aeb9c",
+      "oauthId": "user_38Cw7Hut9E5X9SLa43jPsIKTzeE",
+      "agentName": "JIM",
+      "email": "lafenicemartinafranca@gmail.com"
+    },
+    {
+      "id": "a622d7d2-881a-46e5-92b2-85cdd42805c5",
+      "oauthId": "user_38CzitSLctA9cB54ySJxuiIgjzX",
+      "agentName": "JIM",
+      "email": "m.chiatti@hiperformance.it"
+    },
+    {
+      "id": "ec2da66b-d096-4e76-a1e1-a71e7e5d72c9",
+      "oauthId": "user_38FDuIvlfOEWjWJ4UItpnwSe9Go",
+      "agentName": "JIM",
+      "email": "nicorizzo958@gmail.com"
+    },
+    {
+      "id": "265c7595-ae37-481c-9a84-f53800728028",
+      "oauthId": "user_38Fg7e7XYRDMmeQ0OtkCyTqSsbk",
+      "agentName": "JIM",
+      "email": "marketing@ramaeventi.it"
+    },
+    {
+      "id": "0212e8a3-6966-445b-92d9-bc822363bda9",
+      "oauthId": "user_38HaQYNckLRK2b4roBLRZfzDPgG",
+      "agentName": "JIM",
+      "email": "luca.papa.digital+demoaiteam@gmail.com"
+    },
+    {
+      "id": "868b06eb-c571-467b-b686-07c7d59a2474",
+      "oauthId": "user_38Hu4JAOL1JarSZaBpqeBGeA8wP",
+      "agentName": "JIM",
+      "email": "klyti07@gmail.com"
+    },
+    {
+      "id": "c05f1038-135f-445d-9472-96272761310c",
+      "oauthId": "user_38Hu4JAOL1JarSZaBpqeBGeA8wP",
+      "agentName": "LAURA",
+      "email": "klyti07@gmail.com"
+    },
+    {
+      "id": "b758f29e-3d4e-45ba-aa76-92867148447d",
+      "oauthId": "user_38LneN4iKj3QdqgRtfUBhZYlGvp",
+      "agentName": "JIM",
+      "email": "batste@gmail.com"
+    },
+    {
+      "id": "946dddb2-f72b-48a6-9538-23bc6d11aba9",
+      "oauthId": "user_38nUKdEFGvhRRKMWKYAOZCWihVF",
+      "agentName": "JIM",
+      "email": "miasanches03072003+ora@gmail.com"
+    },
+    {
+      "id": "1a08a19b-9b75-4e57-b54c-e24204a0abd4",
+      "oauthId": "user_38oAawpjCuoVQMvwjAiAWo3prsL",
+      "agentName": "JIM",
+      "email": "pelusha@liber.it"
+    },
+    {
+      "id": "a2ac7663-8d30-40be-9207-2caf27940aa2",
+      "oauthId": "user_38oAb7aye1vf6UTKrvlmEiYFbpT",
+      "agentName": "JIM",
+      "email": "unipolsaibreno@gmail.com"
+    },
+    {
+      "id": "ae2575de-b55c-4d47-a256-052582b50874",
+      "oauthId": "user_38OabpjQFJDok0Ln37UJTfldsCt",
+      "agentName": "JIM",
+      "email": "aenor008@gmail.com"
+    },
+    {
+      "id": "a94255ae-04a6-4715-8a12-e532719bbb8f",
+      "oauthId": "user_38oAbzGSat7bjXtZ2vasX4cqw1n",
+      "agentName": "JIM",
+      "email": "sentech.roma@gmail.com"
+    },
+    {
+      "id": "f2cb71db-0200-4766-b593-231f33d59f20",
+      "oauthId": "user_38oAhVxP3nZQYcoVEmCgTrGggVf",
+      "agentName": "JIM",
+      "email": "waltercostabile@gmail.com"
+    },
+    {
+      "id": "481d8421-b43a-4d48-aa63-275677ee3f5d",
+      "oauthId": "user_38oAhyPEueFdbb2d3CNWvmZpsNo",
+      "agentName": "JIM",
+      "email": "aldonenazionale@gmail.com"
+    },
+    {
+      "id": "49b5265a-13d2-4033-90e3-ec496e5f033f",
+      "oauthId": "user_38oAiWevrWFDcDXH7Nh2rFdKfPh",
+      "agentName": "JIM",
+      "email": "pietro.napoli60@gmail.com"
+    },
+    {
+      "id": "6ef0202e-9df2-4a66-80d8-4b8d4e9cb601",
+      "oauthId": "user_38oAkRmfESEKGW2p3VWWt66Zg5P",
+      "agentName": "JIM",
+      "email": "andryleonce00@gmail.com"
+    },
+    {
+      "id": "9375b9c0-e054-405b-ac24-dde26f63f492",
+      "oauthId": "user_38oAnANCA69QjSNuu8NcMTlWeua",
+      "agentName": "JIM",
+      "email": "emanuela.ambriola@me.com"
+    },
+    {
+      "id": "de8736ce-72c5-4902-9311-24017614cb20",
+      "oauthId": "user_38oAnU0ik5qyDudqo6g0oZmPc6Z",
+      "agentName": "JIM",
+      "email": "robertaacri77@gmail.com"
+    },
+    {
+      "id": "d7511d5e-d695-4cfe-b741-fe60591fd6e0",
+      "oauthId": "user_38oAnWgPwSyJ6TQKKNi34rKJqP0",
+      "agentName": "JIM",
+      "email": "gianni.gilardi@gmail.com"
+    },
+    {
+      "id": "92197d5c-a929-4926-bc79-2cc95cd886d6",
+      "oauthId": "user_38oAnxnOFwk8ORTP1Ttf10y41uO",
+      "agentName": "JIM",
+      "email": "talaricorcc@gmail.com"
+    },
+    {
+      "id": "6700bad7-5eb1-48ad-8b24-ad11f31baca5",
+      "oauthId": "user_38oAoqL8RY1FUMWueeQlLdFfjMl",
+      "agentName": "JIM",
+      "email": "francesco.loprete977@gmail.com"
+    },
+    {
+      "id": "307325af-c668-4056-b0d3-d53a1ba3824a",
+      "oauthId": "user_38oAqgfg1abGeibkwLo4LCd2SIU",
+      "agentName": "JIM",
+      "email": "alessiodonf91@gmail.com"
+    },
+    {
+      "id": "02fdc242-93a8-4f45-b4f2-e7b7da9a1d70",
+      "oauthId": "user_38oAuhBtyQNsLKd4ifKGXeLRquF",
+      "agentName": "JIM",
+      "email": "ferrario.roberto.coach@gmail.com"
+    },
+    {
+      "id": "46aa32f0-3ff3-47a7-a555-d8f83d57f6f6",
+      "oauthId": "user_38oAv6uwyIIPmFxLsZ9UfWimO47",
+      "agentName": "JIM",
+      "email": "isolapiero81@gmail.com"
+    },
+    {
+      "id": "642b83e1-c4c3-4ac2-a5ac-7e7fc875d35d",
+      "oauthId": "user_38oAwkgW6J6GX5OEJxhoPyA4nzY",
+      "agentName": "JIM",
+      "email": "hvwanda@gmail.com"
+    },
+    {
+      "id": "f0f1de72-510d-4c46-acd4-fc99aa6d2f74",
+      "oauthId": "user_38oAwkgW6J6GX5OEJxhoPyA4nzY",
+      "agentName": "ALEX",
+      "email": "hvwanda@gmail.com"
+    },
+    {
+      "id": "271c884a-4315-45eb-919a-a0fd2b70abee",
+      "oauthId": "user_38oAwkgW6J6GX5OEJxhoPyA4nzY",
+      "agentName": "MIKE",
+      "email": "hvwanda@gmail.com"
+    },
+    {
+      "id": "4a8e2d19-4fc1-42f9-b357-9678722ae6de",
+      "oauthId": "user_38oAXgMMOyEyCXLoEdzhIP91hav",
+      "agentName": "JIM",
+      "email": "danielfr@gmail.com"
+    },
+    {
+      "id": "4b15b195-0aa9-4d2d-87dd-6a26d0f923da",
+      "oauthId": "user_38oAXgMMOyEyCXLoEdzhIP91hav",
+      "agentName": "ALEX",
+      "email": "danielfr@gmail.com"
+    },
+    {
+      "id": "f3e73984-ac69-4494-a709-08b6e7090f0f",
+      "oauthId": "user_38oAXgMMOyEyCXLoEdzhIP91hav",
+      "agentName": "MIKE",
+      "email": "danielfr@gmail.com"
+    },
+    {
+      "id": "725a5aea-ac99-4598-94ab-0a78981cd9b0",
+      "oauthId": "user_38oAXgMMOyEyCXLoEdzhIP91hav",
+      "agentName": "ALADINO",
+      "email": "danielfr@gmail.com"
+    },
+    {
+      "id": "df252f77-a705-41e9-b616-f54bdb5b9b88",
+      "oauthId": "user_38oAXgMMOyEyCXLoEdzhIP91hav",
+      "agentName": "MAX",
+      "email": "danielfr@gmail.com"
+    },
+    {
+      "id": "adcb6a79-09e3-4c70-9ecd-6b89e6f6a406",
+      "oauthId": "user_38oAyFD3UKqtFvo1ufhIkEMx4IZ",
+      "agentName": "JIM",
+      "email": "maurizio.rossitto@gmail.com"
+    },
+    {
+      "id": "5723f103-b024-43c9-971a-7557f5f76d7f",
+      "oauthId": "user_38oAYJo9i6TeXFcnrHmEaqZaNC2",
+      "agentName": "JIM",
+      "email": "simone@marengomarketing.com"
+    },
+    {
+      "id": "fb862571-d8c3-4a7f-a570-4e7ae9574011",
+      "oauthId": "user_38oAYxm3oqxOpEktX9Pf3fy1E3M",
+      "agentName": "JIM",
+      "email": "domenicomarmiroli@gmail.com"
+    },
+    {
+      "id": "be3413e9-e255-48b4-ac36-8e77996a6f13",
+      "oauthId": "user_38oAZADKr9vC8PoYYhUzg9ESHMx",
+      "agentName": "JIM",
+      "email": "guerrieropraticheauto@gmail.com"
+    },
+    {
+      "id": "50b0a607-01c3-415b-83e5-f5f0c026d621",
+      "oauthId": "user_38oAZFDiQn6BRT3IWu84rVwBJkK",
+      "agentName": "JIM",
+      "email": "manuegera73@gmail.com"
+    },
+    {
+      "id": "482b6b4b-735b-4deb-b1b2-70fc30e372bc",
+      "oauthId": "user_38oAZsC0V01zI6hrVDsYQ9ewxnn",
+      "agentName": "JIM",
+      "email": "miriam.carmassi@gmail.com"
+    },
+    {
+      "id": "15f56cd1-c042-4188-bc62-94b9dfa84db5",
+      "oauthId": "user_38oB0iH2MmJ699l51HnRqeSikIF",
+      "agentName": "JIM",
+      "email": "a.pezzoli@edoradicifelici.it"
+    },
+    {
+      "id": "a80822e9-214c-4141-8058-e7cbb3128ebb",
+      "oauthId": "user_38oB3l4ixQQqszGiQTeaIQ0iuKo",
+      "agentName": "JIM",
+      "email": "chiara.ramundo@icloud.com"
+    },
+    {
+      "id": "8411b9d6-7449-4460-99e4-275d5bd9f714",
+      "oauthId": "user_38oBA5NsWcpX8eGFzvyqagn5Khj",
+      "agentName": "JIM",
+      "email": "robertaespositomkt@gmail.com"
+    },
+    {
+      "id": "5103ef77-8b32-4975-bd17-8c9c5ef542c6",
+      "oauthId": "user_38oBJAtawx70Hh1UeflGniCtEiv",
+      "agentName": "JIM",
+      "email": "celeste_concari@yahoo.it"
+    },
+    {
+      "id": "2ea2c471-24db-4676-bd37-c2f37aa160d6",
+      "oauthId": "user_38oBJAtawx70Hh1UeflGniCtEiv",
+      "agentName": "MIKE",
+      "email": "celeste_concari@yahoo.it"
+    },
+    {
+      "id": "542708f6-9e25-402c-a828-832667f726f4",
+      "oauthId": "user_38oBJAtawx70Hh1UeflGniCtEiv",
+      "agentName": "MAX",
+      "email": "celeste_concari@yahoo.it"
+    },
+    {
+      "id": "acdc9a8a-095c-4173-a44c-2e4f860f4b9f",
+      "oauthId": "user_38oBkkRZtzuhR2MB71kZ4SJk8FC",
+      "agentName": "JIM",
+      "email": "irisdes2018@gmail.com"
+    },
+    {
+      "id": "8e3e1a37-1147-47df-bc89-7b8649c63c4d",
+      "oauthId": "user_38oBTIzmpJHHklfMGNOqJr56ma2",
+      "agentName": "JIM",
+      "email": "madudiop96@gmail.com"
+    },
+    {
+      "id": "8eda9210-0ed1-4cc7-8d42-27be7bbeb086",
+      "oauthId": "user_38oBUkImlPyBetyG6fbM4l4X5gL",
+      "agentName": "JIM",
+      "email": "f.lante@libero.it"
+    },
+    {
+      "id": "7b82d1a4-d290-42fc-ad53-65786ac3a402",
+      "oauthId": "user_38oBv2rmUVAnXxLyg2kh8ZKvbKQ",
+      "agentName": "JIM",
+      "email": "lorenzobiondi75@gmail.com"
+    },
+    {
+      "id": "06e25398-e298-4ca3-8d10-fb4a24eba532",
+      "oauthId": "user_38oBv2rmUVAnXxLyg2kh8ZKvbKQ",
+      "agentName": "LAURA",
+      "email": "lorenzobiondi75@gmail.com"
+    },
+    {
+      "id": "5a683902-5a96-4019-98c3-f51e3ca04daa",
+      "oauthId": "user_38oC0Z5JdI1y1vlnigCo8y24Oi2",
+      "agentName": "JIM",
+      "email": "rossi@grconsulenze.it"
+    },
+    {
+      "id": "04b85dc8-b708-4b3b-a57e-3fa8afc0ceed",
+      "oauthId": "user_38oCDeOEpxfMsHAyyqsov4fHe8S",
+      "agentName": "JIM",
+      "email": "ceciliarosato.cr@gmail.com"
+    },
+    {
+      "id": "6a58fc9a-a36e-4187-b140-35f6e33e4786",
+      "oauthId": "user_38oChNgIz9ei1NThDVmAf5QUuWc",
+      "agentName": "JIM",
+      "email": "zektheback@gmail.com"
+    },
+    {
+      "id": "cbee6818-ab98-490f-9bb7-43037f4c16a0",
+      "oauthId": "user_38oCi86g5wj0FCx0F4dYnSd5PhK",
+      "agentName": "JIM",
+      "email": "elisa_bertolini@hotmail.com"
+    },
+    {
+      "id": "e9665e22-c659-40a3-8022-7ee7a6246253",
+      "oauthId": "user_38oDZiVffVKQfufsUO33TUNL6c4",
+      "agentName": "JIM",
+      "email": "olhakovalenko1975@gmail.com"
+    },
+    {
+      "id": "10abe034-0fbc-442e-bdd5-e8c35f7acee6",
+      "oauthId": "user_38oK0Q3bzKMIiPAmd0lhkP6Zc0Y",
+      "agentName": "JIM",
+      "email": "fuska70@gmail.com"
+    },
+    {
+      "id": "633c8874-9b7d-4e55-a99c-593216730264",
+      "oauthId": "user_38oKNiJFoy21S2zBO5w7rb8oM1I",
+      "agentName": "JIM",
+      "email": "franceseitaliano2019@gmail.com"
+    },
+    {
+      "id": "c04bc8fc-2c70-4b3a-a5e0-6b6f709f7e6e",
+      "oauthId": "user_38oKNiJFoy21S2zBO5w7rb8oM1I",
+      "agentName": "MIKE",
+      "email": "franceseitaliano2019@gmail.com"
+    },
+    {
+      "id": "c8d4d5c3-dda2-4b2d-b4c0-9472b6ddfda9",
+      "oauthId": "user_38oKNiJFoy21S2zBO5w7rb8oM1I",
+      "agentName": "TONY",
+      "email": "franceseitaliano2019@gmail.com"
+    },
+    {
+      "id": "382acebb-8657-4e04-9b38-8e0cbf71173d",
+      "oauthId": "user_38oKNiJFoy21S2zBO5w7rb8oM1I",
+      "agentName": "LARA",
+      "email": "franceseitaliano2019@gmail.com"
+    },
+    {
+      "id": "1c43ff06-5dc3-4819-8eb6-7d7b70a6e5d2",
+      "oauthId": "user_38oKNiJFoy21S2zBO5w7rb8oM1I",
+      "agentName": "ALADINO",
+      "email": "franceseitaliano2019@gmail.com"
+    },
+    {
+      "id": "472ec29f-f744-44c5-88a5-c6f18fa4300b",
+      "oauthId": "user_38oKxSayMpt0CvXMeUF2qqdydiJ",
+      "agentName": "JIM",
+      "email": "luca.contu2@gmail.com"
+    },
+    {
+      "id": "cd0ef3a4-0b5d-473f-be1f-46a0c89e91f8",
+      "oauthId": "user_38oKxSayMpt0CvXMeUF2qqdydiJ",
+      "agentName": "TONY",
+      "email": "luca.contu2@gmail.com"
+    },
+    {
+      "id": "b70ca178-7636-45dc-a7cf-b50af88db011",
+      "oauthId": "user_38oOMB8sQM99QFwWuqnBywjZhpJ",
+      "agentName": "JIM",
+      "email": "gianpieromeuli@gmail.com"
+    },
+    {
+      "id": "5e5e69c3-5a3c-4f03-996a-d0541db2567e",
+      "oauthId": "user_38oQe8SWHzRGvpba53JnjZzHaIc",
+      "agentName": "JIM",
+      "email": "rasomichele3@gmail.com"
+    },
+    {
+      "id": "8285b53e-2d10-42c2-8e24-3b364cb6099b",
+      "oauthId": "user_38oQe8SWHzRGvpba53JnjZzHaIc",
+      "agentName": "MIKE",
+      "email": "rasomichele3@gmail.com"
+    },
+    {
+      "id": "a5da3dff-c539-4e48-b8d5-7faed76b02a1",
+      "oauthId": "user_38oQe8SWHzRGvpba53JnjZzHaIc",
+      "agentName": "DAN",
+      "email": "rasomichele3@gmail.com"
+    },
+    {
+      "id": "b4d5be09-bba6-46db-b9cc-2aec7c30a4f8",
+      "oauthId": "user_38pxB0bEh0lt4Iiod7QT6Lrua1k",
+      "agentName": "JIM",
+      "email": "ivano.pini80@gmail.com"
+    },
+    {
+      "id": "6e94e20b-c7b2-4317-b7d8-1f4265614142",
+      "oauthId": "user_38qfEG3Htk1PXnSyIBG20x3XV89",
+      "agentName": "JIM",
+      "email": "omarbrunofanuli@libero.it"
+    },
+    {
+      "id": "956f8684-d34f-4a59-a7b0-2bd2a659145a",
+      "oauthId": "user_38r0NbIkqNHVKUNTXf7LHdnhtPR",
+      "agentName": "JIM",
+      "email": "valeriabarani.pro@gmail.com"
+    },
+    {
+      "id": "79624ad0-acfa-4487-9905-83e41937d7ff",
+      "oauthId": "user_38r0Ng5vHgOCcPSK3Y5BEYyzf5K",
+      "agentName": "JIM",
+      "email": "antoniodilorenzo15@gmail.com"
+    },
+    {
+      "id": "e0a0a832-e132-4648-b88a-8f8796106448",
+      "oauthId": "user_38r0NkdUEs4SFpnqLJiYIuYhaQ8",
+      "agentName": "JIM",
+      "email": "paridepavone@gmail.com"
+    },
+    {
+      "id": "e6f6c092-ed3c-452e-b0f9-177516d72ebf",
+      "oauthId": "user_38r0Wf5WE0H5KVDPNAHN7BFH4Bk",
+      "agentName": "JIM",
+      "email": "vmthea@libero.it"
+    },
+    {
+      "id": "0102a23c-d80a-4731-ae51-5bdfe72deada",
+      "oauthId": "user_38r0Z9iNBoy3R5VrKKn2Wt5d7o0",
+      "agentName": "JIM",
+      "email": "schiaprischia@gmail.com"
+    },
+    {
+      "id": "53826662-8a59-4f17-bd6d-3abaf7fdd81e",
+      "oauthId": "user_38r15Jl5Tot6PQZOfX7UlxuVQ5s",
+      "agentName": "JIM",
+      "email": "maestri.simone@gmail.com"
+    },
+    {
+      "id": "dd9d3133-2e4f-41f9-8726-16e0c65d2c30",
+      "oauthId": "user_38rAxIvWPIImlFxUwy6NEVpaMoX",
+      "agentName": "JIM",
+      "email": "nespolo@wtn.it"
+    },
+    {
+      "id": "d743faa7-0667-4298-b65e-21c70f484388",
+      "oauthId": "user_38tsmEl0KZkDf3edDTvXgyTDwTP",
+      "agentName": "JIM",
+      "email": "chiaradesi511@gmail.com"
+    },
+    {
+      "id": "7995b8ae-50ca-477e-85e5-ad93f923e4bd",
+      "oauthId": "user_38WDA1rF6wJRtCMEVPEUmzcz0KV",
+      "agentName": "JIM",
+      "email": "lettera.daniele@gmail.com"
+    },
+    {
+      "id": "310703e5-9338-45ba-9866-2689d5f9702e",
+      "oauthId": "user_38wPdYvgkV0D6DLPZG0uDbJp6LF",
+      "agentName": "JIM",
+      "email": "eugenio.difraia@gmail.com"
+    },
+    {
+      "id": "e96226be-c5ee-40f6-bc81-4d5c04e0e0bf",
+      "oauthId": "user_38WuoYaoqoljYmM8GWOp9cYoYIz",
+      "agentName": "JIM",
+      "email": "clizia.bruschi@gmail.com"
+    },
+    {
+      "id": "13e6894d-4473-4abf-96b1-d380c6e01ca3",
+      "oauthId": "user_38WVl4ahWilp3xPLz25nADYCUt5",
+      "agentName": "JIM",
+      "email": "international.job.srl@gmail.com"
+    },
+    {
+      "id": "e48c862e-27c5-4244-a283-d2b42e49b7ca",
+      "oauthId": "user_38WvUpTBM8tdGvaRzVlKqyAiRqJ",
+      "agentName": "JIM",
+      "email": "costantino-mauro@libero.it"
+    },
+    {
+      "id": "86bb3f06-14ad-4fc5-b621-521fdf9f8127",
+      "oauthId": "user_38WyFFnIQwfH0XEXMNqkEBm8tv8",
+      "agentName": "JIM",
+      "email": "hellophil.digital@gmail.com"
+    },
+    {
+      "id": "adbf56da-1f3e-445d-9e5f-00818851570a",
+      "oauthId": "user_38Yu8sO2mGH8AU0EWvoq0eH2rUx",
+      "agentName": "JIM",
+      "email": "giuseppe.zeta90+luceegas@gmail.com"
+    },
+    {
+      "id": "19927ab9-ee06-4366-87f4-363e6b03ef6f",
+      "oauthId": "user_38Yu8sO2mGH8AU0EWvoq0eH2rUx",
+      "agentName": "LAURA",
+      "email": "giuseppe.zeta90+luceegas@gmail.com"
+    },
+    {
+      "id": "1ec9beb8-3b3f-4f6a-b242-f5aab8527ce9",
+      "oauthId": "user_38ZU67igrPvIhmWpoi3TbeGXD1W",
+      "agentName": "JIM",
+      "email": "miasanches03072003+mcierro@gmail.com"
+    },
+    {
+      "id": "7d18ef1e-2bf1-48f7-8bcf-8c60fca5ec7d",
+      "oauthId": "user_396l2c7m1YfawMnI8lVCkbJBKSa",
+      "agentName": "JIM",
+      "email": "pierluigipizzone@gmail.com"
+    },
+    {
+      "id": "d28a57d3-729a-41c1-97e0-72adbc56df1e",
+      "oauthId": "user_39AXq8wd5dSoiyygLHKFU4YNbkk",
+      "agentName": "JIM",
+      "email": "info@alessandragandelli.com"
+    },
+    {
+      "id": "9c593d99-7ca3-4748-8c66-b037feca2596",
+      "oauthId": "user_39bvYWWXGH5UTFkzzyulaDMFd0S",
+      "agentName": "JIM",
+      "email": "nicolettamichiciuc@gmail.com"
+    },
+    {
+      "id": "ef9609b8-426b-4579-b054-558c3902b1cb",
+      "oauthId": "user_39CflsLD5v9Pm1JiZ3QKQ3iG9aL",
+      "agentName": "JIM",
+      "email": "giuseppe.zeta90+ownerandcoach@gmail.com"
+    },
+    {
+      "id": "ca87e571-c625-4d99-b5ff-2262a74e816d",
+      "oauthId": "user_39CsKqjpn0m39r8GqQPrdtDRqYL",
+      "agentName": "JIM",
+      "email": "giuseppe.zeta90+testlive@gmail.com"
+    },
+    {
+      "id": "b81ad01c-41ac-430b-a931-efc989e4d07e",
+      "oauthId": "user_39cZWa9lgZHzWEmGjrZih1Ki48U",
+      "agentName": "JIM",
+      "email": "miasanches03072003+nlumardon@gmail.com"
+    },
+    {
+      "id": "34e8722b-f12c-48c9-9719-ed028ca758b6",
+      "oauthId": "user_39hTP9BmjOTSod4j2fCfazTokTu",
+      "agentName": "JIM",
+      "email": "rusuoana1985@gmail.com"
+    },
+    {
+      "id": "d35f0748-1b0e-4283-b025-e04a955da99a",
+      "oauthId": "user_39k1fIo55fk9ry8wwODUWTN8HSw",
+      "agentName": "JIM",
+      "email": "marcomoscardini60+aitproject@gmail.com"
+    },
+    {
+      "id": "83819955-2fbb-4fb7-b963-9ada3ff813c7",
+      "oauthId": "user_39oMuGTFnnQaztQ5Hhlqmza5i7G",
+      "agentName": "JIM",
+      "email": "ileniatambasco@gmail.com"
+    },
+    {
+      "id": "3975ffff-d2ab-4c0d-ab14-dab515cce2a3",
+      "oauthId": "user_39QVBsI7mymLBJrMWG0TMhHVWO0",
+      "agentName": "JIM",
+      "email": "rossana.capparelli79+serenamartina@gmail.com"
+    },
+    {
+      "id": "0754887b-e1fb-493e-9f56-e2c923100e02",
+      "oauthId": "user_39tPZNlRIV7wgK78GvqYHBWb6Wj",
+      "agentName": "JIM",
+      "email": "miasanches03072003+pmastrangelo@gmail.com"
+    },
+    {
+      "id": "26d5568d-36db-48f1-b8d6-32eea3e2ba00",
+      "oauthId": "user_39UR5EwQsCGgMsx0oChXazh79FR",
+      "agentName": "JIM",
+      "email": "sarahregoli@gmail.com"
+    },
+    {
+      "id": "22cab0c1-892f-477e-b077-3746724e37f4",
+      "oauthId": "user_39UR6RwxAwgDv0Pjhkpkb7Sdp7p",
+      "agentName": "JIM",
+      "email": "alessandra.iurman@gmail.com"
+    },
+    {
+      "id": "c3be6b30-aa6e-4177-88ac-6eeeb9cc6147",
+      "oauthId": "user_39UR7XNUO9gKmD2fm0vEReilWyA",
+      "agentName": "JIM",
+      "email": "milatech@gmail.com"
+    },
+    {
+      "id": "786e45c5-171b-4c61-8d60-72972c766d42",
+      "oauthId": "user_39URupdkLJjRLsP7yFZJAwrlWfv",
+      "agentName": "JIM",
+      "email": "puglisialessia29@gmail.com"
+    },
+    {
+      "id": "a6aacf4c-3a41-466a-87c6-7d9f5f2d6790",
+      "oauthId": "user_39US7NqveQ1otQcbB5n7z2BqKvc",
+      "agentName": "JIM",
+      "email": "giorgia07piras@gmail.com"
+    },
+    {
+      "id": "e1cb7289-df47-4c2a-abc6-1b9257c8766e",
+      "oauthId": "user_39US8I13X79DzXof7GM9afxdAy6",
+      "agentName": "JIM",
+      "email": "mariafoti1995@gmail.com"
+    },
+    {
+      "id": "e72ee93d-f99c-4aaf-bec3-0aee3ed98306",
+      "oauthId": "user_39USFnqQIBFOGfZtx6o3IOiU1A8",
+      "agentName": "JIM",
+      "email": "s.francescaltieri@gmail.com"
+    },
+    {
+      "id": "0506d162-1881-4a9b-8075-801ddb0bb47c",
+      "oauthId": "user_39USFnqQIBFOGfZtx6o3IOiU1A8",
+      "agentName": "MIKE",
+      "email": "s.francescaltieri@gmail.com"
+    },
+    {
+      "id": "4753a8ec-746d-4406-813d-9d1f4075edf8",
+      "oauthId": "user_39USNOjuGNnPTLpXvypr39PswNJ",
+      "agentName": "JIM",
+      "email": "ileniatambasco+ia@gmail.com"
+    },
+    {
+      "id": "0c0c400e-c33d-4998-b332-943e051d78f3",
+      "oauthId": "user_39USw3rcFu9PZMRoW9ccZCFfUVD",
+      "agentName": "JIM",
+      "email": "lcenni000@gmail.com"
+    },
+    {
+      "id": "d3a78919-2759-4172-adef-f52c90e174fb",
+      "oauthId": "user_39USX27J9VLEZke3j3DnoGjg83B",
+      "agentName": "JIM",
+      "email": "dimitrip97@gmail.com"
+    },
+    {
+      "id": "8c541017-e85d-42dc-844f-fb0040082453",
+      "oauthId": "user_39UT2cXFLGbNkKoLKymL2VMPXM3",
+      "agentName": "JIM",
+      "email": "fradom274@gmail.com"
+    },
+    {
+      "id": "fd99b8cd-8049-414c-962c-44aff6bc0cd8",
+      "oauthId": "user_39UT3zG9LsbeoqQFzhWSKCG53XM",
+      "agentName": "JIM",
+      "email": "emilianocorrias33@gmail.com"
+    },
+    {
+      "id": "63b68ecb-ca9a-45bb-ad1b-637c35a7c968",
+      "oauthId": "user_39Z2J6Zrpc0yNmPSQcYmNiH0vjI",
+      "agentName": "JIM",
+      "email": "miasanches03072003+m.manghi@gmail.com"
+    },
+    {
+      "id": "1ded5e1b-872b-46a2-8fdd-57be4e82f828",
+      "oauthId": "user_39ZEaGxZwWfYSE50Bnie4oCjbmG",
+      "agentName": "JIM",
+      "email": "marcomoscardini60+aiteamwex@gmail.com"
+    },
+    {
+      "id": "ad158479-4a2e-480c-bc69-35e9f97b172c",
+      "oauthId": "user_39ZEaGxZwWfYSE50Bnie4oCjbmG",
+      "agentName": "MIKE",
+      "email": "marcomoscardini60+aiteamwex@gmail.com"
+    },
+    {
+      "id": "769cea84-7872-42e7-87ed-6fdd447733f1",
+      "oauthId": "user_39ZEaGxZwWfYSE50Bnie4oCjbmG",
+      "agentName": "LARA",
+      "email": "marcomoscardini60+aiteamwex@gmail.com"
+    },
+    {
+      "id": "e5483bc2-e703-499a-a921-333af6fbb900",
+      "oauthId": "user_3A4Pn9eoyuNnOvHYGN0qHdKdBPa",
+      "agentName": "JIM",
+      "email": "luca.papa.digital+trinity@gmail.com"
+    },
+    {
+      "id": "7505a12a-0f5f-4f87-a68d-668c6a7507ce",
+      "oauthId": "user_3A4waYsm0bMdOqmVsgQqT3LJP6e",
+      "agentName": "JIM",
+      "email": "miasanches03072003+ct@gmail.com"
+    },
+    {
+      "id": "b00cfa77-8a9b-4ea1-92e2-0389e58a1f52",
+      "oauthId": "user_3A6sUHRsJEsShyY9TJKpiUCZCRl",
+      "agentName": "JIM",
+      "email": "miasanches03072003+vnespolo@gmail.com"
+    },
+    {
+      "id": "f1deef9a-ab49-41b0-85b5-c047c28c1a0d",
+      "oauthId": "user_3AALJJaT0G4CCnYHwnLpHbHN4hM",
+      "agentName": "JIM",
+      "email": "silvia@digital-coach.com"
+    },
+    {
+      "id": "5c921dd5-e681-4da0-b2a0-d2dcd0e8fe71",
+      "oauthId": "user_3AALJJaT0G4CCnYHwnLpHbHN4hM",
+      "agentName": "VALENTINA",
+      "email": "silvia@digital-coach.com"
+    },
+    {
+      "id": "4345fc5a-1aa3-418a-aad9-7a1cb9a4f3ee",
+      "oauthId": "user_3AALJJaT0G4CCnYHwnLpHbHN4hM",
+      "agentName": "SIMONE",
+      "email": "silvia@digital-coach.com"
+    },
+    {
+      "id": "ac99d3ab-1fd0-4986-ba98-85acbc960e07",
+      "oauthId": "user_3AlAfmjAi1zXGlnJ9OtRIJaLzgS",
+      "agentName": "JIM",
+      "email": "rocco@afterhoursconsulting.it"
+    },
+    {
+      "id": "065ed570-c16b-4b28-a0b9-6a1999ed8bde",
+      "oauthId": "user_3AnthC4l70bzKNr0eiOlAualTX4",
+      "agentName": "JIM",
+      "email": "luca.papa.digital+booktribu@gmail.com"
+    },
+    {
+      "id": "04fad7a5-82f3-432b-b1cd-9f30f1a6017b",
+      "oauthId": "user_3AnthC4l70bzKNr0eiOlAualTX4",
+      "agentName": "MIKE",
+      "email": "luca.papa.digital+booktribu@gmail.com"
+    },
+    {
+      "id": "43605dd8-2a93-4c21-ab58-ea438d90619a",
+      "oauthId": "user_3AOHaEDh66Rki2WKMGfc7SFnioZ",
+      "agentName": "JIM",
+      "email": "natali@digital-coach.com"
+    },
+    {
+      "id": "759cc76c-49d4-4186-85d3-5f3f2205e673",
+      "oauthId": "user_3B7m6F0hca2WBCHxTySQTAclCy9",
+      "agentName": "JIM",
+      "email": "jessicanasdek@gmail.com"
+    },
+    {
+      "id": "a28e8e21-9d8f-4101-abfa-b57fda4c5b2e",
+      "oauthId": "user_3BhfN2qhL2RQ3XeZNqnMkcnkSdN",
+      "agentName": "JIM",
+      "email": "miasanches03072003+edifede@gmail.com"
+    },
+    {
+      "id": "6002f47a-99b4-4abf-a671-da2ec036ab1f",
+      "oauthId": "user_3BkaV3E4WuoeZeB7OaSGFoEDADg",
+      "agentName": "JIM",
+      "email": "miasanches03072003+nfranco@gmail.com"
+    },
+    {
+      "id": "00b0a852-af06-4048-8641-93ac38eb4fb1",
+      "oauthId": "user_3BOYCcbymYRjF1RB605wLu12eNa",
+      "agentName": "JIM",
+      "email": "miasanches03072003+dragosrl@gmail.com"
+    },
+    {
+      "id": "8b42860c-196d-4281-848f-c2a23cb632bb",
+      "oauthId": "user_3BURXeCieMYkWnwj7mlOYeB59J6",
+      "agentName": "JIM",
+      "email": "miasanches03072003+gdiana@gmail.com"
+    },
+    {
+      "id": "acebab13-78c6-4f3d-8c39-0827c44671ff",
+      "oauthId": "user_3C1P0a8jALYDMgCXs45qCyN6yyb",
+      "agentName": "JIM",
+      "email": "silvio@buonenotizie.it"
+    },
+    {
+      "id": "6f69d7b6-578f-44fb-82d8-6811f81c37b9",
+      "oauthId": "user_3C517X519EF6kWcOIoMOXc9aNFm",
+      "agentName": "JIM",
+      "email": "luca.papa.digital+pitch@gmail.com"
+    },
+    {
+      "id": "cd64eea4-a51e-41ff-a0e1-c25a5ed0daf4",
+      "oauthId": "user_3C9r8KqxY40RYetNBowbortJ5ZW",
+      "agentName": "JIM",
+      "email": "giuseppe.zeta90+forzanti@gmail.com"
+    },
+    {
+      "id": "05b8ca1b-7c08-4467-9ed3-74708732a78d",
+      "oauthId": "user_3CRXOprZrh3Fhd9ggnCMpz6ZOa8",
+      "agentName": "JIM",
+      "email": "miasanches03072003+frocchi@gmail.com"
+    },
+    {
+      "id": "8fed0eb2-01d0-47c3-ace7-4153e5b70bbc",
+      "oauthId": "user_3CvwiU8083EYZeJ4Zxo0Gtm3Lg3",
+      "agentName": "JIM",
+      "email": "miasanches03072003+gpedone@gmail.com"
+    },
+    {
+      "id": "656507ee-3187-4b34-a8a2-253b420ea1fa",
+      "oauthId": "user_3CwSfnVmoHZ7hOPsbYDFXGOvssU",
+      "agentName": "JIM",
+      "email": "miasanches03072003+maleo@gmail.com"
+    },
+    {
+      "id": "14024593-55c4-4946-9cc6-0bc52de1eab2",
+      "oauthId": "user_3CzgLsI2Th0KWwPSWqkZfqeLS4g",
+      "agentName": "JIM",
+      "email": "miasanches03072003+lafenicegroup@gmail.com"
+    },
+    {
+      "id": "98b094ce-4ac7-42bf-9260-cc156c317798",
+      "oauthId": "user_3DM9icZc6OnXO1C5zj4Poi8bHJk",
+      "agentName": "JIM",
+      "email": "fulvio.re@salevo.it"
+    },
+    {
+      "id": "da91425f-b7cd-4b54-90fa-aafb94dde3bb",
+      "oauthId": "user_3DZeroMXULGeadJdf677rWLGyNr",
+      "agentName": "JIM",
+      "email": "gpatriotta@gmail.com"
+    }
+  ]
+}

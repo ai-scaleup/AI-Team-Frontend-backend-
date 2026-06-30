@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { AgentName } from 'src/generated/prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 
@@ -10,6 +14,16 @@ type RecentAssignment = {
   durationDays: number | null;
   tokens: number;
   assignedAt: Date;
+};
+
+type AssignmentType = 'agent' | 'group' | 'team' | 'membership';
+
+type AssignmentUpdateInput = {
+  startsAt?: string | Date;
+  expiresAt?: string | Date | null;
+  durationDays?: number;
+  monthlyTokenLimit?: number;
+  isActive?: boolean;
 };
 
 type AgentUsageChartPoint = {
@@ -25,6 +39,91 @@ const outputKey = (agentName: string) => `${agentName}__output`;
 @Injectable()
 export class AdminDashboardService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private parseOptionalDate(value: string | Date | null | undefined) {
+    if (value === undefined) return undefined;
+    if (value === null) return null;
+
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      throw new BadRequestException('expiresAt and startsAt must be valid dates');
+    }
+
+    return date;
+  }
+
+  private validateAssignmentUpdates(input: AssignmentUpdateInput) {
+    const durationDays =
+      input.durationDays === undefined ? undefined : Number(input.durationDays);
+    const monthlyTokenLimit =
+      input.monthlyTokenLimit === undefined
+        ? undefined
+        : Number(input.monthlyTokenLimit);
+
+    if (
+      durationDays !== undefined &&
+      (!Number.isInteger(durationDays) || durationDays < 1)
+    ) {
+      throw new BadRequestException('durationDays must be an integer of at least 1');
+    }
+
+    if (
+      monthlyTokenLimit !== undefined &&
+      (!Number.isInteger(monthlyTokenLimit) || monthlyTokenLimit < 0)
+    ) {
+      throw new BadRequestException(
+        'monthlyTokenLimit must be a non-negative integer',
+      );
+    }
+
+    if (
+      input.isActive !== undefined &&
+      typeof input.isActive !== 'boolean'
+    ) {
+      throw new BadRequestException('isActive must be a boolean');
+    }
+
+    return { durationDays, monthlyTokenLimit };
+  }
+
+  private buildTimedUpdate(
+    currentStartsAt: Date,
+    input: AssignmentUpdateInput,
+    includeDurationDays: boolean,
+  ) {
+    const { durationDays, monthlyTokenLimit } =
+      this.validateAssignmentUpdates(input);
+    const startsAt = this.parseOptionalDate(input.startsAt);
+    const explicitExpiresAt = this.parseOptionalDate(input.expiresAt);
+    const data: Record<string, unknown> = {};
+    const effectiveStartsAt = startsAt ?? currentStartsAt;
+
+    if (startsAt !== undefined && startsAt !== null) {
+      data.startsAt = startsAt;
+    }
+
+    if (explicitExpiresAt !== undefined) {
+      data.expiresAt = explicitExpiresAt;
+    } else if (durationDays !== undefined) {
+      const nextExpiry = new Date(effectiveStartsAt);
+      nextExpiry.setUTCDate(nextExpiry.getUTCDate() + durationDays);
+      data.expiresAt = nextExpiry;
+    }
+
+    if (includeDurationDays && durationDays !== undefined) {
+      data.durationDays = durationDays;
+    }
+
+    if (monthlyTokenLimit !== undefined) {
+      data.monthlyTokenLimit = monthlyTokenLimit;
+    }
+
+    if (typeof input.isActive === 'boolean') {
+      data.isActive = input.isActive;
+    }
+
+    return { data, monthlyTokenLimit };
+  }
 
   private getDurationDays(startsAt: Date, expiresAt: Date | null): number | null {
     if (!expiresAt) return null;
@@ -378,6 +477,106 @@ export class AdminDashboardService {
     });
 
     return { user, dailyUsage };
+  }
+
+  async updateAssignment(
+    type: AssignmentType,
+    id: string,
+    updates: AssignmentUpdateInput,
+  ) {
+    if (!id?.trim()) throw new BadRequestException('Assignment id is required');
+
+    const normalizedType = type === 'team' ? 'group' : type;
+
+    if (normalizedType === 'agent') {
+      const existing = await this.prisma.assignedAgent.findUnique({
+        where: { id },
+        include: { user: { select: { oauthId: true } } },
+      });
+      if (!existing) throw new NotFoundException('Agent assignment not found');
+
+      const { data, monthlyTokenLimit } = this.buildTimedUpdate(
+        existing.startsAt,
+        updates,
+        true,
+      );
+
+      return this.prisma.$transaction(async (tx) => {
+        const assignment = await tx.assignedAgent.update({
+          where: { id },
+          data,
+        });
+
+        if (monthlyTokenLimit !== undefined) {
+          const usage = await tx.userAgentTokenUsage.findUnique({
+            where: {
+              oauthId_agentName: {
+                oauthId: existing.user.oauthId,
+                agentName: existing.agentName,
+              },
+            },
+            select: { totalUsedTokens: true },
+          });
+          const totalTokensLeft = Math.max(
+            0,
+            monthlyTokenLimit - (usage?.totalUsedTokens ?? 0),
+          );
+
+          await tx.userAgentTokenUsage.upsert({
+            where: {
+              oauthId_agentName: {
+                oauthId: existing.user.oauthId,
+                agentName: existing.agentName,
+              },
+            },
+            create: {
+              oauthId: existing.user.oauthId,
+              agentName: existing.agentName,
+              totalTokenLimit: monthlyTokenLimit,
+              totalTokensLeft,
+            },
+            update: {
+              totalTokenLimit: monthlyTokenLimit,
+              totalTokensLeft,
+            },
+          });
+        }
+
+        return assignment;
+      });
+    }
+
+    if (normalizedType === 'group') {
+      const existing = await this.prisma.assignedGroup.findUnique({
+        where: { id },
+      });
+      if (!existing) throw new NotFoundException('Team assignment not found');
+
+      const { data } = this.buildTimedUpdate(existing.startsAt, updates, true);
+
+      return this.prisma.assignedGroup.update({
+        where: { id },
+        data,
+      });
+    }
+
+    if (normalizedType === 'membership') {
+      const existing = await this.prisma.assignedMembership.findUnique({
+        where: { id },
+      });
+      if (!existing) {
+        throw new NotFoundException('Membership assignment not found');
+      }
+
+      const { data } = this.buildTimedUpdate(existing.startsAt, updates, false);
+
+      return this.prisma.assignedMembership.update({
+        where: { id },
+        data,
+      });
+    }
+
+    throw new BadRequestException('Assignment type must be agent, group, team, or membership');
   }
 
   // ======================== BULK ACTIONS ========================

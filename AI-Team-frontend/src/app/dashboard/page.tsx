@@ -560,7 +560,7 @@ export default function HomePage() {
             </button>
 
             <Link
-              href="/dashboard/knowledgebase"
+              href={`/dashboard/knowledgebase?sharedNamespaceId=${user?.id ?? ""}`}
               className={`p-2 transition-colors ${theme === "dark" ? "text-white/80 hover:text-white" : "text-gray-600 hover:text-gray-900"}`}
               title="Knowledge Base — Info Azienda"
             >

@@ -15,21 +15,21 @@ export type KbAgent = {
 }
 
 export const KB_AGENTS: KbAgent[] = [
-    { key: "lara-ai", name: "Lara AI", role: "Social Media Manager", suggestion: "Carica i calendari editoriali passati e le regole di stile della comunicazione aziendale" },
-    { key: "alex-ai", name: "Alex AI", role: "Cross-Platform ADs Manager", suggestion: "Carica i report sulle best practice da seguire per le campagne ADS" },
-    { key: "tony-ai", name: "Tony AI", role: "Direttore Commerciale", suggestion: "Carica gli script di vendita e i listini negoziati" },
-    { key: "mike-ai", name: "Mike AI", role: "Direttore Marketing", suggestion: "Carica i piani marketing e le analisi di mercato" },
-    { key: "simone-ai", name: "Simone AI", role: "SEO Copywriter", suggestion: "Carica le linee guida SEO e i keyword set" },
-    { key: "jim-ai", name: "Jim AI", role: "Coach di Vendite", suggestion: "Carica i materiali di formazione vendite" },
+    { key: "lara-ai", name: "Lara AI", role: "Social Media Manager", suggestion: "Upload past editorial calendars and company communication style rules" },
+    { key: "alex-ai", name: "Alex AI", role: "Cross-Platform Ads Manager", suggestion: "Upload best-practice reports for ad campaigns" },
+    { key: "tony-ai", name: "Tony AI", role: "Sales Director", suggestion: "Upload sales scripts and negotiated price lists" },
+    { key: "mike-ai", name: "Mike AI", role: "Marketing Director", suggestion: "Upload marketing plans and market analysis" },
+    { key: "simone-ai", name: "Simone AI", role: "SEO Copywriter", suggestion: "Upload SEO guidelines and keyword sets" },
+    { key: "jim-ai", name: "Jim AI", role: "Sales Coach", suggestion: "Upload sales training materials" },
 ]
 
 export const AGENT_FILES: Record<string, KbFile[]> = {
     "lara-ai": [
-        { id: "l1", name: "Calendario-Editoriale-Maggio.xlsx", size: "320 KB", uploadedAt: "02 Giu 2026", version: 2, previousVersions: [{ version: 1, uploadedAt: "01 Mag 2026" }] },
-        { id: "l2", name: "Regole-Stile-Comunicazione.pdf", size: "540 KB", uploadedAt: "15 Apr 2026", version: 1 },
+        { id: "l1", name: "May-Editorial-Calendar.xlsx", size: "320 KB", uploadedAt: "Jun 02, 2026", version: 2, previousVersions: [{ version: 1, uploadedAt: "May 01, 2026" }] },
+        { id: "l2", name: "Communication-Style-Rules.pdf", size: "540 KB", uploadedAt: "Apr 15, 2026", version: 1 },
     ],
     "alex-ai": [
-        { id: "a1", name: "Best-Practice-ADS-2026.pdf", size: "1.1 MB", uploadedAt: "10 Giu 2026", version: 1 },
+        { id: "a1", name: "Ads-Best-Practices-2026.pdf", size: "1.1 MB", uploadedAt: "Jun 10, 2026", version: 1 },
     ],
     "tony-ai": [],
     "mike-ai": [],
@@ -46,12 +46,12 @@ export function bumpFileVersion(files: KbFile[], file: File): KbFile[] {
                 ? {
                     ...f,
                     version: f.version + 1,
-                    uploadedAt: "Oggi",
+                    uploadedAt: "Today",
                     size,
                     previousVersions: [{ version: f.version, uploadedAt: f.uploadedAt }, ...(f.previousVersions ?? [])],
                 }
                 : f
         )
     }
-    return [...files, { id: `f-${Date.now()}`, name: file.name, size, uploadedAt: "Oggi", version: 1 }]
+    return [...files, { id: `f-${Date.now()}`, name: file.name, size, uploadedAt: "Today", version: 1 }]
 }

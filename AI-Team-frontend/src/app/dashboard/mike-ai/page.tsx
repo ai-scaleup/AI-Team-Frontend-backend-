@@ -2156,7 +2156,7 @@ export default function App() {
                         className={`text-xs sm:text-sm leading-tight max-w-[150px] sm:max-w-md truncate sm:whitespace-normal ${isDark ? "text-slate-300" : "text-slate-700"} font-medium hidden xs:block`}
                       >
                         {currentAgent.role}
-                      </p>
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -2177,7 +2177,7 @@ export default function App() {
                   </a>
 
                   <a
-                    href="/dashboard/knowledgebase"
+                    href={`/dashboard/knowledgebase?sharedNamespaceId=${user?.id ?? ""}`}
                     className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50 transition-all border-t border-white/20 flex items-center justify-center group cursor-pointer"
                     title="Knowledgebase"
                   >

@@ -1,0 +1,1186 @@
+{
+  "exportedAt": "2026-05-17T11:34:24.767Z",
+  "totalUsers": 100,
+  "users": [
+    {
+      "email": "digitalcoachai@gmail.com",
+      "oauthId": "user_3AwoqdWC7SsC9IIw6tgCqbmdlID",
+      "clerkId": "user_3AwoqdWC7SsC9IIw6tgCqbmdlID",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "113635538427549768027"
+        }
+      ],
+      "name": "Digital Coach AI d",
+      "createdAt": "2026-03-14T18:33:05.099Z"
+    },
+    {
+      "email": "maurizio.rossitto@gmail.com",
+      "oauthId": "user_3AAHsCupGR9BF7Ac1tiXxQ61mln",
+      "clerkId": "user_3AAHsCupGR9BF7Ac1tiXxQ61mln",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "102470754202434523589"
+        }
+      ],
+      "name": "maurizio rossitto",
+      "createdAt": "2026-02-25T14:10:58.497Z"
+    },
+    {
+      "email": "luca.papa.digital+dev@gmail.com",
+      "oauthId": "user_39wHsdDodIHME2EcMGxyJ700F7o",
+      "clerkId": "user_39wHsdDodIHME2EcMGxyJ700F7o",
+      "externalOauthIds": [],
+      "name": "Luca  TEST",
+      "createdAt": "2026-02-20T15:13:40.071Z"
+    },
+    {
+      "email": "mahshidkhorasani69@gmail.com",
+      "oauthId": "user_39W7GyGARxbFHbq5aSHaeDkULIX",
+      "clerkId": "user_39W7GyGARxbFHbq5aSHaeDkULIX",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "112023157134649989652"
+        }
+      ],
+      "name": "Mahshid Khorasani",
+      "createdAt": "2026-02-11T08:51:20.479Z"
+    },
+    {
+      "email": "luca.papa.digital+3migration@gmail.com",
+      "oauthId": "user_38IuTREicYwspqSWaVs6prRiE1V",
+      "clerkId": "user_38IuTREicYwspqSWaVs6prRiE1V",
+      "externalOauthIds": [],
+      "name": "3Migration Luca",
+      "createdAt": "2026-01-15T17:50:13.071Z"
+    },
+    {
+      "email": "mahshidkhorasani69+test@gmail.com",
+      "oauthId": "user_38ILpL6GClLgpa5NLgYhhtlyJKt",
+      "clerkId": "user_38ILpL6GClLgpa5NLgYhhtlyJKt",
+      "externalOauthIds": [],
+      "name": "Mahshid test",
+      "createdAt": "2026-01-15T13:05:19.745Z"
+    },
+    {
+      "email": "luca.papa.digital+migration@gmail.com",
+      "oauthId": "user_38ILDRPRMEUSKbENWWoM7SbohWr",
+      "clerkId": "user_38ILDRPRMEUSKbENWWoM7SbohWr",
+      "externalOauthIds": [],
+      "name": "TEST MIGRATION",
+      "createdAt": "2026-01-15T13:00:18.377Z"
+    },
+    {
+      "email": "john.smith@example.com",
+      "oauthId": "user_38F3o2hFLhI4nwwOuybYJcgaAyr",
+      "clerkId": "user_38F3o2hFLhI4nwwOuybYJcgaAyr",
+      "externalOauthIds": [],
+      "name": "john smith",
+      "createdAt": "2026-01-14T09:07:42.382Z"
+    },
+    {
+      "email": "emanueleboria@gmail.com",
+      "oauthId": "user_366VMeWGZnA0YWi3jJ05KBwKWCH",
+      "clerkId": "user_366VMeWGZnA0YWi3jJ05KBwKWCH",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "103950402752825333873"
+        }
+      ],
+      "name": "Emanuele Boria",
+      "createdAt": "2025-11-28T10:49:21.953Z"
+    },
+    {
+      "email": "gleicyaparecidamoreirafranca@gmail.com",
+      "oauthId": "user_361FI6xswLeSoaQeBNFk1SCeQtr",
+      "clerkId": "user_361FI6xswLeSoaQeBNFk1SCeQtr",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "102875158116526956609"
+        }
+      ],
+      "name": "Gleicy Aparecida Moreira Franca",
+      "createdAt": "2025-11-26T14:08:07.909Z"
+    },
+    {
+      "email": "advspecialistdc@gmail.com",
+      "oauthId": "user_361FHipNevZvmxCpfb0j0dSTdC7",
+      "clerkId": "user_361FHipNevZvmxCpfb0j0dSTdC7",
+      "externalOauthIds": [],
+      "name": "Gabriele Alessandro",
+      "createdAt": "2025-11-26T14:08:04.000Z"
+    },
+    {
+      "email": "olga.gravano@alice.it",
+      "oauthId": "user_35yhPo4fArdORt2NcgB1tovHOFD",
+      "clerkId": "user_35yhPo4fArdORt2NcgB1tovHOFD",
+      "externalOauthIds": [],
+      "name": "Olga Gravano",
+      "createdAt": "2025-11-25T16:29:56.466Z"
+    },
+    {
+      "email": "fibracomservice@gmail.com",
+      "oauthId": "user_35wFKZEjQeyrxxIcDRBV6Cee0je",
+      "clerkId": "user_35wFKZEjQeyrxxIcDRBV6Cee0je",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "104294982188145664969"
+        }
+      ],
+      "name": "Giuseppe Pisco",
+      "createdAt": "2025-11-24T19:39:23.554Z"
+    },
+    {
+      "email": "francescamarrini@gmail.com",
+      "oauthId": "user_35wF9VEOqaK2i4FkpkwTfrvGN8T",
+      "clerkId": "user_35wF9VEOqaK2i4FkpkwTfrvGN8T",
+      "externalOauthIds": [],
+      "name": "Francesca Marrini",
+      "createdAt": "2025-11-24T19:37:55.118Z"
+    },
+    {
+      "email": "marchettimarialucia@gmail.com",
+      "oauthId": "user_35wEwUBhycJJlNUt9l6sFLmmOwm",
+      "clerkId": "user_35wEwUBhycJJlNUt9l6sFLmmOwm",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "107042240575304584083"
+        }
+      ],
+      "name": "Maria Lucia Marchetti",
+      "createdAt": "2025-11-24T19:36:11.048Z"
+    },
+    {
+      "email": "usaimatteo5@gmail.com",
+      "oauthId": "user_35wEv5XuM8vN9VQzwI7rzr9oLVf",
+      "clerkId": "user_35wEv5XuM8vN9VQzwI7rzr9oLVf",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "104868870855339975459"
+        }
+      ],
+      "name": "matteo usai",
+      "createdAt": "2025-11-24T19:36:00.656Z"
+    },
+    {
+      "email": "formazione@infinitywebsagl.ch",
+      "oauthId": "user_35wEuzvxKPpDESUbPMzk74BKMZb",
+      "clerkId": "user_35wEuzvxKPpDESUbPMzk74BKMZb",
+      "externalOauthIds": [],
+      "name": "Aramis Romano",
+      "createdAt": "2025-11-24T19:36:00.503Z"
+    },
+    {
+      "email": "elandronaco@gmail.com",
+      "oauthId": "user_35wEsz8dqyo5kceFZXw8XAO9Kg6",
+      "clerkId": "user_35wEsz8dqyo5kceFZXw8XAO9Kg6",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "110572602824852131971"
+        }
+      ],
+      "name": "Eleonora Andronaco",
+      "createdAt": "2025-11-24T19:35:44.318Z"
+    },
+    {
+      "email": "fnuccio@remax.it",
+      "oauthId": "user_35wEpNuRqzFhtVPLWvsRkpjXgUA",
+      "clerkId": "user_35wEpNuRqzFhtVPLWvsRkpjXgUA",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "117515408445890360116"
+        }
+      ],
+      "name": "Francesco Nuccio",
+      "createdAt": "2025-11-24T19:35:15.272Z"
+    },
+    {
+      "email": "matteorighi94@gmail.com",
+      "oauthId": "user_35wElxJkqwwkap3LDAHSR9bSHAt",
+      "clerkId": "user_35wElxJkqwwkap3LDAHSR9bSHAt",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "115261392384560840157"
+        }
+      ],
+      "name": "Matteo Righi",
+      "createdAt": "2025-11-24T19:34:48.844Z"
+    },
+    {
+      "email": "vivianavitolo@gmail.com",
+      "oauthId": "user_35wElCFLTd9tItEenx1yGxKZUfd",
+      "clerkId": "user_35wElCFLTd9tItEenx1yGxKZUfd",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "106351894420035943957"
+        }
+      ],
+      "name": "Viviana Vitolo",
+      "createdAt": "2025-11-24T19:34:42.985Z"
+    },
+    {
+      "email": "tirellicarlo@yahoo.it",
+      "oauthId": "user_35wEjxXZMYj4XozEt5UBDe8Xg7v",
+      "clerkId": "user_35wEjxXZMYj4XozEt5UBDe8Xg7v",
+      "externalOauthIds": [],
+      "name": "CARLO TIRELLI",
+      "createdAt": "2025-11-24T19:34:32.521Z"
+    },
+    {
+      "email": "danilo.terzigni.993@gmail.com",
+      "oauthId": "user_35wEjiKv0iyurCLrzdWRXWfaBrC",
+      "clerkId": "user_35wEjiKv0iyurCLrzdWRXWfaBrC",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "103086236753402687623"
+        }
+      ],
+      "name": "Danilo Terzigni",
+      "createdAt": "2025-11-24T19:34:30.914Z"
+    },
+    {
+      "email": "marco.varvello.14@gmail.com",
+      "oauthId": "user_35wEjVAGBj7Dx6kX7tFbCUdXhCH",
+      "clerkId": "user_35wEjVAGBj7Dx6kX7tFbCUdXhCH",
+      "externalOauthIds": [],
+      "name": "MARCO VARVELLO",
+      "createdAt": "2025-11-24T19:34:28.650Z"
+    },
+    {
+      "email": "minadileo@gmail.com",
+      "oauthId": "user_35wEi6SZrXsDiHlxT3SVAC4HHKu",
+      "clerkId": "user_35wEi6SZrXsDiHlxT3SVAC4HHKu",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "118295439708330255294"
+        }
+      ],
+      "name": "Mina Di Leo",
+      "createdAt": "2025-11-24T19:34:17.000Z"
+    },
+    {
+      "email": "antonio.seccia19@gmail.com",
+      "oauthId": "user_35wEhg8LKYdfnM3XFuVWg7V0gaK",
+      "clerkId": "user_35wEhg8LKYdfnM3XFuVWg7V0gaK",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "117606899009245329919"
+        }
+      ],
+      "name": "Antonio Seccia",
+      "createdAt": "2025-11-24T19:34:14.112Z"
+    },
+    {
+      "email": "danielelarosa1974@gmail.com",
+      "oauthId": "user_35wEfxnSYxlBmD99BsAX4fCrG9G",
+      "clerkId": "user_35wEfxnSYxlBmD99BsAX4fCrG9G",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "118423011473623607963"
+        }
+      ],
+      "name": "Daniele Larosa",
+      "createdAt": "2025-11-24T19:34:00.581Z"
+    },
+    {
+      "email": "marcomoscardini60@gmail.com",
+      "oauthId": "user_35wEbfl9S5CRZlG2U2nZqv4bl4E",
+      "clerkId": "user_35wEbfl9S5CRZlG2U2nZqv4bl4E",
+      "externalOauthIds": [],
+      "name": "Marco Moscardini",
+      "createdAt": "2025-11-24T19:33:26.112Z"
+    },
+    {
+      "email": "chimass70@gmail.com",
+      "oauthId": "user_35wEZRy2cZ7fI8h9Q0rPOxfE6oL",
+      "clerkId": "user_35wEZRy2cZ7fI8h9Q0rPOxfE6oL",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "103352950246468163626"
+        }
+      ],
+      "name": "Massimiliano Chiaruttini",
+      "createdAt": "2025-11-24T19:33:08.385Z"
+    },
+    {
+      "email": "loikokatia@gmail.com",
+      "oauthId": "user_35wEYlqKdXfy4K4HfWGpCjc2Sz5",
+      "clerkId": "user_35wEYlqKdXfy4K4HfWGpCjc2Sz5",
+      "externalOauthIds": [],
+      "name": "Katia loiko",
+      "createdAt": "2025-11-24T19:33:03.928Z"
+    },
+    {
+      "email": "ag.chiodini@gmail.com",
+      "oauthId": "user_35wEUjBRzRghzsedSiA3meLVhnr",
+      "clerkId": "user_35wEUjBRzRghzsedSiA3meLVhnr",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "110016642116932494150"
+        }
+      ],
+      "name": "Gabriele Chiodini",
+      "createdAt": "2025-11-24T19:32:31.782Z"
+    },
+    {
+      "email": "tacchi.pierluigi@gmail.com",
+      "oauthId": "user_35wERnC39p55IXgzlvQijxMNrx5",
+      "clerkId": "user_35wERnC39p55IXgzlvQijxMNrx5",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "105627859869847312867"
+        }
+      ],
+      "name": "PIERLUIGI TACCHI",
+      "createdAt": "2025-11-24T19:32:07.605Z"
+    },
+    {
+      "email": "crivelli.c@icloud.com",
+      "oauthId": "user_35wEReUuNuTa0SHgC4Uh6cowSVe",
+      "clerkId": "user_35wEReUuNuTa0SHgC4Uh6cowSVe",
+      "externalOauthIds": [],
+      "name": "Carlo Crivelli",
+      "createdAt": "2025-11-24T19:32:06.598Z"
+    },
+    {
+      "email": "pappalardo.ingegnere@gmail.com",
+      "oauthId": "user_35wEOqBfJbIsi72y67AX2XyfPYg",
+      "clerkId": "user_35wEOqBfJbIsi72y67AX2XyfPYg",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "117145937546529210235"
+        }
+      ],
+      "name": "Giuseppe Pappalardo",
+      "createdAt": "2025-11-24T19:31:44.121Z"
+    },
+    {
+      "email": "marco.damiani@winklink.it",
+      "oauthId": "user_35wEOUvgGITGyQ6Xwgr5DD88y7U",
+      "clerkId": "user_35wEOUvgGITGyQ6Xwgr5DD88y7U",
+      "externalOauthIds": [],
+      "name": "Marco Damiani",
+      "createdAt": "2025-11-24T19:31:41.773Z"
+    },
+    {
+      "email": "gravano2014@gmail.com",
+      "oauthId": "user_35wEOFDeBrHN1ytpIxYt9fOYCML",
+      "clerkId": "user_35wEOFDeBrHN1ytpIxYt9fOYCML",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "101274957886359705081"
+        }
+      ],
+      "name": "Olga Gravano",
+      "createdAt": "2025-11-24T19:31:39.760Z"
+    },
+    {
+      "email": "info@forevertuscany.it",
+      "oauthId": "user_35wENr8zsjo8u3iLrtjqHGms5JV",
+      "clerkId": "user_35wENr8zsjo8u3iLrtjqHGms5JV",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "112300439322658131405"
+        }
+      ],
+      "name": "Annalisa Rossi",
+      "createdAt": "2025-11-24T19:31:36.105Z"
+    },
+    {
+      "email": "gpugliese88@gmail.com",
+      "oauthId": "user_35wELrISRnVoxxwvZg26IZu5hLj",
+      "clerkId": "user_35wELrISRnVoxxwvZg26IZu5hLj",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "109840337935196307719"
+        }
+      ],
+      "name": "Giovanni Pugliese",
+      "createdAt": "2025-11-24T19:31:20.823Z"
+    },
+    {
+      "email": "danielcentro1995@gmail.com",
+      "oauthId": "user_35wELMZoZaO937PIwQgHPhg9u3g",
+      "clerkId": "user_35wELMZoZaO937PIwQgHPhg9u3g",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "108939727846286898307"
+        }
+      ],
+      "name": "Daniel Centro",
+      "createdAt": "2025-11-24T19:31:16.067Z"
+    },
+    {
+      "email": "percorsidipizza@gmail.com",
+      "oauthId": "user_35wEHq1AnGXFfFMiLAmdbJcUKpG",
+      "clerkId": "user_35wEHq1AnGXFfFMiLAmdbJcUKpG",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "116519371913907530965"
+        }
+      ],
+      "name": "Cristiano Garbarino",
+      "createdAt": "2025-11-24T19:30:48.076Z"
+    },
+    {
+      "email": "angelo.vil@libero.it",
+      "oauthId": "user_35wEEzGN1RZJuxrhaYVVCL3ot9n",
+      "clerkId": "user_35wEEzGN1RZJuxrhaYVVCL3ot9n",
+      "externalOauthIds": [],
+      "name": "Angelo Villani",
+      "createdAt": "2025-11-24T19:30:25.202Z"
+    },
+    {
+      "email": "morenomkg@gmail.com",
+      "oauthId": "user_35wEDHKuIfPhWMIVOZ1pSjz6HDA",
+      "clerkId": "user_35wEDHKuIfPhWMIVOZ1pSjz6HDA",
+      "externalOauthIds": [],
+      "name": "Moreno M",
+      "createdAt": "2025-11-24T19:30:12.480Z"
+    },
+    {
+      "email": "zelirinooscar9@gmail.com",
+      "oauthId": "user_35wECgew59CKbfPHuINpQFCxMDl",
+      "clerkId": "user_35wECgew59CKbfPHuINpQFCxMDl",
+      "externalOauthIds": [],
+      "name": "Rino  Zeli",
+      "createdAt": "2025-11-24T19:30:07.525Z"
+    },
+    {
+      "email": "annamontalbetti71@gmail.com",
+      "oauthId": "user_35wEChlK0xV0in07QM43VKOMmEI",
+      "clerkId": "user_35wEChlK0xV0in07QM43VKOMmEI",
+      "externalOauthIds": [],
+      "name": "Anna Montalbetti",
+      "createdAt": "2025-11-24T19:30:07.152Z"
+    },
+    {
+      "email": "fabrizio.deltufo@gmail.com",
+      "oauthId": "user_35wEBH7SE9OpYsvi1uofzWhvxEA",
+      "clerkId": "user_35wEBH7SE9OpYsvi1uofzWhvxEA",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "114057470904595608687"
+        }
+      ],
+      "name": "Fabrizio Del Tufo",
+      "createdAt": "2025-11-24T19:29:56.976Z"
+    },
+    {
+      "email": "angelodenittoweb@gmail.com",
+      "oauthId": "user_35wE8XMHgSkgbFRHVqmaT0xnDkd",
+      "clerkId": "user_35wE8XMHgSkgbFRHVqmaT0xnDkd",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "104174279418560710096"
+        }
+      ],
+      "name": "Angelo Denitto",
+      "createdAt": "2025-11-24T19:29:34.801Z"
+    },
+    {
+      "email": "alessandrocavalierebr@gmail.com",
+      "oauthId": "user_35wE8JfD0jWXTTmfMfEz55O9D2N",
+      "clerkId": "user_35wE8JfD0jWXTTmfMfEz55O9D2N",
+      "externalOauthIds": [],
+      "name": "Alessandro Cavaliere",
+      "createdAt": "2025-11-24T19:29:32.866Z"
+    },
+    {
+      "email": "andrea.torresi@torresistudio.it",
+      "oauthId": "user_35wE7yHyEXmEyN1SH1moZTnOgRd",
+      "clerkId": "user_35wE7yHyEXmEyN1SH1moZTnOgRd",
+      "externalOauthIds": [],
+      "name": "Andrea Torresi",
+      "createdAt": "2025-11-24T19:29:29.195Z"
+    },
+    {
+      "email": "luciani_luca@yahoo.it",
+      "oauthId": "user_35wE4a8xDvUrY1islRGSYElXSXR",
+      "clerkId": "user_35wE4a8xDvUrY1islRGSYElXSXR",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "103498403136202958265"
+        }
+      ],
+      "name": "Luca Luciani",
+      "createdAt": "2025-11-24T19:29:03.070Z"
+    },
+    {
+      "email": "lcastellini78@gmail.com",
+      "oauthId": "user_35wE0utbawW5WBhnit0c82bxIOl",
+      "clerkId": "user_35wE0utbawW5WBhnit0c82bxIOl",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "105150731212095632708"
+        }
+      ],
+      "name": "Luciana Castellini",
+      "createdAt": "2025-11-24T19:28:33.312Z"
+    },
+    {
+      "email": "semg76@gmail.com",
+      "oauthId": "user_35wE0U037pfrNAY3QlNGDsDc5EH",
+      "clerkId": "user_35wE0U037pfrNAY3QlNGDsDc5EH",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "112655637102789370213"
+        }
+      ],
+      "name": "Samuele G",
+      "createdAt": "2025-11-24T19:28:30.580Z"
+    },
+    {
+      "email": "marketingenerativo@gmail.com",
+      "oauthId": "user_35wDzCKOLZnb6l5wR0u8qlZw8zq",
+      "clerkId": "user_35wDzCKOLZnb6l5wR0u8qlZw8zq",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "108124594910143612616"
+        }
+      ],
+      "name": "Marketing Generativo",
+      "createdAt": "2025-11-24T19:28:20.943Z"
+    },
+    {
+      "email": "paolaorange@gmail.com",
+      "oauthId": "user_35i1q84gBGw1GgVVImGVjwZZzJo",
+      "clerkId": "user_35i1q84gBGw1GgVVImGVjwZZzJo",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "102587267244075608681"
+        }
+      ],
+      "name": "Paola Villani",
+      "createdAt": "2025-11-19T18:51:05.298Z"
+    },
+    {
+      "email": "marios72@tiscali.it",
+      "oauthId": "user_35hyg29LAEY3q0o5UzqQ8LaQlPl",
+      "clerkId": "user_35hyg29LAEY3q0o5UzqQ8LaQlPl",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "102833447922054331215"
+        }
+      ],
+      "name": "mario",
+      "createdAt": "2025-11-19T18:25:05.740Z"
+    },
+    {
+      "email": "fulviore60@gmail.com",
+      "oauthId": "user_35hyY7DYSTZYSOHWwTJTSy2JwZ2",
+      "clerkId": "user_35hyY7DYSTZYSOHWwTJTSy2JwZ2",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "117906688119197417963"
+        }
+      ],
+      "name": "Fulvio Re",
+      "createdAt": "2025-11-19T18:24:02.360Z"
+    },
+    {
+      "email": "ddicarlo365@gmail.com",
+      "oauthId": "user_35hiqIy7oJ88wlE8UcxVJPDdv2T",
+      "clerkId": "user_35hiqIy7oJ88wlE8UcxVJPDdv2T",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "114954611014199727076"
+        }
+      ],
+      "name": "Da Dic",
+      "createdAt": "2025-11-19T16:14:53.548Z"
+    },
+    {
+      "email": "ambrella.g.1990@gmail.com",
+      "oauthId": "user_35hFNLkYZR8QHBWYV2JqwEZZzjn",
+      "clerkId": "user_35hFNLkYZR8QHBWYV2JqwEZZzjn",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "113785422711489603570"
+        }
+      ],
+      "name": "Ambra Guercio",
+      "createdAt": "2025-11-19T12:12:35.323Z"
+    },
+    {
+      "email": "elvis.ventrici@homepanda.it",
+      "oauthId": "user_35hDrUGIUcWoRLfNMo9AB7wLxyP",
+      "clerkId": "user_35hDrUGIUcWoRLfNMo9AB7wLxyP",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "117067846318988895313"
+        }
+      ],
+      "name": "Elvis Ventrici",
+      "createdAt": "2025-11-19T12:00:08.221Z"
+    },
+    {
+      "email": "elvis.ventrici@gmail.com",
+      "oauthId": "user_35hDYSDCsyMF3lNemi6sEUxmLGZ",
+      "clerkId": "user_35hDYSDCsyMF3lNemi6sEUxmLGZ",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "101072464688257845297"
+        }
+      ],
+      "name": "Elvis Ventrici",
+      "createdAt": "2025-11-19T11:57:36.515Z"
+    },
+    {
+      "email": "dcapobianchi@gmail.com",
+      "oauthId": "user_35h76kEVW6vflm14U5fNYkJsTww",
+      "clerkId": "user_35h76kEVW6vflm14U5fNYkJsTww",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "111295102301753795374"
+        }
+      ],
+      "name": "Daniela Capobianchi",
+      "createdAt": "2025-11-19T11:04:36.655Z"
+    },
+    {
+      "email": "miasanches03072003@gmail.com",
+      "oauthId": "user_35gsDfgkftfwnlEBiOa92RuXmOA",
+      "clerkId": "user_35gsDfgkftfwnlEBiOa92RuXmOA",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "102792692058953223988"
+        }
+      ],
+      "name": "NATALI SHLIKHAR",
+      "createdAt": "2025-11-19T09:02:10.191Z"
+    },
+    {
+      "email": "eleonoralaluce15@gmail.com",
+      "oauthId": "user_35fIhnDUmW3w0hsDmVOca1iFXHN",
+      "clerkId": "user_35fIhnDUmW3w0hsDmVOca1iFXHN",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "114522678467209193987"
+        }
+      ],
+      "name": "Eleonora Laluce",
+      "createdAt": "2025-11-18T19:40:20.397Z"
+    },
+    {
+      "email": "continolaura1@gmail.com",
+      "oauthId": "user_35fAWcwGbIVzk0sAZAdpQFZ1Eya",
+      "clerkId": "user_35fAWcwGbIVzk0sAZAdpQFZ1Eya",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "113132466866192954039"
+        }
+      ],
+      "name": "laura contino",
+      "createdAt": "2025-11-18T18:33:04.065Z"
+    },
+    {
+      "email": "mirko.bena@gmail.com",
+      "oauthId": "user_35f95b8rbNlZtsT4t00SfRHtEXN",
+      "clerkId": "user_35f95b8rbNlZtsT4t00SfRHtEXN",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "102685431691995867608"
+        }
+      ],
+      "name": "Mirko Benatello",
+      "createdAt": "2025-11-18T18:21:16.709Z"
+    },
+    {
+      "email": "laurakajtar@gmail.com",
+      "oauthId": "user_35f8dmCERZHF9cEWGnE4ER0LKzq",
+      "clerkId": "user_35f8dmCERZHF9cEWGnE4ER0LKzq",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "111309347368587225721"
+        }
+      ],
+      "name": "Laura Kajtar",
+      "createdAt": "2025-11-18T18:17:34.011Z"
+    },
+    {
+      "email": "egglyguillaume@gmail.com",
+      "oauthId": "user_35f8dB4AB1e4FOavveEcx3Tiyda",
+      "clerkId": "user_35f8dB4AB1e4FOavveEcx3Tiyda",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "112550799349836164228"
+        }
+      ],
+      "name": "guillaume eggly",
+      "createdAt": "2025-11-18T18:17:30.301Z"
+    },
+    {
+      "email": "chiaraelisa.dragoni@gmail.com",
+      "oauthId": "user_35f8YQUJh2xy2Ad5JiaP7wYjVel",
+      "clerkId": "user_35f8YQUJh2xy2Ad5JiaP7wYjVel",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "106129638213343405079"
+        }
+      ],
+      "name": "Chiara Elisa Dragoni",
+      "createdAt": "2025-11-18T18:16:52.549Z"
+    },
+    {
+      "email": "leonardo.micucci97@gmail.com",
+      "oauthId": "user_35f8YO1M8KQSzXPap2nbqVNbkd8",
+      "clerkId": "user_35f8YO1M8KQSzXPap2nbqVNbkd8",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "113234183718102100657"
+        }
+      ],
+      "name": "Leonardo Micucci",
+      "createdAt": "2025-11-18T18:16:51.992Z"
+    },
+    {
+      "email": "erika.donorio.99@gmail.com",
+      "oauthId": "user_35f8WvgWYZAyTLZtg1mRyBfsrmN",
+      "clerkId": "user_35f8WvgWYZAyTLZtg1mRyBfsrmN",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "108515001102061856329"
+        }
+      ],
+      "name": "Erika D'Onorio",
+      "createdAt": "2025-11-18T18:16:40.397Z"
+    },
+    {
+      "email": "vkutsa@gmail.com",
+      "oauthId": "user_35f8WmBiXFX2RrJBSmACx8blXC8",
+      "clerkId": "user_35f8WmBiXFX2RrJBSmACx8blXC8",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "106749677004623816001"
+        }
+      ],
+      "name": "Viktoria Kutsa",
+      "createdAt": "2025-11-18T18:16:39.793Z"
+    },
+    {
+      "email": "danilo.papa999@gmail.com",
+      "oauthId": "user_35f8RAgyeMWwhCkDFuypx0lqnZh",
+      "clerkId": "user_35f8RAgyeMWwhCkDFuypx0lqnZh",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "105967948435688938359"
+        }
+      ],
+      "name": "Danilo Papa",
+      "createdAt": "2025-11-18T18:15:54.341Z"
+    },
+    {
+      "email": "domcbusiness@gmail.com",
+      "oauthId": "user_35f8Nmi5iYYbNRcjqBQygdvq4jA",
+      "clerkId": "user_35f8Nmi5iYYbNRcjqBQygdvq4jA",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "104605621959036386091"
+        }
+      ],
+      "name": "Domenico Costanzo",
+      "createdAt": "2025-11-18T18:15:27.878Z"
+    },
+    {
+      "email": "viaggiopercrescere@gmail.com",
+      "oauthId": "user_35f8Lx6nufA0u3okuAf0F0qwx1t",
+      "clerkId": "user_35f8Lx6nufA0u3okuAf0F0qwx1t",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "117704693862059202280"
+        }
+      ],
+      "name": "Roberta",
+      "createdAt": "2025-11-18T18:15:13.397Z"
+    },
+    {
+      "email": "bettonialessandro626@gmail.com",
+      "oauthId": "user_35f8JkhtAwLIMQbfCJVNA5Tmmpy",
+      "clerkId": "user_35f8JkhtAwLIMQbfCJVNA5Tmmpy",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "117659597018630667737"
+        }
+      ],
+      "name": "Alessandro Bettoni",
+      "createdAt": "2025-11-18T18:14:55.658Z"
+    },
+    {
+      "email": "giossiz83@gmail.com",
+      "oauthId": "user_35f8JeqOMHZcqksTzNdtrBpSXzw",
+      "clerkId": "user_35f8JeqOMHZcqksTzNdtrBpSXzw",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "101273120315218494719"
+        }
+      ],
+      "name": "Maurizio Rossitto",
+      "createdAt": "2025-11-18T18:14:54.465Z"
+    },
+    {
+      "email": "cora.fontana1@gmail.com",
+      "oauthId": "user_35f8IjAPCqLbNxYBP3J0lF4VjaH",
+      "clerkId": "user_35f8IjAPCqLbNxYBP3J0lF4VjaH",
+      "externalOauthIds": [],
+      "name": "Cora Fontana",
+      "createdAt": "2025-11-18T18:14:47.789Z"
+    },
+    {
+      "email": "mephisto117.zio@gmail.com",
+      "oauthId": "user_35f8I5L1yuaf6XRRbepjdyxhB9x",
+      "clerkId": "user_35f8I5L1yuaf6XRRbepjdyxhB9x",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "118240991651214891960"
+        }
+      ],
+      "name": "Simone Perniciaro",
+      "createdAt": "2025-11-18T18:14:42.489Z"
+    },
+    {
+      "email": "kjvelezs018@gmail.com",
+      "oauthId": "user_35f8HIxY9u5mPIbktFCWFmG6rK0",
+      "clerkId": "user_35f8HIxY9u5mPIbktFCWFmG6rK0",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "111730189862196986452"
+        }
+      ],
+      "name": "Kelly Velez",
+      "createdAt": "2025-11-18T18:14:36.615Z"
+    },
+    {
+      "email": "lorenzo.sorce02@gmail.com",
+      "oauthId": "user_35f8Gvv3kyj9j1oumBZpENfXzHG",
+      "clerkId": "user_35f8Gvv3kyj9j1oumBZpENfXzHG",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "106414001738435546577"
+        }
+      ],
+      "name": "Lorenzo Sorce",
+      "createdAt": "2025-11-18T18:14:33.925Z"
+    },
+    {
+      "email": "nicoletamikichuk@gmail.com",
+      "oauthId": "user_35f8GqBCrmzZsSRWxbEJrOWndIa",
+      "clerkId": "user_35f8GqBCrmzZsSRWxbEJrOWndIa",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "104849253975919709966"
+        }
+      ],
+      "name": "Nicoleta Michiciuc",
+      "createdAt": "2025-11-18T18:14:32.584Z"
+    },
+    {
+      "email": "rosa.scudeletti91@gmail.com",
+      "oauthId": "user_35f8Gr516Gq6d07UmEbJjoFb4bp",
+      "clerkId": "user_35f8Gr516Gq6d07UmEbJjoFb4bp",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "105665387458091292708"
+        }
+      ],
+      "name": "Rosa Scudeletti",
+      "createdAt": "2025-11-18T18:14:32.355Z"
+    },
+    {
+      "email": "francescacappellix@gmail.com",
+      "oauthId": "user_35f8GpxgPnDMeXjdGmNVpI5wn8y",
+      "clerkId": "user_35f8GpxgPnDMeXjdGmNVpI5wn8y",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "112443822464766477419"
+        }
+      ],
+      "name": "Francesca Cappelli",
+      "createdAt": "2025-11-18T18:14:32.240Z"
+    },
+    {
+      "email": "stefanomichael.zucca@gmail.com",
+      "oauthId": "user_35f8GIvoTVyeZQcq6TddPSkhPyR",
+      "clerkId": "user_35f8GIvoTVyeZQcq6TddPSkhPyR",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "111099076926371534258"
+        }
+      ],
+      "name": "Stefano Michael Zucca",
+      "createdAt": "2025-11-18T18:14:28.214Z"
+    },
+    {
+      "email": "susanna.manstretta@gmail.com",
+      "oauthId": "user_35f8FNtGctZPgVrujnw1bW5MGPn",
+      "clerkId": "user_35f8FNtGctZPgVrujnw1bW5MGPn",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "108128221453399477674"
+        }
+      ],
+      "name": "Susanna Manstretta",
+      "createdAt": "2025-11-18T18:14:20.474Z"
+    },
+    {
+      "email": "dani009papa@gmail.com",
+      "oauthId": "user_35f8FF1vRDeefik9HxzY0MDA4NA",
+      "clerkId": "user_35f8FF1vRDeefik9HxzY0MDA4NA",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "113922051906720733049"
+        }
+      ],
+      "name": "Danilo Papa",
+      "createdAt": "2025-11-18T18:14:19.729Z"
+    },
+    {
+      "email": "meridavini@gmail.com",
+      "oauthId": "user_35f8EoFL5OLRUEqG8EsnjgaWpgP",
+      "clerkId": "user_35f8EoFL5OLRUEqG8EsnjgaWpgP",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "107227707486493071146"
+        }
+      ],
+      "name": "Meri Davini",
+      "createdAt": "2025-11-18T18:14:16.398Z"
+    },
+    {
+      "email": "rossana.capparelli79@gmail.com",
+      "oauthId": "user_35f8EbwYamsMBWpQAHewlutKgui",
+      "clerkId": "user_35f8EbwYamsMBWpQAHewlutKgui",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "117546438624536340461"
+        }
+      ],
+      "name": "Rossana Capparelli",
+      "createdAt": "2025-11-18T18:14:14.798Z"
+    },
+    {
+      "email": "marcopepe1975@gmail.com",
+      "oauthId": "user_35exZdyYrH6FTDckJjL6PEVdQUy",
+      "clerkId": "user_35exZdyYrH6FTDckJjL6PEVdQUy",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "114193035902661185408"
+        }
+      ],
+      "name": "Marco Pepe",
+      "createdAt": "2025-11-18T16:46:34.245Z"
+    },
+    {
+      "email": "monicafellastar@gmail.com",
+      "oauthId": "user_35ewv2N1wg5ujsvEkjFpof4EXZq",
+      "clerkId": "user_35ewv2N1wg5ujsvEkjFpof4EXZq",
+      "externalOauthIds": [],
+      "name": "Monica Fella",
+      "createdAt": "2025-11-18T16:41:11.734Z"
+    },
+    {
+      "email": "alessandragandelli28@gmail.com",
+      "oauthId": "user_35ewtqwrHZLFAD5yYgPBvevwHqo",
+      "clerkId": "user_35ewtqwrHZLFAD5yYgPBvevwHqo",
+      "externalOauthIds": [],
+      "name": "Alessandra Gandelli",
+      "createdAt": "2025-11-18T16:41:02.083Z"
+    },
+    {
+      "email": "luca.stefano.tamborini@gmail.com",
+      "oauthId": "user_35ewqYCdz7KQq5lG4DKvvSi8xr2",
+      "clerkId": "user_35ewqYCdz7KQq5lG4DKvvSi8xr2",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "110169954320930395781"
+        }
+      ],
+      "name": "Luca Stefano Tamborini",
+      "createdAt": "2025-11-18T16:40:36.139Z"
+    },
+    {
+      "email": "international.job.srl@gmail.com",
+      "oauthId": "user_35ewnjAMzJ8Dl6xZmVGzrUXVNpD",
+      "clerkId": "user_35ewnjAMzJ8Dl6xZmVGzrUXVNpD",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "108413156122712289846"
+        }
+      ],
+      "name": "Mauro Costantino",
+      "createdAt": "2025-11-18T16:40:13.483Z"
+    },
+    {
+      "email": "clizia.bruschi@gmail.com",
+      "oauthId": "user_35ewmpEdjlDcUYGDa5z8QPS2vS2",
+      "clerkId": "user_35ewmpEdjlDcUYGDa5z8QPS2vS2",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "108853028742427432957"
+        }
+      ],
+      "name": "Clizia Bruschi",
+      "createdAt": "2025-11-18T16:40:06.037Z"
+    },
+    {
+      "email": "eliana0534@gmail.com",
+      "oauthId": "user_35ewmSVwzWxuZc2i6mFEWhl4N4r",
+      "clerkId": "user_35ewmSVwzWxuZc2i6mFEWhl4N4r",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "105686074898461939854"
+        }
+      ],
+      "name": "Eliana Pantè",
+      "createdAt": "2025-11-18T16:40:03.295Z"
+    },
+    {
+      "email": "lagrottadimerlino@gmail.com",
+      "oauthId": "user_35ewlWIbgjHSc5cmTmQbaLW5fWh",
+      "clerkId": "user_35ewlWIbgjHSc5cmTmQbaLW5fWh",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "111193904829402214932"
+        }
+      ],
+      "name": "Pietro D'avenia",
+      "createdAt": "2025-11-18T16:39:56.763Z"
+    },
+    {
+      "email": "info@stefanobattistella.it",
+      "oauthId": "user_35ewlMROANZMSklGGBIRc1Wzlp8",
+      "clerkId": "user_35ewlMROANZMSklGGBIRc1Wzlp8",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "108880048660595648430"
+        }
+      ],
+      "name": "Stefano Battistella",
+      "createdAt": "2025-11-18T16:39:54.076Z"
+    },
+    {
+      "email": "odeta.thomaj.digitalcoach@gmail.com",
+      "oauthId": "user_35elZa3GMToVwJ3BPLUBaSjaf1L",
+      "clerkId": "user_35elZa3GMToVwJ3BPLUBaSjaf1L",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "106900089916220318371"
+        }
+      ],
+      "name": "Odeta Thomaj Digital Coach",
+      "createdAt": "2025-11-18T15:07:54.651Z"
+    },
+    {
+      "email": "giuseppe.zeta90@gmail.com",
+      "oauthId": "user_35elUoHPPVeSOuucR52PaseXuPQ",
+      "clerkId": "user_35elUoHPPVeSOuucR52PaseXuPQ",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "112325425251345134376"
+        }
+      ],
+      "name": "Giuseppe Zaccaria",
+      "createdAt": "2025-11-18T15:07:16.726Z"
+    },
+    {
+      "email": "aenor007@gmail.com",
+      "oauthId": "user_35eVwqmTwRTmTBuc8fZbNinEiJo",
+      "clerkId": "user_35eVwqmTwRTmTBuc8fZbNinEiJo",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "111011573303246492609"
+        }
+      ],
+      "name": "Jahid",
+      "createdAt": "2025-11-18T12:59:25.935Z"
+    },
+    {
+      "email": "luca.papa.digital@gmail.com",
+      "oauthId": "user_35Q6gYYa3q6aEUYxFevoTZU8vFu",
+      "clerkId": "user_35Q6gYYa3q6aEUYxFevoTZU8vFu",
+      "externalOauthIds": [
+        {
+          "provider": "oauth_google",
+          "oauthId": "102204791532067811070"
+        }
+      ],
+      "name": "Gianni Campi",
+      "createdAt": "2025-11-13T10:34:19.401Z"
+    }
+  ]
+}

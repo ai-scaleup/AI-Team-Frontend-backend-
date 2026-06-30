@@ -17,7 +17,7 @@ import {
 import { KB_AGENTS } from "../_lib/kbData"
 
 type KbShellProps = {
-    /** "shared" highlights the Info Azienda item; otherwise the agent key */
+    /** "shared" highlights the Company Info item; otherwise the agent key */
     active: string
     title: string
     subtitle: string
@@ -59,7 +59,7 @@ export default function KbShell({ active, title, subtitle, search, children }: K
         return (
             <div className={`flex min-h-screen items-center justify-center ${isDark ? "bg-[#020617]" : "bg-gray-50"}`}>
                 <p className={isDark ? "text-white/60" : "text-gray-600"}>
-                    Devi effettuare il login per accedere alla Knowledge Base.
+                    Sign in to access the Knowledge Base.
                 </p>
             </div>
         )
@@ -68,6 +68,9 @@ export default function KbShell({ active, title, subtitle, search, children }: K
     const navItemBase = "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors"
     const activeCls = isDark ? "bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/30" : "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
     const idleCls = isDark ? "text-white/60 hover:text-white hover:bg-white/5" : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+
+    // Keep the user's sharedNamespaceId in the URL while navigating within the Knowledge Base
+    const kbQuery = user?.id ? `?sharedNamespaceId=${user.id}` : ""
 
     const Sidebar = (
         <aside className={`flex flex-col w-72 shrink-0 h-screen sticky top-0 border-r ${isDark ? "bg-[#0B1221] border-white/5" : "bg-white border-gray-200"}`}>
@@ -97,25 +100,25 @@ export default function KbShell({ active, title, subtitle, search, children }: K
 
                 <div>
                     <p className={`px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.15em] ${isDark ? "text-white/30" : "text-gray-400"}`}>
-                        Condivisa
+                        Shared
                     </p>
                     <Link
-                        href="/dashboard/knowledgebase"
+                        href={`/dashboard/knowledgebase${kbQuery}`}
                         className={`${navItemBase} ${active === "shared" ? activeCls : idleCls}`}
                     >
-                        <Building2 size={18} /> Info Azienda
+                        <Building2 size={18} /> Company Info
                     </Link>
                 </div>
 
                 <div>
                     <p className={`px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.15em] ${isDark ? "text-white/30" : "text-gray-400"}`}>
-                        Info x Agente
+                        Agent Info
                     </p>
                     <div className="space-y-1">
                         {KB_AGENTS.map(agent => (
                             <Link
                                 key={agent.key}
-                                href={`/dashboard/knowledgebase/${agent.key}`}
+                                href={`/dashboard/knowledgebase/${agent.key}${kbQuery}`}
                                 className={`${navItemBase} ${active === agent.key ? activeCls : idleCls}`}
                             >
                                 <Bot size={18} className="shrink-0" />
@@ -128,7 +131,7 @@ export default function KbShell({ active, title, subtitle, search, children }: K
 
             {/* Footer */}
             <div className={`px-5 py-3 border-t text-[11px] ${isDark ? "border-white/5 text-white/30" : "border-gray-100 text-gray-400"}`}>
-                Sincronizzato con Pinecone
+                Synced with Pinecone
             </div>
         </aside>
     )
@@ -156,7 +159,7 @@ export default function KbShell({ active, title, subtitle, search, children }: K
                         </button>
 
                         {active !== "shared" && (
-                            <Link href="/dashboard/knowledgebase" className={`hidden sm:flex p-2 rounded-lg ${isDark ? "text-white/60 hover:bg-white/5 hover:text-white" : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"}`}>
+                            <Link href={`/dashboard/knowledgebase${kbQuery}`} className={`hidden sm:flex p-2 rounded-lg ${isDark ? "text-white/60 hover:bg-white/5 hover:text-white" : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"}`}>
                                 <ChevronLeft size={18} />
                             </Link>
                         )}
@@ -174,7 +177,7 @@ export default function KbShell({ active, title, subtitle, search, children }: K
                                         type="text"
                                         value={search.value}
                                         onChange={(e) => search.onChange(e.target.value)}
-                                        placeholder={search.placeholder ?? "Cerca..."}
+                                        placeholder={search.placeholder ?? "Search..."}
                                         className={`w-56 lg:w-64 py-2 pl-9 pr-3 rounded-xl border text-sm transition-colors outline-none ${isDark
                                             ? "bg-[#1E293B] border-white/10 text-white placeholder:text-white/30 focus:border-sky-500"
                                             : "bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-blue-500"
@@ -201,7 +204,7 @@ export default function KbShell({ active, title, subtitle, search, children }: K
                                     type="text"
                                     value={search.value}
                                     onChange={(e) => search.onChange(e.target.value)}
-                                    placeholder={search.placeholder ?? "Cerca..."}
+                                    placeholder={search.placeholder ?? "Search..."}
                                     className={`w-full py-2 pl-9 pr-3 rounded-xl border text-sm outline-none ${isDark
                                         ? "bg-[#1E293B] border-white/10 text-white placeholder:text-white/30 focus:border-sky-500"
                                         : "bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-blue-500"

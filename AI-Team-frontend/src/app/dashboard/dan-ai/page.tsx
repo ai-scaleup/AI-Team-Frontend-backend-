@@ -1225,7 +1225,7 @@ export default function page() {
                                         {isDark ? <Sun size={18} /> : <Moon size={18} />}
                                     </button>
                                     <a
-                                        href="/dashboard/knowledgebase"
+                                        href={`/dashboard/knowledgebase?sharedNamespaceId=${user?.id ?? ""}`}
                                         className="p-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50 transition-all border-t border-white/20 flex items-center justify-center group cursor-pointer"
                                         title="Knowledgebase"
                                     >

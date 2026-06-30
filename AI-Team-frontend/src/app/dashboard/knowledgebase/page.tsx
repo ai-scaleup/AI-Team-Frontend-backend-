@@ -1,6 +1,8 @@
 "use client"
+export const dynamic = "force-dynamic"
 
 import { useState, useRef } from "react"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
     Upload,
@@ -17,6 +19,7 @@ import {
     FileStack,
 } from "lucide-react"
 import KbShell from "./_components/KbShell"
+import PineconeDocuments from "./_components/PineconeDocuments"
 import { KB_AGENTS, KbFile, bumpFileVersion } from "./_lib/kbData"
 
 type Section = {
@@ -31,38 +34,38 @@ type Section = {
 const INITIAL_SECTIONS: Section[] = [
     {
         id: "onboarding",
-        title: "Onboarding & Questionario Business",
-        description: "Informazioni di base sull'azienda raccolte in fase di onboarding",
+        title: "Onboarding & Business Questionnaire",
+        description: "Basic company information collected during onboarding",
         icon: <ClipboardList size={18} />,
         accent: "sky",
         files: [
-            { id: "f1", name: "Questionario-Onboarding-2026.pdf", size: "1.2 MB", uploadedAt: "12 Giu 2026", version: 3, previousVersions: [{ version: 2, uploadedAt: "02 Mar 2026" }, { version: 1, uploadedAt: "15 Gen 2026" }] },
-            { id: "f2", name: "Brand-Guidelines.docx", size: "640 KB", uploadedAt: "08 Mag 2026", version: 1 },
+            { id: "f1", name: "Onboarding-Questionnaire-2026.pdf", size: "1.2 MB", uploadedAt: "Jun 12, 2026", version: 3, previousVersions: [{ version: 2, uploadedAt: "Mar 02, 2026" }, { version: 1, uploadedAt: "Jan 15, 2026" }] },
+            { id: "f2", name: "Brand-Guidelines.docx", size: "640 KB", uploadedAt: "May 08, 2026", version: 1 },
         ],
     },
     {
         id: "products",
-        title: "Descrizione Prodotti",
-        description: "Schede, listini e descrizioni dei prodotti e servizi",
+        title: "Product Descriptions",
+        description: "Product and service sheets, price lists, and descriptions",
         icon: <Package size={18} />,
         accent: "emerald",
         files: [
-            { id: "f3", name: "Catalogo-Prodotti-Q2.pdf", size: "3.4 MB", uploadedAt: "01 Giu 2026", version: 2, previousVersions: [{ version: 1, uploadedAt: "10 Apr 2026" }] },
-            { id: "f4", name: "Listino-Prezzi-2026.xlsx", size: "210 KB", uploadedAt: "20 Mag 2026", version: 1 },
+            { id: "f3", name: "Product-Catalog-Q2.pdf", size: "3.4 MB", uploadedAt: "Jun 01, 2026", version: 2, previousVersions: [{ version: 1, uploadedAt: "Apr 10, 2026" }] },
+            { id: "f4", name: "Price-List-2026.xlsx", size: "210 KB", uploadedAt: "May 20, 2026", version: 1 },
         ],
     },
     {
         id: "events",
-        title: "Descrizione Eventi Aziendali",
-        description: "Eventi, fiere e iniziative aziendali",
+        title: "Company Event Descriptions",
+        description: "Events, trade shows, and company initiatives",
         icon: <CalendarDays size={18} />,
         accent: "fuchsia",
-        files: [{ id: "f5", name: "Evento-Lancio-Estate.pdf", size: "880 KB", uploadedAt: "18 Giu 2026", version: 1 }],
+        files: [{ id: "f5", name: "Summer-Launch-Event.pdf", size: "880 KB", uploadedAt: "Jun 18, 2026", version: 1 }],
     },
     {
         id: "other",
-        title: "Altre Risorse",
-        description: "Documenti vari e materiali di supporto",
+        title: "Other Resources",
+        description: "Miscellaneous documents and support materials",
         icon: <FolderOpen size={18} />,
         accent: "amber",
         files: [],
@@ -77,6 +80,9 @@ const ACCENTS: Record<string, { dark: string; light: string }> = {
 }
 
 export default function SharedKnowledgeBasePage() {
+    // sharedNamespaceId passed from the agent dashboards (?sharedNamespaceId=<clerk user id>)
+    const sharedNamespaceId = useSearchParams().get("sharedNamespaceId") ?? ""
+    const agentQuery = sharedNamespaceId ? `?sharedNamespaceId=${sharedNamespaceId}` : ""
     const [query, setQuery] = useState("")
     const [sections, setSections] = useState<Section[]>(INITIAL_SECTIONS)
     const [historyFile, setHistoryFile] = useState<KbFile | null>(null)
@@ -108,9 +114,9 @@ export default function SharedKnowledgeBasePage() {
     return (
         <KbShell
             active="shared"
-            title="Info Azienda"
-            subtitle="Memoria condivisa da tutti gli AI Agents del tuo team"
-            search={{ value: query, onChange: setQuery, placeholder: "Cerca un documento..." }}
+            title="Company Info"
+            subtitle="Shared memory for all AI Agents on your team"
+            search={{ value: query, onChange: setQuery, placeholder: "Search documents..." }}
         >
             {(isDark) => (
                 <div className="space-y-6">
@@ -119,10 +125,10 @@ export default function SharedKnowledgeBasePage() {
                     {/* Stat cards */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         {[
-                            { label: "Documenti", value: totalFiles, icon: <FileStack size={16} /> },
-                            { label: "Sezioni", value: sections.length, icon: <FolderOpen size={16} /> },
-                            { label: "Agenti collegati", value: KB_AGENTS.length, icon: <Sparkles size={16} /> },
-                            { label: "Indice Pinecone", value: "Condiviso", icon: <Package size={16} /> },
+                            { label: "Documents", value: totalFiles, icon: <FileStack size={16} /> },
+                            { label: "Sections", value: sections.length, icon: <FolderOpen size={16} /> },
+                            { label: "Linked agents", value: KB_AGENTS.length, icon: <Sparkles size={16} /> },
+                            { label: "Pinecone index", value: "Shared", icon: <Package size={16} /> },
                         ].map((stat, i) => (
                             <div key={i} className={`p-4 rounded-2xl border ${isDark ? "bg-[#0F172A] border-white/5" : "bg-white border-gray-200 shadow-sm"}`}>
                                 <div className={`mb-2 inline-flex p-2 rounded-lg ${isDark ? "bg-sky-500/10 text-sky-400" : "bg-blue-100 text-blue-600"}`}>{stat.icon}</div>
@@ -131,6 +137,9 @@ export default function SharedKnowledgeBasePage() {
                             </div>
                         ))}
                     </div>
+
+                    {/* Live documents actually stored in the user's Pinecone namespace */}
+                    <PineconeDocuments namespace={sharedNamespaceId} isDark={isDark} query={query} />
 
                     {/* Sections */}
                     {sections.map(section => {
@@ -153,7 +162,7 @@ export default function SharedKnowledgeBasePage() {
                                             : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500 text-white shadow-lg shadow-blue-500/25"
                                             }`}
                                     >
-                                        <Upload size={15} /> <span className="hidden sm:inline">Carica</span>
+                                        <Upload size={15} /> <span className="hidden sm:inline">Upload</span>
                                     </button>
                                 </div>
 
@@ -163,7 +172,7 @@ export default function SharedKnowledgeBasePage() {
                                             onClick={() => triggerUpload(section.id)}
                                             className={`w-full py-8 rounded-xl border-2 border-dashed text-sm transition-colors ${isDark ? "border-white/10 text-white/40 hover:border-sky-500/40 hover:text-white/60" : "border-gray-200 text-gray-400 hover:border-blue-300 hover:text-gray-600"}`}
                                         >
-                                            Trascina o clicca per caricare un documento
+                                            Drag or click to upload a document
                                         </button>
                                     ) : (
                                         <ul className="space-y-2">
@@ -187,9 +196,9 @@ export default function SharedKnowledgeBasePage() {
                     <div className={`p-4 rounded-2xl border flex items-start gap-3 ${isDark ? "bg-amber-500/10 border-amber-500/20" : "bg-amber-50 border-amber-200"}`}>
                         <Sparkles size={20} className={`shrink-0 mt-0.5 ${isDark ? "text-amber-400" : "text-amber-600"}`} />
                         <div>
-                            <p className={`text-sm font-semibold ${isDark ? "text-amber-300" : "text-amber-700"}`}>Suggerimento</p>
+                            <p className={`text-sm font-semibold ${isDark ? "text-amber-300" : "text-amber-700"}`}>Suggestion</p>
                             <p className={`text-sm ${isDark ? "text-amber-200/80" : "text-amber-700/80"}`}>
-                                Alcuni documenti sono più utili nella Knowledge Base specifica di un agente. Apri la <strong>“Info x Agente”</strong> dalla barra laterale.
+                                Some documents are more useful in an agent-specific Knowledge Base. Open <strong>Agent Info</strong> from the sidebar.
                             </p>
                         </div>
                     </div>
@@ -197,14 +206,14 @@ export default function SharedKnowledgeBasePage() {
                     {/* Per-agent quick nav */}
                     <div className={`rounded-2xl border overflow-hidden ${isDark ? "bg-[#0F172A] border-white/5" : "bg-white border-gray-200 shadow-sm"}`}>
                         <div className={`p-4 border-b ${isDark ? "border-white/5" : "border-gray-100"}`}>
-                            <h3 className={`font-bold ${isDark ? "text-white" : "text-gray-900"}`}>Knowledge Base per Agente · “Info x Agente”</h3>
-                            <p className={`text-xs ${isDark ? "text-white/50" : "text-gray-500"}`}>Documenti dedicati a ogni singolo AI Agent</p>
+                            <h3 className={`font-bold ${isDark ? "text-white" : "text-gray-900"}`}>Knowledge Base by Agent - Agent Info</h3>
+                            <p className={`text-xs ${isDark ? "text-white/50" : "text-gray-500"}`}>Documents dedicated to each AI Agent</p>
                         </div>
                         <div className="p-4 grid sm:grid-cols-2 gap-3">
                             {KB_AGENTS.map(agent => (
                                 <Link
                                     key={agent.key}
-                                    href={`/dashboard/knowledgebase/${agent.key}`}
+                                    href={`/dashboard/knowledgebase/${agent.key}${agentQuery}`}
                                     className={`group p-4 rounded-xl border flex items-start justify-between gap-3 transition-all ${isDark ? "bg-[#1E293B] border-white/5 hover:border-indigo-500/50" : "bg-gray-50 border-gray-200 hover:border-indigo-400"}`}
                                 >
                                     <div className="min-w-0">
@@ -238,16 +247,16 @@ export function FileRow({ file, isDark, onHistory, onDelete }: { file: KbFile; i
                 </div>
                 <div className="min-w-0">
                     <p className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-gray-900"}`}>{file.name}</p>
-                    <p className={`text-xs ${isDark ? "text-white/40" : "text-gray-500"}`}>{file.size} · {file.uploadedAt} · v{file.version}</p>
+                    <p className={`text-xs ${isDark ? "text-white/40" : "text-gray-500"}`}>{file.size} - {file.uploadedAt} - v{file.version}</p>
                 </div>
             </div>
             <div className="flex items-center gap-1 shrink-0">
                 {file.previousVersions && file.previousVersions.length > 0 && (
-                    <button onClick={onHistory} title="Versioni precedenti" className={`p-2 rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-white/50 hover:text-white" : "hover:bg-gray-200 text-gray-500 hover:text-gray-900"}`}>
+                    <button onClick={onHistory} title="Previous versions" className={`p-2 rounded-lg transition-colors ${isDark ? "hover:bg-white/10 text-white/50 hover:text-white" : "hover:bg-gray-200 text-gray-500 hover:text-gray-900"}`}>
                         <History size={16} />
                     </button>
                 )}
-                <button onClick={onDelete} title="Elimina" className={`p-2 rounded-lg transition-colors ${isDark ? "hover:bg-red-500/10 text-white/50 hover:text-red-400" : "hover:bg-red-50 text-gray-500 hover:text-red-600"}`}>
+                <button onClick={onDelete} title="Delete" className={`p-2 rounded-lg transition-colors ${isDark ? "hover:bg-red-500/10 text-white/50 hover:text-red-400" : "hover:bg-red-50 text-gray-500 hover:text-red-600"}`}>
                     <Trash2 size={16} />
                 </button>
             </div>
@@ -263,13 +272,13 @@ export function HistoryModal({ file, isDark, onClose, accent }: { file: KbFile; 
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
             <div onClick={(e) => e.stopPropagation()} className={`w-full max-w-md rounded-2xl border p-5 ${isDark ? "bg-[#0F172A] border-white/10" : "bg-white border-gray-200"}`}>
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className={`font-bold ${isDark ? "text-white" : "text-gray-900"}`}>Versioni precedenti</h3>
+                    <h3 className={`font-bold ${isDark ? "text-white" : "text-gray-900"}`}>Previous Versions</h3>
                     <button onClick={onClose} className={isDark ? "text-white/50 hover:text-white" : "text-gray-400 hover:text-gray-900"}><X size={18} /></button>
                 </div>
                 <p className={`text-sm mb-3 truncate ${isDark ? "text-white/60" : "text-gray-600"}`}>{file.name}</p>
                 <ul className="space-y-2">
                     <li className={`flex items-center justify-between p-3 rounded-xl border ${head}`}>
-                        <span className="text-sm font-medium">v{file.version} (corrente)</span>
+                        <span className="text-sm font-medium">v{file.version} (current)</span>
                         <span className={`text-xs ${isDark ? "text-white/40" : "text-gray-500"}`}>{file.uploadedAt}</span>
                     </li>
                     {file.previousVersions?.map(v => (
@@ -277,7 +286,7 @@ export function HistoryModal({ file, isDark, onClose, accent }: { file: KbFile; 
                             <span className={`text-sm ${isDark ? "text-white/70" : "text-gray-700"}`}>v{v.version}</span>
                             <div className="flex items-center gap-3">
                                 <span className={`text-xs ${isDark ? "text-white/40" : "text-gray-500"}`}>{v.uploadedAt}</span>
-                                <button title="Elimina versione" className={isDark ? "text-white/40 hover:text-red-400" : "text-gray-400 hover:text-red-600"}><Trash2 size={14} /></button>
+                                <button title="Delete version" className={isDark ? "text-white/40 hover:text-red-400" : "text-gray-400 hover:text-red-600"}><Trash2 size={14} /></button>
                             </div>
                         </li>
                     ))}

@@ -1946,7 +1946,7 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
                         className={`text-sm leading-tight max-w-md ${isDark ? "text-slate-300" : "text-slate-700"} font-medium`}
                       >
                         {currentAgent.role}
-                      </p>
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -1967,7 +1967,7 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
                   </a>
 
                   <a
-                    href="/dashboard/knowledgebase"
+                    href={`/dashboard/knowledgebase?sharedNamespaceId=${user?.id ?? ""}`}
                     className="p-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50 transition-all border-t border-white/20 flex items-center justify-center group cursor-pointer"
                     title="Knowledgebase"
                   >
