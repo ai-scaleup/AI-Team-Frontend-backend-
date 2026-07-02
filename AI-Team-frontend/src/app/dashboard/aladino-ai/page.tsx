@@ -422,6 +422,15 @@ export default function App() {
 
   const N8N_ENDPOINT = process.env.NEXT_PUBLIC_ALADINO_AI_N8N_ENDPOINT || "https://n8n-c2lq.onrender.com/webhook/f3ee3b1a-b98b-4108-9381-dc34e7d34518/chat?action=sendMessage"
 
+  // --- Set Pinecone namespace ---
+  useEffect(() => {
+    if (user?.id) {
+      // Set namespace immediately from user.id (Clerk oauthId) so Pinecone is always ready
+      CURRENT_NAMESPACE.current = user.id
+      console.log("✅ Aladino AI: Using user.id for Pinecone namespace:", user.id)
+    }
+  }, [user?.id])
+
   useEffect(() => {
     if (!userEmail) return
 
@@ -2007,7 +2016,7 @@ export default function App() {
                         className={`text-sm leading-tight max-w-md ${isDark ? "text-slate-300" : "text-slate-700"} font-medium`}
                       >
                         {currentAgent.role}
-                      </p>
+                      </p>
                     </div>
                   </div>
                 </div>

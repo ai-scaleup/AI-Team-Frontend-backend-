@@ -22,6 +22,7 @@ import {
     ExternalLink, Menu, Home, BarChart3, Smartphone, Search, Filter, Download,
     ArrowDownRight, RefreshCw, Book, Tag, ArrowLeft, QrCode
 } from "lucide-react"
+import { useUser } from "@clerk/nextjs"
 import { saraAiService } from "@/services/saraAiService"
 import type { ChatSession as SaraSession, ChatMessage as SaraMessage, StatsResponse, DailyAnalyticsBucket } from "@/types/sara-ai"
 
@@ -640,6 +641,17 @@ export default function App() {
 
 
 
+    const { user } = useUser()
+
+    // --- Set Pinecone namespace ---
+    useEffect(() => {
+        if (user?.id) {
+            // Set namespace immediately from user.id (Clerk oauthId) so Pinecone is always ready
+            CURRENT_NAMESPACE.current = user.id
+            console.log("✅ Sara AI: Using user.id for Pinecone namespace:", user.id)
+        }
+    }, [user?.id])
+
     const [mounted, setMounted] = useState(false)
     useEffect(() => {
         setMounted(true)
@@ -662,11 +674,6 @@ export default function App() {
 
 
 
-        const generateUUID = () => "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-            const r = (Math.random() * 16) | 0
-            const v = c === "x" ? r : (r & 0x3) | 0x8
-            return v.toString(16)
-        })
 
 
 
@@ -683,12 +690,6 @@ export default function App() {
 
 
 
-        let namespace = localStorage.getItem("Namespace")
-        if (!namespace) {
-            namespace = generateUUID()
-            localStorage.setItem("Namespace", namespace)
-        }
-        CURRENT_NAMESPACE.current = namespace
 
 
 

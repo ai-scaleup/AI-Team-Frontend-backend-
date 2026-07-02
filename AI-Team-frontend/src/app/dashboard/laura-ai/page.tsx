@@ -351,16 +351,21 @@ export default function App() {
     const [isPrefsOpen, setIsPrefsOpen] = useState(false)
     const [userPrefs, setUserPrefs] = useState<UserPreference | null>(null)
 
+    // --- Set Pinecone namespace ---
+    useEffect(() => {
+        if (user?.id) {
+            // Set namespace immediately from user.id (Clerk oauthId) so Pinecone is always ready
+            CURRENT_NAMESPACE.current = user.id
+            console.log("✅ Laura AI: Using user.id for Pinecone namespace:", user.id)
+        }
+    }, [user?.id])
+
     // --- Load Preferences ---
     useEffect(() => {
         if (userEmail) {
             userPreferenceService.getOrCreate(userEmail, "JIM").then((prefs) => {
                 if (prefs) {
                     setUserPrefs(prefs)
-                    if (prefs.oauthId) {
-                        console.log("✅ Laura AI: Using oauthId for Pinecone namespace:", prefs.oauthId)
-                        CURRENT_NAMESPACE.current = prefs.oauthId
-                    }
                 }
             })
         }

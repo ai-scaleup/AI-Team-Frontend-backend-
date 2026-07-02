@@ -422,6 +422,15 @@ export default function App() {
 
   const N8N_ENDPOINT = process.env.NEXT_PUBLIC_TONY_AI_N8N_ENDPOINT || "https://n8n-c2lq.onrender.com/webhook/0c898053-01f4-494d-b013-165c8a9023d1/chat?action=sendMessage"
 
+  // --- Set Pinecone namespace ---
+  useEffect(() => {
+    if (user?.id) {
+      // Set namespace immediately from user.id (Clerk oauthId) so Pinecone is always ready
+      CURRENT_NAMESPACE.current = user.id
+      console.log("✅ Tony AI: Using user.id for Pinecone namespace:", user.id)
+    }
+  }, [user?.id])
+
   useEffect(() => {
     if (!userEmail) return
 
@@ -1971,7 +1980,7 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
                         className={`text-sm leading-tight max-w-md ${isDark ? "text-slate-300" : "text-slate-700"} font-medium`}
                       >
                         {currentAgent.role}
-                      </p>
+                      </p>
                     </div>
                   </div>
                 </div>

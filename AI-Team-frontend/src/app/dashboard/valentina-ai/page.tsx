@@ -810,15 +810,20 @@ export default function App() {
     userPreferenceService.get(userEmail, "JIM").then((prefs) => {
       if (prefs) {
         setUserPrefs(prefs)
-        if (prefs.oauthId) {
-          console.log("✅ Valentina AI: Using oauthId for Pinecone namespace:", prefs.oauthId)
-          CURRENT_NAMESPACE.current = userEmail
-        }
       } else {
         setUserPrefs(null)
       }
     }).finally(() => setIsPreferenceLoading(false))
   }, [user?.id, userEmail])
+
+  // --- Set Pinecone namespace ---
+  useEffect(() => {
+    if (user?.id) {
+      // Set namespace immediately from user.id (Clerk oauthId) so Pinecone is always ready
+      CURRENT_NAMESPACE.current = user.id
+      console.log("✅ Valentina AI: Using user.id for Pinecone namespace:", user.id)
+    }
+  }, [user?.id])
 
   useEffect(() => {
     if (isDark) {
@@ -2042,7 +2047,7 @@ export default function App() {
                         className={`text-sm leading-tight max-w-md ${isDark ? "text-slate-300" : "text-slate-700"} font-medium`}
                       >
                         {currentAgent.role}
-                      </p>
+                      </p>
                     </div>
                   </div>
                 </div>

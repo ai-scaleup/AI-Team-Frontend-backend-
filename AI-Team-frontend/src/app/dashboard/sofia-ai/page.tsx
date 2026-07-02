@@ -531,14 +531,19 @@ export default function App() {
       userPreferenceService.getOrCreate(userEmail, "JIM").then((prefs) => {
       if (prefs) {
         setUserPrefs(prefs)
-        if (prefs.oauthId) {
-          console.log("✅ Sofia AI: Using oauthId for Pinecone namespace:", prefs.oauthId)
-          CURRENT_NAMESPACE.current = prefs.oauthId
-        }
       }
       })
     }
   }, [user?.id, userEmail])
+
+  // --- Set Pinecone namespace ---
+  useEffect(() => {
+    if (user?.id) {
+      // Set namespace immediately from user.id (Clerk oauthId) so Pinecone is always ready
+      CURRENT_NAMESPACE.current = user.id
+      console.log("✅ Sofia AI: Using user.id for Pinecone namespace:", user.id)
+    }
+  }, [user?.id])
 
   useEffect(() => {
     if (isDark) {

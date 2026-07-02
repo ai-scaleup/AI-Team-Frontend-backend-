@@ -474,6 +474,15 @@ export default function App() {
 
   const N8N_ENDPOINT = "/api/n8n-proxy?agent=alex-ai"
 
+  // --- Set Pinecone namespace ---
+  useEffect(() => {
+    if (user?.id) {
+      // Set namespace immediately from user.id (Clerk oauthId) so Pinecone is always ready
+      CURRENT_NAMESPACE.current = user.id
+      console.log("✅ Alex AI: Using user.id for Pinecone namespace:", user.id)
+    }
+  }, [user?.id])
+
   useEffect(() => {
     if (!userEmail) return
 
@@ -878,7 +887,6 @@ export default function App() {
         const prefs = await userPreferenceService.getOrCreate(userEmail, "JIM")
         if (prefs) {
           setUserPrefs(prefs)
-          CURRENT_NAMESPACE.current = userEmail
         } else {
           setUserPrefs(null)
         }
