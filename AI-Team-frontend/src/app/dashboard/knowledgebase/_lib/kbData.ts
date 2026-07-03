@@ -15,12 +15,16 @@ export type KbAgent = {
 }
 
 export const KB_AGENTS: KbAgent[] = [
-    { key: "lara-ai", name: "Lara AI", role: "Social Media Manager", suggestion: "Upload past editorial calendars and company communication style rules" },
     { key: "alex-ai", name: "Alex AI", role: "Cross-Platform Ads Manager", suggestion: "Upload best-practice reports for ad campaigns" },
     { key: "tony-ai", name: "Tony AI", role: "Sales Director", suggestion: "Upload sales scripts and negotiated price lists" },
     { key: "mike-ai", name: "Mike AI", role: "Marketing Director", suggestion: "Upload marketing plans and market analysis" },
+    { key: "lara-ai", name: "Lara AI", role: "Social Media Manager", suggestion: "Upload past editorial calendars and company communication style rules" },
     { key: "simone-ai", name: "Simone AI", role: "SEO Copywriter", suggestion: "Upload SEO guidelines and keyword sets" },
+    { key: "aladino-ai", name: "Aladino AI", role: "Offers & Products Creator", suggestion: "Upload current offers, pricing and product catalogs" },
+    { key: "valentina-ai", name: "Valentina AI", role: "SEO Optimizer", suggestion: "Upload page audits and target keyword lists" },
+    { key: "niko-ai", name: "Niko AI", role: "SEO Manager", suggestion: "Upload SEO strategy docs and site structure" },
     { key: "jim-ai", name: "Jim AI", role: "Sales Coach", suggestion: "Upload sales training materials" },
+    { key: "daniele-ai", name: "Daniele AI", role: "Direct Response Copywriter", suggestion: "Upload winning sales letters and swipe files" },
 ]
 
 export const AGENT_FILES: Record<string, KbFile[]> = {

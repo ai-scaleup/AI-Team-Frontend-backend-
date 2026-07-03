@@ -3,18 +3,14 @@ export const dynamic = "force-dynamic"
 
 import { useState, useRef } from "react"
 import { useSearchParams } from "next/navigation"
-import Link from "next/link"
 import {
     Upload,
     Trash2,
     FileText,
     History,
-    ClipboardList,
     Package,
-    CalendarDays,
     FolderOpen,
     Sparkles,
-    ChevronRight,
     X,
     FileStack,
 } from "lucide-react"
@@ -31,46 +27,7 @@ type Section = {
     files: KbFile[]
 }
 
-const INITIAL_SECTIONS: Section[] = [
-    {
-        id: "onboarding",
-        title: "Onboarding & Business Questionnaire",
-        description: "Basic company information collected during onboarding",
-        icon: <ClipboardList size={18} />,
-        accent: "sky",
-        files: [
-            { id: "f1", name: "Onboarding-Questionnaire-2026.pdf", size: "1.2 MB", uploadedAt: "Jun 12, 2026", version: 3, previousVersions: [{ version: 2, uploadedAt: "Mar 02, 2026" }, { version: 1, uploadedAt: "Jan 15, 2026" }] },
-            { id: "f2", name: "Brand-Guidelines.docx", size: "640 KB", uploadedAt: "May 08, 2026", version: 1 },
-        ],
-    },
-    {
-        id: "products",
-        title: "Product Descriptions",
-        description: "Product and service sheets, price lists, and descriptions",
-        icon: <Package size={18} />,
-        accent: "emerald",
-        files: [
-            { id: "f3", name: "Product-Catalog-Q2.pdf", size: "3.4 MB", uploadedAt: "Jun 01, 2026", version: 2, previousVersions: [{ version: 1, uploadedAt: "Apr 10, 2026" }] },
-            { id: "f4", name: "Price-List-2026.xlsx", size: "210 KB", uploadedAt: "May 20, 2026", version: 1 },
-        ],
-    },
-    {
-        id: "events",
-        title: "Company Event Descriptions",
-        description: "Events, trade shows, and company initiatives",
-        icon: <CalendarDays size={18} />,
-        accent: "fuchsia",
-        files: [{ id: "f5", name: "Summer-Launch-Event.pdf", size: "880 KB", uploadedAt: "Jun 18, 2026", version: 1 }],
-    },
-    {
-        id: "other",
-        title: "Other Resources",
-        description: "Miscellaneous documents and support materials",
-        icon: <FolderOpen size={18} />,
-        accent: "amber",
-        files: [],
-    },
-]
+const INITIAL_SECTIONS: Section[] = []
 
 const ACCENTS: Record<string, { dark: string; light: string }> = {
     sky: { dark: "bg-sky-500/10 text-sky-400", light: "bg-sky-100 text-sky-600" },
@@ -82,7 +39,6 @@ const ACCENTS: Record<string, { dark: string; light: string }> = {
 export default function SharedKnowledgeBasePage() {
     // sharedNamespaceId passed from the agent dashboards (?sharedNamespaceId=<clerk user id>)
     const sharedNamespaceId = useSearchParams().get("sharedNamespaceId") ?? ""
-    const agentQuery = sharedNamespaceId ? `?sharedNamespaceId=${sharedNamespaceId}` : ""
     const [query, setQuery] = useState("")
     const [sections, setSections] = useState<Section[]>(INITIAL_SECTIONS)
     const [historyFile, setHistoryFile] = useState<KbFile | null>(null)
@@ -191,43 +147,6 @@ export default function SharedKnowledgeBasePage() {
                             </div>
                         )
                     })}
-
-                    {/* Suggestion */}
-                    <div className={`p-4 rounded-2xl border flex items-start gap-3 ${isDark ? "bg-amber-500/10 border-amber-500/20" : "bg-amber-50 border-amber-200"}`}>
-                        <Sparkles size={20} className={`shrink-0 mt-0.5 ${isDark ? "text-amber-400" : "text-amber-600"}`} />
-                        <div>
-                            <p className={`text-sm font-semibold ${isDark ? "text-amber-300" : "text-amber-700"}`}>Suggestion</p>
-                            <p className={`text-sm ${isDark ? "text-amber-200/80" : "text-amber-700/80"}`}>
-                                Some documents are more useful in an agent-specific Knowledge Base. Open <strong>Agent Info</strong> from the sidebar.
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Per-agent quick nav */}
-                    <div className={`rounded-2xl border overflow-hidden ${isDark ? "bg-[#0F172A] border-white/5" : "bg-white border-gray-200 shadow-sm"}`}>
-                        <div className={`p-4 border-b ${isDark ? "border-white/5" : "border-gray-100"}`}>
-                            <h3 className={`font-bold ${isDark ? "text-white" : "text-gray-900"}`}>Knowledge Base by Agent - Agent Info</h3>
-                            <p className={`text-xs ${isDark ? "text-white/50" : "text-gray-500"}`}>Documents dedicated to each AI Agent</p>
-                        </div>
-                        <div className="p-4 grid sm:grid-cols-2 gap-3">
-                            {KB_AGENTS.map(agent => (
-                                <Link
-                                    key={agent.key}
-                                    href={`/dashboard/knowledgebase/${agent.key}${agentQuery}`}
-                                    className={`group p-4 rounded-xl border flex items-start justify-between gap-3 transition-all ${isDark ? "bg-[#1E293B] border-white/5 hover:border-indigo-500/50" : "bg-gray-50 border-gray-200 hover:border-indigo-400"}`}
-                                >
-                                    <div className="min-w-0">
-                                        <p className={`font-bold ${isDark ? "text-white" : "text-gray-900"}`}>{agent.name}</p>
-                                        <p className={`text-xs mb-2 ${isDark ? "text-indigo-400" : "text-indigo-600"}`}>{agent.role}</p>
-                                        <p className={`text-xs flex items-start gap-1.5 ${isDark ? "text-amber-300/80" : "text-amber-600"}`}>
-                                            <Sparkles size={12} className="shrink-0 mt-0.5" /> {agent.suggestion}
-                                        </p>
-                                    </div>
-                                    <ChevronRight size={18} className={`shrink-0 transition-transform group-hover:translate-x-1 ${isDark ? "text-white/40" : "text-gray-400"}`} />
-                                </Link>
-                            ))}
-                        </div>
-                    </div>
 
                     {historyFile && <HistoryModal file={historyFile} isDark={isDark} onClose={() => setHistoryFile(null)} accent="sky" />}
                 </div>

@@ -1268,10 +1268,10 @@ export default function App() {
             inputValue +
             (selectedFiles.length ? ` [Attached: ${selectedFiles.map((f) => f.name).join(", ")}]` : "") +
             fileContext +
-            `\n\nUSER_PROFILE_DATA: ${JSON.stringify(userPrefs)}`,
+            `\n\nUSER_PROFILE_DATA: ${JSON.stringify({ ...userPrefs, "shared-namespaceId": CURRENT_NAMESPACE.current })}`,
           sessionId: sessionId,
           useMemory: useMemory,
-          metadata: { namespace: CURRENT_NAMESPACE.current, source: activeAgentId, email: userEmail },
+          metadata: { "shared-namespace": CURRENT_NAMESPACE.current, "agent-memory": `${CURRENT_NAMESPACE.current}-${activeAgentId}`, source: activeAgentId, email: userEmail },
           chatId: currentChatIdForSend,
         }),
       })
@@ -2069,7 +2069,7 @@ export default function App() {
                   </a>
 
                   <a
-                    href={`/dashboard/knowledgebase?sharedNamespaceId=${user?.id ?? ""}`}
+                    href={`/dashboard/knowledgebase/valentina-ai?sharedNamespaceId=${user?.id ?? ""}`}
                     className="p-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50 transition-all border-t border-white/20 flex items-center justify-center group cursor-pointer"
                     title="Knowledgebase"
                   >
