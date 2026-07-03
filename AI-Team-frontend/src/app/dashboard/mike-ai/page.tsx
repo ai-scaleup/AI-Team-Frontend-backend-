@@ -34,6 +34,7 @@ import {
   ExternalLink,
   Menu,
   Home,
+  BookOpen,
 } from "lucide-react"
 import { useUser } from "@clerk/nextjs"
 import { conversationService } from "@/services/conversationService"
@@ -65,11 +66,10 @@ interface FolderType {
   createdAt: string
 }
 
-interface PineconeVector {
+interface PineconeRecord {
   id: string
-  values: number[]
+  text: string
   metadata: {
-    text: string
     sender: string
     timestamp: string
     chatId: string
@@ -87,63 +87,26 @@ const USER_AVATAR =
   "https://www.shutterstock.com/image-vector/vector-flat-illustration-grayscale-avatar-600nw-2264922221.jpg"
 
 // --- PINECONE HELPER FUNCTIONS ---
-async function getEmbedding(text: string): Promise<number[]> {
-  const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY
-  const model = process.env.NEXT_PUBLIC_OPENAI_MODEL || "text-embedding-ada-002"
-
-  if (!apiKey) {
-    throw new Error("OpenAI API key not configured")
+async function upsertPineconeRecords(records: PineconeRecord[], namespace: string): Promise<void> {
+  if (!namespace) {
+    throw new Error("Pinecone namespace is not ready")
   }
 
-  const response = await fetch("https://api.openai.com/v1/embeddings", {
+  const response = await fetch("/api/knowledgebase/pinecone", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      input: text,
-      model: model,
+      namespace,
+      records,
     }),
   })
 
   if (!response.ok) {
-    const error = await response.text()
-    throw new Error(`Failed to get embedding: ${response.status}`)
+    const error = await response.json().catch(() => null)
+    throw new Error(error?.error || `Failed to upsert to shared memory: ${response.status}`)
   }
-
-  const data = await response.json()
-  return data.data[0].embedding
-}
-
-async function upsertToPinecone(vectors: PineconeVector[], namespace: string): Promise<boolean> {
-  const pineconeHost = process.env.NEXT_PUBLIC_PINECONE_HOST
-  const pineconeApiKey = process.env.NEXT_PUBLIC_PINECONE_API_KEY
-
-  if (!pineconeHost || !pineconeApiKey) {
-    throw new Error("Pinecone not configured")
-  }
-
-  const url = `${pineconeHost}/vectors/upsert`
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Api-Key": pineconeApiKey,
-    },
-    body: JSON.stringify({
-      vectors: vectors,
-      namespace: namespace,
-    }),
-  })
-
-  if (!response.ok) {
-    const error = await response.text()
-    throw new Error(`Failed to upsert to Pinecone: ${response.status}`)
-  }
-
-  return true
 }
 
 async function upsertFileToPinecone(
@@ -176,20 +139,18 @@ async function upsertFileToPinecone(
     if (currentChunk) chunks.push(currentChunk.trim())
   }
 
-  const vectors: PineconeVector[] = []
+  const records: PineconeRecord[] = []
 
   for (let i = 0; i < chunks.length; i++) {
     const chunk = chunks[i]
-    const embedding = await getEmbedding(chunk)
 
     const vectorId =
       chunks.length === 1 ? `file_${cleanFileName}_${timestamp}` : `file_${cleanFileName}_${timestamp}_part${i + 1}`
 
-    vectors.push({
+    records.push({
       id: vectorId,
-      values: embedding,
+      text: chunk,
       metadata: {
-        text: chunk,
         sender: "file",
         timestamp: new Date().toISOString(),
         chatId: chatId || "",
@@ -203,7 +164,7 @@ async function upsertFileToPinecone(
     })
   }
 
-  await upsertToPinecone(vectors, namespace)
+  await upsertPineconeRecords(records, namespace)
 }
 
 async function upsertConversation(
@@ -215,14 +176,14 @@ async function upsertConversation(
 ): Promise<void> {
   const timestamp = Date.now()
 
-  const userEmbedding = await getEmbedding(userMessage.text)
+  const userText = userMessage.text.trim() || `[File: ${userMessage.files?.join(", ") || "attachment"}]`
+  const aiText = aiMessage.text.trim() || "La risposta e stata completata."
   const userVectorId = `${chatId}_user_${timestamp}`
 
-  const userVector: PineconeVector = {
+  const userRecord: PineconeRecord = {
     id: userVectorId,
-    values: userEmbedding,
+    text: userText,
     metadata: {
-      text: userMessage.text,
       sender: "user",
       timestamp: new Date().toISOString(),
       chatId: chatId,
@@ -231,14 +192,12 @@ async function upsertConversation(
     },
   }
 
-  const aiEmbedding = await getEmbedding(aiMessage.text)
   const aiVectorId = `${chatId}_ai_${timestamp}`
 
-  const aiVector: PineconeVector = {
+  const aiRecord: PineconeRecord = {
     id: aiVectorId,
-    values: aiEmbedding,
+    text: aiText,
     metadata: {
-      text: aiMessage.text,
       sender: "ai",
       timestamp: new Date().toISOString(),
       chatId: chatId,
@@ -247,7 +206,7 @@ async function upsertConversation(
     },
   }
 
-  await upsertToPinecone([userVector, aiVector], namespace)
+  await upsertPineconeRecords([userRecord, aiRecord], namespace)
 }
 
 // --- ROBUST MARKDOWN SHIM v4 ---
@@ -2222,6 +2181,14 @@ export default function App() {
                     className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-cyan-500 hover:bg-cyan-400 text-white shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 transition-all border-t border-white/20 flex items-center justify-center group cursor-pointer"
                   >
                     <Home size={18} strokeWidth={2.5} className="group-hover:scale-110 transition-transform" />
+                  </a>
+
+                  <a
+                    href={`/dashboard/knowledgebase?sharedNamespaceId=${user?.id ?? ""}`}
+                    className="p-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50 transition-all border-t border-white/20 flex items-center justify-center group cursor-pointer"
+                    title="Knowledgebase"
+                  >
+                    <BookOpen size={22} strokeWidth={2.5} className="group-hover:scale-110 transition-transform" />
                   </a>
                   <div className="hidden sm:block">
                     <UserButton

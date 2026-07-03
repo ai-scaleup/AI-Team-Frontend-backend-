@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  Search, Calendar, MoreVertical, Edit2, Trash2,
+  Search, Calendar, Edit2, Trash2,
   ChevronDown, ChevronUp, Users, Download, CreditCard, X,
-  Activity, DollarSign, Euro
+  Activity, DollarSign, Euro, Loader2
 } from "lucide-react";
 
 /* ──────────────── CURRENCY HELPERS ──────────────── */
@@ -16,6 +16,7 @@ const EUR_RATE = 0.92;
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "https://ai-team-server.onrender.com";
 
 type CurrencyMode = "tokens" | "USD" | "EUR";
+type AssignmentType = "membership" | "group" | "agent" | "tokenLimit";
 
 const getClaudeSonnet46Usd = (
   inputTokens = 0,
@@ -88,26 +89,41 @@ function CurrencyToggle({
 /* ──────────────────────────── DATA MAPPING ──────────────────────────── */
 
 type ApiAssignment = {
+  id?: string;
   agentName?: string;
   durationDays?: number | null;
   expiresAt?: string | null;
   startsAt?: string | null;
   isActive?: boolean;
+  monthlyTokenLimit?: number | null;
 };
 
 type ApiGroupAssignment = ApiAssignment & {
-  group?: { name?: string | null };
+  group?: {
+    id?: string;
+    name?: string | null;
+    items?: { agentName?: string | null }[] | null;
+  };
 };
 
 type ApiMembershipAssignment = {
+  id?: string;
   startsAt?: string | null;
   expiresAt?: string | null;
   isActive?: boolean;
+  monthlyTokenLimit?: number | null;
   template?: {
     name?: string;
     durationDays?: number;
+    monthlyTokenLimit?: number;
     includedAgents?: string[];
   };
+};
+
+type ApiTokenUsage = {
+  id?: string;
+  agentName?: string | null;
+  totalTokenLimit?: number | null;
 };
 
 type ApiUser = {
@@ -117,6 +133,7 @@ type ApiUser = {
   agents?: ApiAssignment[];
   groups?: ApiGroupAssignment[];
   memberships?: ApiMembershipAssignment[];
+  tokenUsage?: ApiTokenUsage[];
   usage?: {
     monthly?: number;
     monthlyInputTokens?: number;
@@ -143,6 +160,7 @@ type UsersResponse = {
       monthlyTokens?: number;
       monthlyInputTokens?: number;
       monthlyOutputTokens?: number;
+      assignedLimitTokens?: number;
     };
   };
 };
@@ -152,9 +170,11 @@ type UserRow = {
   name: string;
   email: string;
   assigned: string[];
+  assignmentRecords: AssignmentRecord[];
   membership: string;
   duration: number;
   expiration: string;
+  monthlyLimit: number;
   monthlyUsage: number;
   monthlyInputUsage: number;
   monthlyOutputUsage: number;
@@ -165,6 +185,19 @@ type UserRow = {
   dailyInputUsage: number;
   dailyOutputUsage: number;
   status: "active" | "expiring" | "expired";
+};
+
+type AssignmentRecord = {
+  id: string;
+  type: AssignmentType;
+  label: string;
+  agentName?: string | null;
+  startsAt?: string | null;
+  expiresAt?: string | null;
+  durationDays?: number | null;
+  monthlyTokenLimit?: number | null;
+  inheritedMonthlyTokenLimit?: number | null;
+  isActive?: boolean;
 };
 
 type SortableUserField = keyof Pick<
@@ -178,6 +211,24 @@ const formatDate = (value?: string | null) => {
   if (Number.isNaN(date.getTime())) return "No expiry";
   return date.toISOString().slice(0, 10);
 };
+
+const formatDateInput = (value?: string | null) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+};
+
+const getDurationDaysFromDates = (startsAt?: string | null, expiresAt?: string | null) => {
+  if (!startsAt || !expiresAt) return 0;
+  const start = new Date(startsAt);
+  const end = new Date(expiresAt);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
+  return Math.max(1, Math.ceil((end.getTime() - start.getTime()) / DAY_MS));
+};
+
+const getEffectiveLimit = (assignment?: AssignmentRecord | null) =>
+  assignment?.monthlyTokenLimit ?? assignment?.inheritedMonthlyTokenLimit ?? 0;
 
 const getStatus = (expiresAt?: string | null, isActive = true): UserRow["status"] => {
   if (!isActive) return "expired";
@@ -199,7 +250,95 @@ const mapUser = (user: ApiUser): UserRow => {
   const hasActiveAccess = Boolean(primaryMembership || primaryTimedAssignment);
   const assignedGroups = activeGroups.map((item) => item.group?.name).filter(Boolean) as string[];
   const assignedAgents = activeAgents.map((item) => item.agentName).filter(Boolean) as string[];
-  const assigned = assignedGroups.length > 0 ? assignedGroups : assignedAgents;
+  const tokenLimitByAgent = new Map(
+    (user.tokenUsage ?? [])
+      .filter((item) => item.agentName)
+      .map((item) => [item.agentName!, item.totalTokenLimit ?? 0]),
+  );
+  const coveredAgentNames = new Set<string>(assignedAgents);
+
+  activeGroups.forEach((assignment) => {
+    assignment.group?.items?.forEach((item) => {
+      if (item.agentName) coveredAgentNames.add(item.agentName);
+    });
+  });
+
+  activeMemberships.forEach((assignment) => {
+    assignment.template?.includedAgents?.forEach((agentName) => coveredAgentNames.add(agentName));
+  });
+
+  const membershipRecords: AssignmentRecord[] = activeMemberships
+    .filter((item) => item.id)
+    .map((item) => ({
+      id: item.id!,
+      type: "membership",
+      label: item.template?.name ?? "Membership",
+      startsAt: item.startsAt,
+      expiresAt: item.expiresAt,
+      durationDays:
+        item.template?.durationDays ??
+        getDurationDaysFromDates(item.startsAt, item.expiresAt),
+      monthlyTokenLimit: item.monthlyTokenLimit,
+      inheritedMonthlyTokenLimit: item.template?.monthlyTokenLimit,
+      isActive: item.isActive,
+    }));
+  const groupRecords: AssignmentRecord[] = activeGroups
+    .filter((item) => item.id)
+    .map((item) => ({
+      id: item.id!,
+      type: "group",
+      label: item.group?.name ?? "Team",
+      startsAt: item.startsAt,
+      expiresAt: item.expiresAt,
+      durationDays: item.durationDays ?? getDurationDaysFromDates(item.startsAt, item.expiresAt),
+      monthlyTokenLimit: item.monthlyTokenLimit,
+      isActive: item.isActive,
+    }));
+  const agentRecords: AssignmentRecord[] = activeAgents
+    .filter((item) => item.id)
+    .map((item) => ({
+      id: item.id!,
+      type: "agent",
+      label: item.agentName ?? "Agent",
+      agentName: item.agentName,
+      startsAt: item.startsAt,
+      expiresAt: item.expiresAt,
+      durationDays: item.durationDays ?? getDurationDaysFromDates(item.startsAt, item.expiresAt),
+      monthlyTokenLimit:
+        item.monthlyTokenLimit ??
+        (item.agentName ? tokenLimitByAgent.get(item.agentName) : undefined) ??
+        null,
+      isActive: item.isActive,
+    }));
+  const tokenLimitRecords: AssignmentRecord[] = (user.tokenUsage ?? [])
+    .filter((item) => {
+      if (!item.agentName || coveredAgentNames.has(item.agentName)) return false;
+      return (item.totalTokenLimit ?? 0) > 0;
+    })
+    .map((item) => ({
+      id: item.id ?? `token-limit-${item.agentName}`,
+      type: "tokenLimit",
+      label: item.agentName ?? "Agent",
+      agentName: item.agentName,
+      monthlyTokenLimit: item.totalTokenLimit ?? 0,
+      isActive: true,
+    }));
+  const assigned = [
+    ...assignedGroups,
+    ...assignedAgents,
+    ...tokenLimitRecords.map((item) => item.label),
+  ];
+  const assignmentRecords = [
+    ...membershipRecords,
+    ...groupRecords,
+    ...agentRecords,
+    ...tokenLimitRecords,
+  ];
+  const primaryRecord = assignmentRecords[0];
+  const totalMonthlyLimit = assignmentRecords.reduce(
+    (sum, assignment) => sum + getEffectiveLimit(assignment),
+    0,
+  );
 
   if (assigned.length === 0 && primaryMembership?.template?.includedAgents?.length) {
     assigned.push(...primaryMembership.template.includedAgents);
@@ -210,9 +349,15 @@ const mapUser = (user: ApiUser): UserRow => {
     name: user.username || user.email.split("@")[0] || "Unnamed user",
     email: user.email,
     assigned: Array.from(new Set(assigned)),
+    assignmentRecords,
     membership: primaryMembership?.template?.name ?? "No membership",
-    duration: primaryMembership?.template?.durationDays ?? primaryTimedAssignment?.durationDays ?? 0,
+    duration:
+      primaryRecord?.durationDays ??
+      primaryMembership?.template?.durationDays ??
+      primaryTimedAssignment?.durationDays ??
+      0,
     expiration: formatDate(primaryMembership?.expiresAt ?? primaryTimedAssignment?.expiresAt),
+    monthlyLimit: totalMonthlyLimit,
     monthlyUsage: user.usage?.monthly ?? 0,
     monthlyInputUsage: user.usage?.monthlyInputTokens ?? 0,
     monthlyOutputUsage: user.usage?.monthlyOutputTokens ?? 0,
@@ -339,6 +484,66 @@ const buildUsersQuery = (options: UsersQueryOptions): URLSearchParams => {
   return params;
 };
 
+async function parseApiError(response: Response) {
+  try {
+    const payload = await response.json();
+    if (typeof payload?.message === "string") return payload.message;
+    if (Array.isArray(payload?.message)) return payload.message.join(", ");
+  } catch {
+    // Fall back to status text.
+  }
+
+  return response.statusText || "Request failed";
+}
+
+const formatTokenQuantity = (tokens: number) => {
+  if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)}M`;
+  if (tokens >= 1000) return `${(tokens / 1000).toFixed(1)}k`;
+  return tokens.toLocaleString();
+};
+
+// The editor tabs split assignments into "Membership" and everything else ("Team").
+type AssignmentTab = "team" | "membership";
+const matchesAssignmentTab = (type: AssignmentType, tab: AssignmentTab) =>
+  tab === "membership" ? type === "membership" : type !== "membership";
+
+// Teams catalog (same source as the New Assignment form) shown in the Team tab.
+type AgentTeam = { id: string; name: string; agents: string[] };
+type AgentGroupListItem = { id: string; name: string };
+type AgentGroupListResponse = { data?: AgentGroupListItem[] };
+type AgentGroupDetails = AgentGroupListItem & { agents?: string[] };
+
+// Memberships catalog (same source as the New Assignment form) shown in the Membership tab.
+type MembershipTemplate = {
+  id: string;
+  name: string;
+  durationDays: number;
+  monthlyTokenLimit: number;
+};
+
+const expirationFromDuration = (startsAt: string | null | undefined, durationDays: number) => {
+  const base = startsAt ? new Date(startsAt) : new Date();
+  if (Number.isNaN(base.getTime())) return "";
+  base.setUTCDate(base.getUTCDate() + durationDays);
+  return base.toISOString().slice(0, 10);
+};
+
+const durationFromExpiration = (
+  startsAt: string | null | undefined,
+  expirationDate: string,
+) => {
+  if (!expirationDate) return "";
+  const start = startsAt ? new Date(startsAt) : new Date();
+  const end = new Date(`${expirationDate}T00:00:00Z`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "";
+  return String(Math.max(1, Math.ceil((end.getTime() - start.getTime()) / DAY_MS)));
+};
+
+const dateInputToIsoEndOfDay = (value: string) => {
+  const date = new Date(`${value}T23:59:59.999Z`);
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+};
+
 /* ──────────────────────────── COMPONENT ──────────────────────────── */
 
 export default function AllUsersPage() {
@@ -362,6 +567,21 @@ export default function AllUsersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [editingUser, setEditingUser] = useState<UserRow | null>(null);
+  const [assignmentTab, setAssignmentTab] = useState<AssignmentTab>("team");
+  const [teams, setTeams] = useState<AgentTeam[]>([]);
+  const [isLoadingTeams, setIsLoadingTeams] = useState(false);
+  const [selectedTeamId, setSelectedTeamId] = useState("");
+  const [memberships, setMemberships] = useState<MembershipTemplate[]>([]);
+  const [selectedMembershipId, setSelectedMembershipId] = useState("");
+  const [selectedAssignmentId, setSelectedAssignmentId] = useState("");
+  const [editMonthlyTokenLimit, setEditMonthlyTokenLimit] = useState("");
+  const [editDurationDays, setEditDurationDays] = useState("");
+  const [editExpiration, setEditExpiration] = useState("");
+  const [editIsActive, setEditIsActive] = useState(true);
+  const [isSavingAssignment, setIsSavingAssignment] = useState(false);
+  const [assignmentEditError, setAssignmentEditError] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -404,14 +624,15 @@ export default function AllUsersPage() {
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [page, limit, searchTerm, membershipFilter, statusFilter, timeframe, customDays, customFrom, customTo, sortField, sortDir]);
+  }, [page, limit, searchTerm, membershipFilter, statusFilter, timeframe, customDays, customFrom, customTo, sortField, sortDir, refreshKey]);
 
   useEffect(() => {
     setPage(1);
   }, [searchTerm, membershipFilter, statusFilter, timeframe, customDays, customFrom, customTo, sortField, sortDir, limit]);
 
-  // Load membership template names once so the filter lists all of them,
-  // not just the ones present on the current page.
+  // Load membership templates once so the filter lists all of them,
+  // not just the ones present on the current page. The full catalog also
+  // feeds the editor's Membership tab.
   const [membershipNames, setMembershipNames] = useState<string[]>([]);
   useEffect(() => {
     const controller = new AbortController();
@@ -419,16 +640,49 @@ export default function AllUsersPage() {
       try {
         const response = await fetch(`${API_BASE}/admin/memberships`, { signal: controller.signal });
         if (!response.ok) return;
-        const data = (await response.json()) as { name?: string }[];
-        const names = (Array.isArray(data) ? data : [])
-          .map((template) => template?.name)
-          .filter(Boolean) as string[];
+        const data = (await response.json()) as MembershipTemplate[];
+        const templates = Array.isArray(data) ? data : [];
+        setMemberships(templates);
+        const names = templates.map((template) => template?.name).filter(Boolean) as string[];
         setMembershipNames(Array.from(new Set(names)));
       } catch {
         /* fall back to names derived from loaded rows */
       }
     })();
     return () => controller.abort();
+  }, []);
+
+  // Load the full teams catalog once (same source as the New Assignment form),
+  // so the editor's Team tab can list every team.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setIsLoadingTeams(true);
+      try {
+        const response = await fetch(`${API_BASE}/admin/groups?limit=100&sortBy=createdAt&sortOrder=desc`, {
+          cache: "no-store",
+        });
+        if (!response.ok) throw new Error(await parseApiError(response));
+        const payload = (await response.json()) as AgentGroupListResponse | AgentGroupListItem[];
+        const groups = Array.isArray(payload) ? payload : payload.data ?? [];
+        const details = await Promise.all(
+          groups.map(async (group) => {
+            const detailResponse = await fetch(`${API_BASE}/admin/groups/${group.id}`, { cache: "no-store" });
+            if (!detailResponse.ok) return { ...group, agents: [] };
+            return (await detailResponse.json()) as AgentGroupDetails;
+          }),
+        );
+        if (cancelled) return;
+        setTeams(details.map((group) => ({ id: group.id, name: group.name, agents: group.agents ?? [] })));
+      } catch {
+        if (!cancelled) setTeams([]);
+      } finally {
+        if (!cancelled) setIsLoadingTeams(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const toggleUser = (id: string) => {
@@ -443,6 +697,190 @@ export default function AllUsersPage() {
         ? prev.filter((id) => !pageIds.includes(id))
         : Array.from(new Set([...prev, ...pageIds])),
     );
+  };
+
+  const syncAssignmentForm = (assignment: AssignmentRecord) => {
+    const effectiveLimit = getEffectiveLimit(assignment);
+    setSelectedAssignmentId(assignment.id);
+    setEditMonthlyTokenLimit(effectiveLimit ? String(effectiveLimit) : "");
+    setEditDurationDays(assignment.durationDays ? String(assignment.durationDays) : "");
+    setEditExpiration(formatDateInput(assignment.expiresAt));
+    setEditIsActive(assignment.isActive !== false);
+    setAssignmentEditError(null);
+  };
+
+  const openAssignmentEditor = (user: UserRow) => {
+    setEditingUser(user);
+    setSelectedTeamId("");
+    setSelectedMembershipId("");
+    const firstAssignment = user.assignmentRecords[0];
+    if (firstAssignment) {
+      setAssignmentTab(firstAssignment.type === "membership" ? "membership" : "team");
+      syncAssignmentForm(firstAssignment);
+    } else {
+      setAssignmentTab("team");
+      setSelectedAssignmentId("");
+      setEditMonthlyTokenLimit("");
+      setEditDurationDays("");
+      setEditExpiration("");
+      setEditIsActive(false);
+      setAssignmentEditError("This user has no editable active assignment.");
+    }
+  };
+
+  const closeAssignmentEditor = (force = false) => {
+    if (isSavingAssignment && !force) return;
+    setEditingUser(null);
+    setSelectedAssignmentId("");
+    setAssignmentEditError(null);
+  };
+
+  const selectedAssignment = useMemo(
+    () => editingUser?.assignmentRecords.find((item) => item.id === selectedAssignmentId) ?? null,
+    [editingUser, selectedAssignmentId],
+  );
+  const selectedAssignmentHasTiming = selectedAssignment?.type !== "tokenLimit";
+
+  // Default the Team-tab dropdown to the user's current team, otherwise the first team.
+  useEffect(() => {
+    if (!editingUser || assignmentTab !== "team" || teams.length === 0) return;
+    setSelectedTeamId((current) => {
+      if (current && teams.some((team) => team.id === current)) return current;
+      const currentGroup = editingUser.assignmentRecords.find((item) => item.type === "group");
+      const matched = currentGroup ? teams.find((team) => team.name === currentGroup.label) : undefined;
+      return matched?.id ?? teams[0].id;
+    });
+  }, [editingUser, assignmentTab, teams]);
+
+  // Default the Membership-tab dropdown to the user's current membership, otherwise the first.
+  useEffect(() => {
+    if (!editingUser || assignmentTab !== "membership" || memberships.length === 0) return;
+    setSelectedMembershipId((current) => {
+      if (current && memberships.some((membership) => membership.id === current)) return current;
+      const currentMembership = editingUser.assignmentRecords.find((item) => item.type === "membership");
+      const matched = currentMembership
+        ? memberships.find((membership) => membership.name === currentMembership.label)
+        : undefined;
+      return matched?.id ?? memberships[0].id;
+    });
+  }, [editingUser, assignmentTab, memberships]);
+
+  const handleAssignmentTabChange = (tab: AssignmentTab) => {
+    if (tab === assignmentTab) return;
+    setAssignmentTab(tab);
+    const records = editingUser?.assignmentRecords.filter((item) => matchesAssignmentTab(item.type, tab)) ?? [];
+    if (records.length > 0) {
+      syncAssignmentForm(records[0]);
+    } else {
+      setSelectedAssignmentId("");
+      setEditMonthlyTokenLimit("");
+      setEditDurationDays("");
+      setEditExpiration("");
+      setEditIsActive(false);
+      setAssignmentEditError(null);
+    }
+  };
+
+  const handleDurationChange = (value: string) => {
+    setEditDurationDays(value);
+    const duration = Number(value);
+    if (selectedAssignment && Number.isInteger(duration) && duration > 0) {
+      setEditExpiration(expirationFromDuration(selectedAssignment.startsAt, duration));
+    }
+  };
+
+  const handleExpirationChange = (value: string) => {
+    setEditExpiration(value);
+    if (selectedAssignment) {
+      setEditDurationDays(durationFromExpiration(selectedAssignment.startsAt, value));
+    }
+  };
+
+  const saveAssignmentUpdate = async () => {
+    if (!selectedAssignment) {
+      setAssignmentEditError("Select an assignment to update.");
+      return;
+    }
+
+    const monthlyTokenLimit = Number(editMonthlyTokenLimit);
+    const durationDays = Number(editDurationDays);
+
+    if (
+      editMonthlyTokenLimit.trim() &&
+      (!Number.isInteger(monthlyTokenLimit) || monthlyTokenLimit < 0)
+    ) {
+      setAssignmentEditError("Monthly token limit must be a non-negative integer.");
+      return;
+    }
+
+    if (selectedAssignment.type === "tokenLimit" && !editMonthlyTokenLimit.trim()) {
+      setAssignmentEditError("Monthly token limit is required for single agent assignments.");
+      return;
+    }
+
+    if (selectedAssignment.type === "tokenLimit" && !selectedAssignment.agentName) {
+      setAssignmentEditError("Single agent assignment is missing an agent name.");
+      return;
+    }
+
+    if (editDurationDays.trim() && (!Number.isInteger(durationDays) || durationDays < 1)) {
+      setAssignmentEditError("Duration must be at least 1 day.");
+      return;
+    }
+
+    const expiresAt = editExpiration ? dateInputToIsoEndOfDay(editExpiration) : undefined;
+    if (editExpiration && !expiresAt) {
+      setAssignmentEditError("Expiration date is invalid.");
+      return;
+    }
+
+    setIsSavingAssignment(true);
+    setAssignmentEditError(null);
+
+    try {
+      const body: {
+        monthlyTokenLimit?: number;
+        durationDays?: number;
+        expiresAt?: string;
+        isActive: boolean;
+      } = {
+        isActive: editIsActive,
+      };
+
+      if (editMonthlyTokenLimit.trim()) body.monthlyTokenLimit = monthlyTokenLimit;
+      if (editDurationDays.trim()) body.durationDays = durationDays;
+      if (expiresAt) body.expiresAt = expiresAt;
+
+      const response =
+        selectedAssignment.type === "tokenLimit"
+          ? await fetch(
+              `${API_BASE}/token-usage/${encodeURIComponent(editingUser?.email ?? "")}/${encodeURIComponent(selectedAssignment.agentName ?? "")}/limit`,
+              {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ totalTokenLimit: monthlyTokenLimit }),
+              },
+            )
+          : await fetch(
+              `${API_BASE}/admin/dashboard/assignments/${selectedAssignment.type}/${selectedAssignment.id}`,
+              {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body),
+              },
+            );
+
+      if (!response.ok) {
+        throw new Error(await parseApiError(response));
+      }
+
+      setRefreshKey((current) => current + 1);
+      closeAssignmentEditor(true);
+    } catch (err) {
+      setAssignmentEditError((err as Error).message || "Unable to update assignment.");
+    } finally {
+      setIsSavingAssignment(false);
+    }
   };
 
   const membershipOptions = useMemo(() => {
@@ -487,6 +925,9 @@ export default function AllUsersPage() {
   const totalMonthlyOutputTokens =
     pagination?.summary?.monthlyOutputTokens ??
     filteredUsers.reduce((s, u) => s + u.monthlyOutputUsage, 0);
+  const totalAssignedLimitTokens =
+    pagination?.summary?.assignedLimitTokens ??
+    filteredUsers.reduce((s, u) => s + u.monthlyLimit, 0);
 
   const totalPages = Math.max(pagination?.totalPages ?? 1, 1);
   const currentPage = pagination?.page ?? page;
@@ -534,14 +975,14 @@ export default function AllUsersPage() {
       };
       const header = [
         "Email", "Assigned", "Membership", "Duration (days)", "Expiration",
-        "Status", "Monthly Tokens", "Weekly Tokens", "Daily Tokens",
+        "Status", "Assigned Token Limit", "Monthly Tokens", "Weekly Tokens", "Daily Tokens",
       ];
       const lines = [
         header.join(","),
         ...rows.map((u) =>
           [
             u.email, u.assigned.join("; "), u.membership, u.duration,
-            u.expiration, u.status, u.monthlyUsage, u.weeklyUsage, u.dailyUsage,
+            u.expiration, u.status, u.monthlyLimit, u.monthlyUsage, u.weeklyUsage, u.dailyUsage,
           ].map(escapeCell).join(","),
         ),
       ];
@@ -573,7 +1014,7 @@ export default function AllUsersPage() {
       </div>
 
       {/* ──────── SUMMARY CARDS ──────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
         <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 flex items-center gap-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sky-500/15 text-sky-400">
             <Users size={20} />
@@ -581,6 +1022,17 @@ export default function AllUsersPage() {
           <div>
             <p className="text-[10px] uppercase tracking-wider text-white/35">Total Users</p>
             <p className="text-xl font-bold">{totalUsers}</p>
+          </div>
+        </div>
+        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 flex items-center gap-4">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-500/15 text-cyan-400">
+            <Activity size={20} />
+          </div>
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-white/35">Total Assigned Limit</p>
+            <p className="text-xl font-bold font-mono text-sky-400">
+              {formatTokenQuantity(totalAssignedLimitTokens)}
+            </p>
           </div>
         </div>
         <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 flex items-center gap-4">
@@ -733,6 +1185,180 @@ export default function AllUsersPage() {
       )}
 
       {/* ──────── USERS TABLE ──────── */}
+      {editingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#0B1221] p-6 shadow-2xl">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-semibold">Update Token Assignment</h3>
+                <p className="mt-1 text-xs text-white/45">{editingUser.email}</p>
+              </div>
+              <button
+                onClick={() => closeAssignmentEditor()}
+                className="rounded-lg p-1 text-white/40 transition hover:bg-white/5 hover:text-white"
+                aria-label="Close assignment editor"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="mb-5 grid grid-cols-2 gap-1 rounded-xl bg-white/5 p-1">
+              {([
+                { tab: "team" as const, label: "Team" },
+                { tab: "membership" as const, label: "Membership" },
+              ]).map(({ tab, label }) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => handleAssignmentTabChange(tab)}
+                  disabled={isSavingAssignment}
+                  className={`rounded-lg py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                    assignmentTab === tab
+                      ? "bg-sky-500/20 text-sky-300 ring-1 ring-sky-500/30"
+                      : "text-white/50 hover:bg-white/5 hover:text-white/70"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1.5 block text-xs text-white/50">
+                  {assignmentTab === "team" ? "Select Team" : "Select Membership"}
+                </label>
+                {assignmentTab === "team" ? (
+                  <select
+                    value={selectedTeamId}
+                    onChange={(event) => setSelectedTeamId(event.target.value)}
+                    disabled={isLoadingTeams || teams.length === 0 || isSavingAssignment}
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm text-white outline-none transition focus:border-sky-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isLoadingTeams ? (
+                      <option value="">Loading teams...</option>
+                    ) : teams.length === 0 ? (
+                      <option value="">No teams available</option>
+                    ) : (
+                      teams.map((team) => (
+                        <option key={team.id} value={team.id}>
+                          {team.name} ({team.agents.length} agents)
+                        </option>
+                      ))
+                    )}
+                  </select>
+                ) : (
+                  <select
+                    value={selectedMembershipId}
+                    onChange={(event) => setSelectedMembershipId(event.target.value)}
+                    disabled={memberships.length === 0 || isSavingAssignment}
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm text-white outline-none transition focus:border-sky-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {memberships.length === 0 ? (
+                      <option value="">No memberships available</option>
+                    ) : (
+                      memberships.map((membership) => (
+                        <option key={membership.id} value={membership.id}>
+                          {membership.name} - {membership.durationDays}d / {(membership.monthlyTokenLimit / 1000).toFixed(0)}k tokens
+                        </option>
+                      ))
+                    )}
+                  </select>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1.5 block text-xs text-white/50">Monthly Token Limit</label>
+                  <div className="relative">
+                    <CreditCard size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/35" />
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={editMonthlyTokenLimit}
+                      onChange={(event) => setEditMonthlyTokenLimit(event.target.value)}
+                      disabled={!selectedAssignment || isSavingAssignment}
+                      className="w-full rounded-xl border border-white/10 bg-white/5 p-3 pl-9 text-sm text-white outline-none transition focus:border-sky-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-xs text-white/50">Duration (Days)</label>
+                  <div className="relative">
+                    <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/35" />
+                    <input
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={editDurationDays}
+                      onChange={(event) => handleDurationChange(event.target.value)}
+                      disabled={!selectedAssignment || !selectedAssignmentHasTiming || isSavingAssignment}
+                      className="w-full rounded-xl border border-white/10 bg-white/5 p-3 pl-9 text-sm text-white outline-none transition focus:border-sky-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
+                <div>
+                  <label className="mb-1.5 block text-xs text-white/50">Expiration Date</label>
+                  <input
+                    type="date"
+                    value={editExpiration}
+                    onChange={(event) => handleExpirationChange(event.target.value)}
+                    disabled={!selectedAssignment || !selectedAssignmentHasTiming || isSavingAssignment}
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm text-white outline-none transition focus:border-sky-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                </div>
+
+                <label className="flex h-[46px] items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-white/70">
+                  <input
+                    type="checkbox"
+                    checked={editIsActive}
+                    onChange={(event) => setEditIsActive(event.target.checked)}
+                    disabled={!selectedAssignment || !selectedAssignmentHasTiming || isSavingAssignment}
+                    className="rounded border-white/20 bg-transparent text-sky-500 focus:ring-sky-500"
+                  />
+                  Active
+                </label>
+              </div>
+
+              {selectedAssignment?.monthlyTokenLimit === null && selectedAssignment.inheritedMonthlyTokenLimit ? (
+                <div className="rounded-xl border border-sky-400/15 bg-sky-500/10 px-3 py-2 text-xs text-sky-100/80">
+                  Current limit is inherited from the membership template. Saving creates an override for this user.
+                </div>
+              ) : null}
+
+              {assignmentEditError && (
+                <div className="rounded-xl border border-red-400/20 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                  {assignmentEditError}
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  onClick={() => closeAssignmentEditor()}
+                  disabled={isSavingAssignment}
+                  className="flex-1 rounded-xl border border-white/10 py-2.5 text-sm text-white/60 transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveAssignmentUpdate}
+                  disabled={!selectedAssignment || isSavingAssignment}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-sky-600 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isSavingAssignment && <Loader2 size={15} className="animate-spin" />}
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="rounded-2xl border border-white/10 bg-[#0F172A] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-white/70">
@@ -754,6 +1380,7 @@ export default function AllUsersPage() {
                 </th>
                 <th className="px-4 py-4 font-semibold">Expiration</th>
                 <th className="px-4 py-4 font-semibold">Status</th>
+                <th className="px-4 py-4 font-semibold text-right">Assigned Limit</th>
                 <th className={`px-4 py-4 font-semibold text-right cursor-pointer hover:text-white transition select-none ${sortField === "monthlyUsage" ? "text-white" : ""}`} onClick={() => handleSort("monthlyUsage")}>
                   <span className="inline-flex items-center justify-end gap-1">
                     {usageColLabel("Monthly")}
@@ -784,12 +1411,12 @@ export default function AllUsersPage() {
             <tbody>
               {isLoading && (
                 <tr>
-                  <td colSpan={11} className="px-4 py-12 text-center text-white/40">Loading real users...</td>
+                  <td colSpan={12} className="px-4 py-12 text-center text-white/40">Loading real users...</td>
                 </tr>
               )}
               {!isLoading && error && (
                 <tr>
-                  <td colSpan={11} className="px-4 py-12 text-center text-red-300">{error}</td>
+                  <td colSpan={12} className="px-4 py-12 text-center text-red-300">{error}</td>
                 </tr>
               )}
               {!isLoading && !error && filteredUsers.map((user) => (
@@ -828,6 +1455,9 @@ export default function AllUsersPage() {
                       {user.status}
                     </span>
                   </td>
+                  <td className="px-4 py-4 text-right font-mono text-white/70">
+                    {user.monthlyLimit > 0 ? formatTokenQuantity(user.monthlyLimit) : "-"}
+                  </td>
                   <td className="px-4 py-4 text-right font-mono text-sky-300">
                     {formatTokensAsCost(user.monthlyUsage, currency, user.monthlyInputUsage, user.monthlyOutputUsage)}
                   </td>
@@ -838,13 +1468,19 @@ export default function AllUsersPage() {
                     {formatTokensAsCost(user.dailyUsage, currency, user.dailyInputUsage, user.dailyOutputUsage)}
                   </td>
                   <td className="px-4 py-4 text-right">
-                    <button className="text-white/30 hover:text-white transition opacity-0 group-hover:opacity-100"><MoreVertical size={16} /></button>
+                    <button
+                      onClick={() => openAssignmentEditor(user)}
+                      className="rounded-lg p-1.5 text-white/30 opacity-0 transition hover:bg-sky-500/10 hover:text-sky-300 group-hover:opacity-100"
+                      aria-label={`Edit token assignment for ${user.email}`}
+                    >
+                      <Edit2 size={15} />
+                    </button>
                   </td>
                 </tr>
               ))}
               {!isLoading && !error && filteredUsers.length === 0 && (
                 <tr>
-                  <td colSpan={11} className="px-4 py-12 text-center text-white/40">No users found matching your criteria.</td>
+                  <td colSpan={12} className="px-4 py-12 text-center text-white/40">No users found matching your criteria.</td>
                 </tr>
               )}
             </tbody>

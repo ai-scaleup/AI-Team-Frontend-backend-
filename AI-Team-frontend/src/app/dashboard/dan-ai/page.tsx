@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
@@ -1219,6 +1219,13 @@ export default function page() {
                                     <button onClick={() => setIsDark(!isDark)} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
                                         {isDark ? <Sun size={18} /> : <Moon size={18} />}
                                     </button>
+                                    <a
+                                        href={`/dashboard/knowledgebase?sharedNamespaceId=${user?.id ?? ""}`}
+                                        className="p-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50 transition-all border-t border-white/20 flex items-center justify-center group cursor-pointer"
+                                        title="Knowledgebase"
+                                    >
+                                        <BookOpen size={18} strokeWidth={2.5} className="group-hover:scale-110 transition-transform" />
+                                    </a>
                                     <div className="mr-2">
                                         <PreferencesButton onClick={() => setIsPrefsOpen(true)} />
                                     </div>
