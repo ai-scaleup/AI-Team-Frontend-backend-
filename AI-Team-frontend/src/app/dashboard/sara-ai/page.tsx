@@ -642,8 +642,6 @@ export default function App() {
 
 
 
-    const { user } = useUser()
-
     // --- Set Pinecone namespace ---
     useEffect(() => {
         if (user?.id) {
