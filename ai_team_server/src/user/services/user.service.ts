@@ -20,6 +20,30 @@ type UsageTotals = {
   totalTokens: number;
 };
 
+type AssignedLimitSnapshot = {
+  agents?: {
+    agentName?: string;
+    monthlyTokenLimit?: number | null;
+  }[];
+  groups?: {
+    monthlyTokenLimit?: number | null;
+    group?: {
+      items?: { agentName?: string }[];
+    } | null;
+  }[];
+  memberships?: {
+    monthlyTokenLimit?: number | null;
+    template?: {
+      monthlyTokenLimit?: number | null;
+      includedAgents?: string[] | null;
+    } | null;
+  }[];
+  tokenUsage?: {
+    agentName?: string;
+    totalTokenLimit?: number | null;
+  }[];
+};
+
 const sumDailyUsage = (items: DailyUsageItem[]) =>
   items.reduce(
     (totals, item) => {
@@ -35,6 +59,47 @@ const sumDailyUsage = (items: DailyUsageItem[]) =>
     },
     { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
   );
+
+const getAssignedLimitTokens = (user: AssignedLimitSnapshot) => {
+  const tokenLimitByAgent = new Map(
+    (user.tokenUsage ?? [])
+      .filter((item) => item.agentName)
+      .map((item) => [String(item.agentName), item.totalTokenLimit ?? 0]),
+  );
+  const coveredAgentNames = new Set<string>();
+  let total = 0;
+
+  (user.agents ?? []).forEach((assignment) => {
+    if (!assignment.agentName) return;
+    const agentName = String(assignment.agentName);
+    coveredAgentNames.add(agentName);
+    total += assignment.monthlyTokenLimit ?? tokenLimitByAgent.get(agentName) ?? 0;
+  });
+
+  (user.groups ?? []).forEach((assignment) => {
+    total += assignment.monthlyTokenLimit ?? 0;
+    assignment.group?.items?.forEach((item) => {
+      if (item.agentName) coveredAgentNames.add(String(item.agentName));
+    });
+  });
+
+  (user.memberships ?? []).forEach((assignment) => {
+    total +=
+      assignment.monthlyTokenLimit ??
+      assignment.template?.monthlyTokenLimit ??
+      0;
+    assignment.template?.includedAgents?.forEach((agentName) => {
+      coveredAgentNames.add(String(agentName));
+    });
+  });
+
+  (user.tokenUsage ?? []).forEach((usage) => {
+    if (!usage.agentName || coveredAgentNames.has(String(usage.agentName))) return;
+    total += usage.totalTokenLimit ?? 0;
+  });
+
+  return total;
+};
 
 @Injectable()
 export class UserService {
@@ -195,22 +260,45 @@ export class UserService {
         id: true,
         oauthId: true,
         createdAt: true,
-        ...(sortBy === 'duration'
-          ? {
-              memberships: {
-                where: { isActive: true },
-                select: { template: { select: { durationDays: true } } },
+        memberships: {
+          where: { isActive: true },
+          select: {
+            monthlyTokenLimit: true,
+            template: {
+              select: {
+                durationDays: true,
+                monthlyTokenLimit: true,
+                includedAgents: true,
               },
-              groups: {
-                where: { isActive: true },
-                select: { durationDays: true },
+            },
+          },
+        },
+        groups: {
+          where: { isActive: true },
+          select: {
+            durationDays: true,
+            monthlyTokenLimit: true,
+            group: {
+              select: {
+                items: { select: { agentName: true } },
               },
-              agents: {
-                where: { isActive: true },
-                select: { durationDays: true },
-              },
-            }
-          : {}),
+            },
+          },
+        },
+        agents: {
+          where: { isActive: true },
+          select: {
+            agentName: true,
+            durationDays: true,
+            monthlyTokenLimit: true,
+          },
+        },
+        tokenUsage: {
+          select: {
+            agentName: true,
+            totalTokenLimit: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -295,9 +383,10 @@ export class UserService {
         agents: true,
         groups: {
           where: { isActive: true },
-          include: { group: true },
+          include: { group: { include: { items: true } } },
         },
         memberships: { include: { template: true } },
+        tokenUsage: true,
         dailyUsage: {
           where: {
             date: {
@@ -317,6 +406,10 @@ export class UserService {
     let summaryMonthlyTokens = 0;
     let summaryMonthlyInputTokens = 0;
     let summaryMonthlyOutputTokens = 0;
+    const summaryAssignedLimitTokens = matched.reduce(
+      (sum, user) => sum + getAssignedLimitTokens(user),
+      0,
+    );
     monthlyTotals.forEach((tokens) => {
       summaryMonthlyTokens += tokens.totalTokens;
       summaryMonthlyInputTokens += tokens.inputTokens;
@@ -364,6 +457,7 @@ export class UserService {
           monthlyTokens: summaryMonthlyTokens,
           monthlyInputTokens: summaryMonthlyInputTokens,
           monthlyOutputTokens: summaryMonthlyOutputTokens,
+          assignedLimitTokens: summaryAssignedLimitTokens,
         },
       },
     };

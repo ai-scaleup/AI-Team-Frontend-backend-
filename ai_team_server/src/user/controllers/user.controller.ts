@@ -149,6 +149,7 @@ export class UserController {
                 monthlyTokens: { type: 'integer', example: 1100000 },
                 monthlyInputTokens: { type: 'integer', example: 700000 },
                 monthlyOutputTokens: { type: 'integer', example: 400000 },
+                assignedLimitTokens: { type: 'integer', example: 5000000 },
               },
             },
           },

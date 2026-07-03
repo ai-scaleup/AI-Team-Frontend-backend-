@@ -156,6 +156,41 @@ export class AdminDashboardController {
     );
   }
 
+  @Patch('assignments/:type/:id')
+  @ApiOperation({ summary: 'Update an existing user assignment' })
+  @ApiParam({
+    name: 'type',
+    enum: ['agent', 'group', 'team', 'membership'],
+  })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        startsAt: { type: 'string', format: 'date-time' },
+        expiresAt: { type: 'string', format: 'date-time', nullable: true },
+        durationDays: { type: 'integer', minimum: 1 },
+        monthlyTokenLimit: { type: 'integer', minimum: 0 },
+        isActive: { type: 'boolean' },
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Assignment updated' })
+  updateAssignment(
+    @Param('type') type: 'agent' | 'group' | 'team' | 'membership',
+    @Param('id') id: string,
+    @Body()
+    body: {
+      startsAt?: string;
+      expiresAt?: string | null;
+      durationDays?: number;
+      monthlyTokenLimit?: number;
+      isActive?: boolean;
+    },
+  ) {
+    return this.dashboardService.updateAssignment(type, id, body);
+  }
+
   @Post('usage/reset-all')
   @ApiOperation({
     summary: 'Reset token usage and quota stop counters for all users',
