@@ -303,18 +303,22 @@ const buildSubscription = (details: ApiUserDetails | null): DisplaySubscription 
   };
 };
 
-const TOKEN_USAGE_COLORS = [
-  "#38bdf8",  // sky blue
-  "#f87171",  // red
-  "#4ade80",  // green
-  "#fbbf24",  // amber
-  "#a855f7",  // violet
-  "#fb923c",  // orange
-  "#2dd4bf",  // teal
-  "#f472b6",  // pink
-  "#34d399",  // emerald
-  "#a3e635",  // lime
-];
+// A series must be colored by agent name, not its position in an API response.
+const AGENT_USAGE_COLORS: Record<string, string> = {
+  SARA_AI: "#06b6d4", JENNIFER_AI: "#e879f9", CHIARA_AI: "#f472b6",
+  JIM: "#f59e0b", ALEX: "#f87171", MIKE: "#8b5cf6", TONY: "#fb7185",
+  LARA: "#fbbf24", VALENTINA: "#ec4899", DANIELE: "#4ade80",
+  SIMONE: "#2dd4bf", NIKO: "#fb923c", ALADINO: "#38bdf8", LAURA: "#c084fc",
+  DAN: "#84cc16", MAX: "#14b8a6", SOFIA: "#fde047", ROBERTA: "#a855f7",
+  TEST_SARA_AI: "#0ea5e9", TEST_JENNIFER_AI: "#d946ef", TEST_CHIARA_AI: "#db2777",
+  TEST_JIM: "#d97706", TEST_ALEX: "#ef4444", TEST_MIKE: "#7c3aed", TEST_TONY: "#e11d48",
+  TEST_LARA: "#eab308", TEST_VALENTINA: "#be185d", TEST_DANIELE: "#22c55e",
+  TEST_SIMONE: "#0d9488", TEST_NIKO: "#ea580c", TEST_ALADINO: "#2563eb", TEST_LAURA: "#9333ea",
+  TEST_DAN: "#65a30d", TEST_MAX: "#0f766e", TEST_SOFIA: "#ca8a04", TEST_ROBERTA: "#7e22ce",
+};
+
+const getAgentUsageColor = (agentName: string) =>
+  AGENT_USAGE_COLORS[agentName.trim().toUpperCase()] ?? "#94a3b8";
 
 type AgentTokenUsageRow = {
   name: string;
@@ -380,7 +384,7 @@ const buildAgentTokenUsage = (details: ApiUserDetails | null): AgentTokenUsageRo
   }
 
   const tokenRows = rows
-    .map((item, index) => {
+    .map((item) => {
       const limit = item.totalTokenLimit ?? 0;
       const cumulativeUsed = item.totalUsedTokens ?? 0;
       const name = item.agentName ?? "UNKNOWN_AGENT";
@@ -395,7 +399,7 @@ const buildAgentTokenUsage = (details: ApiUserDetails | null): AgentTokenUsageRo
         left,
         input: hasDailyUsagePayload ? dailyInputByAgent.get(name) ?? 0 : item.totalUsedInputTokens ?? 0,
         output: hasDailyUsagePayload ? dailyOutputByAgent.get(name) ?? 0 : item.totalUsedOutputTokens ?? 0,
-        color: TOKEN_USAGE_COLORS[index % TOKEN_USAGE_COLORS.length],
+        color: getAgentUsageColor(name),
       };
     })
     .filter((item) => item.name !== "UNKNOWN_AGENT" || item.limit > 0 || item.used > 0);
@@ -409,7 +413,7 @@ const buildAgentTokenUsage = (details: ApiUserDetails | null): AgentTokenUsageRo
         left: 0,
         input: 0,
         output: 0,
-        color: TOKEN_USAGE_COLORS[tokenRows.length % TOKEN_USAGE_COLORS.length],
+        color: getAgentUsageColor(name),
       });
     }
   });
@@ -423,7 +427,7 @@ const buildAgentTokenUsage = (details: ApiUserDetails | null): AgentTokenUsageRo
         left: 0,
         input: dailyInputByAgent.get(name) ?? 0,
         output: dailyOutputByAgent.get(name) ?? 0,
-        color: TOKEN_USAGE_COLORS[tokenRows.length % TOKEN_USAGE_COLORS.length],
+        color: getAgentUsageColor(name),
       });
     }
   });
@@ -482,11 +486,11 @@ const buildUsedAgentSeries = (
     }
   });
 
-  return Array.from(agentNames).map((name, index) => ({
+  return Array.from(agentNames).map((name) => ({
     name,
     color:
       agentTokenUsage.find((agent) => agent.name === name)?.color ??
-      TOKEN_USAGE_COLORS[index % TOKEN_USAGE_COLORS.length],
+      getAgentUsageColor(name),
   }));
 };
 
@@ -1195,8 +1199,8 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
               <defs>
                 {visibleUsageSeries.map((agent, index) => (
                   <linearGradient key={agent.name} id={`gradDay${index}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={agent.color} stopOpacity={0.75} />
-                    <stop offset="95%" stopColor={agent.color} stopOpacity={0.25} />
+                    <stop offset="5%" stopColor={agent.color} stopOpacity={0.24} />
+                    <stop offset="95%" stopColor={agent.color} stopOpacity={0.02} />
                   </linearGradient>
                 ))}
               </defs>
@@ -1209,7 +1213,6 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
                   key={agent.name}
                   type="monotone"
                   dataKey={agent.name}
-                  stackId="1"
                   stroke={agent.color}
                   strokeWidth={1.5}
                   fill={`url(#gradDay${index})`}
@@ -1262,8 +1265,8 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
               <defs>
                 {visibleUsageSeries.map((agent, index) => (
                   <linearGradient key={agent.name} id={`gradWeek${index}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={agent.color} stopOpacity={0.75} />
-                    <stop offset="95%" stopColor={agent.color} stopOpacity={0.25} />
+                    <stop offset="5%" stopColor={agent.color} stopOpacity={0.24} />
+                    <stop offset="95%" stopColor={agent.color} stopOpacity={0.02} />
                   </linearGradient>
                 ))}
               </defs>
@@ -1272,7 +1275,6 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
                   key={agent.name}
                   type="monotone"
                   dataKey={agent.name}
-                  stackId="1"
                   stroke={agent.color}
                   strokeWidth={1.5}
                   fill={`url(#gradWeek${index})`}

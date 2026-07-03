@@ -309,6 +309,15 @@ export default function page() {
         }
     }, [userEmail])
 
+    // --- Set Pinecone namespace ---
+    useEffect(() => {
+        if (user?.id) {
+            // Set namespace immediately from user.id (Clerk oauthId) so Pinecone is always ready
+            CURRENT_NAMESPACE.current = user.id
+            console.log("✅ Dan AI: Using user.id for Pinecone namespace:", user.id)
+        }
+    }, [user?.id])
+
     // Rename Modal State (Reverted to Inline for consistency with System)
     const [chats, setChats] = useState<Record<string, ChatSession>>({})
     const [currentChatId, setCurrentChatId] = useState<string | null>(null)
@@ -369,20 +378,6 @@ export default function page() {
         } else {
             setIsOnboardingOpen(true)
         }
-
-        const generateUUID = () =>
-            "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-                const r = (Math.random() * 16) | 0
-                const v = c === "x" ? r : (r & 0x3) | 0x8
-                return v.toString(16)
-            })
-
-        let namespace = localStorage.getItem("Namespace")
-        if (!namespace) {
-            namespace = generateUUID()
-            localStorage.setItem("Namespace", namespace)
-        }
-        CURRENT_NAMESPACE.current = namespace
 
         const savedChats = localStorage.getItem("dan-ai-chats")
         if (savedChats) {

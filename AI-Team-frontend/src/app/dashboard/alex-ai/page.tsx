@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 export const dynamic = "force-dynamic"
 
 import type React from "react"
@@ -303,6 +303,30 @@ const AGENTS_DB: Record<string, any> = {
   },
 }
 
+// --- TOKEN USAGE ALERT RULES (conversation scope) ---
+// Mirrors the admin "Token Usage Alerts" defaults. Frontend-only for Alex for now.
+type TokenAlertLevel = "info" | "warning" | "critical"
+const TOKEN_ALERT_RULES: { percentage: number; level: TokenAlertLevel; message: string }[] = [
+  { percentage: 50, level: "info", message: "Hai usato il 50% dei token della conversazione. Valuta di concludere a breve." },
+  { percentage: 75, level: "warning", message: "75% dei token della conversazione utilizzati. Ti stai avvicinando al limite." },
+  { percentage: 90, level: "critical", message: "90% raggiunto! La conversazione terminerà presto. Salva subito le informazioni importanti." },
+]
+
+const TOKEN_ALERT_STYLES: Record<TokenAlertLevel, { wrap: string; icon: string }> = {
+  info: {
+    wrap: "bg-sky-500/10 border-sky-400/40 text-sky-700 dark:text-sky-300",
+    icon: "ℹ️",
+  },
+  warning: {
+    wrap: "bg-amber-500/10 border-amber-400/40 text-amber-700 dark:text-amber-300",
+    icon: "⚠️",
+  },
+  critical: {
+    wrap: "bg-rose-500/10 border-rose-400/40 text-rose-700 dark:text-rose-300",
+    icon: "🚨",
+  },
+}
+
 // --- AGENT ROSTER LIST ---
 const AI_TEAM_LIST = [
   { id: "mike-ai" },
@@ -372,8 +396,18 @@ export default function App() {
       : tokenUsagePercent >= 75
         ? "bg-amber-500"
         : "bg-sky-500"
+  // Highest threshold rule the user has crossed (if any) → drives the announcer bar
+  const activeTokenAlert = tokenUsage
+    ? [...TOKEN_ALERT_RULES]
+        .sort((a, b) => b.percentage - a.percentage)
+        .find((rule) => tokenUsagePercent >= rule.percentage) || null
+    : null
+  // Hard stop: limit reached when no tokens left (or usage hit 100%)
+  const isTokenLimitReached = Boolean(
+    tokenUsage && (tokenUsage.totalTokensLeft <= 0 || tokenUsagePercent >= 100),
+  )
   const isPreferenceReady = Boolean(userPrefs?.onboardingCompleted)
-  const isComposerDisabled = isLoading || isPreferenceLoading || !isPreferenceReady
+  const isComposerDisabled = isLoading || isPreferenceLoading || !isPreferenceReady || isTokenLimitReached
   const isSendDisabled = isComposerDisabled || (!inputValue.trim() && selectedFiles.length === 0)
 
   const [pendingFileContents, setPendingFileContents] = useState<{ fileName: string; content: string }[]>([])
@@ -441,6 +475,15 @@ export default function App() {
 
   const N8N_ENDPOINT = "/api/n8n-proxy?agent=alex-ai"
 
+  // --- Set Pinecone namespace ---
+  useEffect(() => {
+    if (user?.id) {
+      // Set namespace immediately from user.id (Clerk oauthId) so Pinecone is always ready
+      CURRENT_NAMESPACE.current = user.id
+      console.log("✅ Alex AI: Using user.id for Pinecone namespace:", user.id)
+    }
+  }, [user?.id])
+
   useEffect(() => {
     if (!userEmail) return
 
@@ -449,7 +492,7 @@ export default function App() {
     fetch(`${API_BASE}/token-usage/${userIdentifier}/ALEX`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (data) setTokenUsage(data)
+        if (data) { /* token usage UI disabled */ }
       })
       .catch(() => {})
   }, [userEmail])
@@ -845,7 +888,6 @@ export default function App() {
         const prefs = await userPreferenceService.getOrCreate(userEmail, "JIM")
         if (prefs) {
           setUserPrefs(prefs)
-          CURRENT_NAMESPACE.current = userEmail
         } else {
           setUserPrefs(null)
         }
@@ -1187,6 +1229,7 @@ export default function App() {
 
   const sendMessage = async () => {
     if (!inputValue.trim() && selectedFiles.length === 0) return
+    if (isTokenLimitReached) return
 
     setIsLoading(true)
 
@@ -1437,7 +1480,7 @@ export default function App() {
           const updated = await fetch(`${API_BASE}/token-usage/${userIdentifier}/ALEX`).then((r) =>
             r.ok ? r.json() : null,
           )
-          if (updated) setTokenUsage(updated)
+          if (updated) { /* token usage UI disabled */ }
         }
       } catch (err) {
         console.error("Alex AI: Failed to update token usage:", err)
@@ -2148,6 +2191,29 @@ export default function App() {
                 </div>
 
                 <div className="flex items-center gap-2 md:gap-4">
+                  {tokenUsage && (
+                    <div className="hidden md:flex flex-col gap-1 px-3 py-2 rounded-xl bg-slate-200/50 dark:bg-white/5 border border-slate-300/50 dark:border-white/10 min-w-[180px]">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                          <Zap size={12} className="text-sky-400" />
+                          Token Usati
+                        </span>
+                        <span className="text-xs font-bold text-slate-900 dark:text-white tabular-nums">
+                          {tokenUsage.totalUsedTokens.toLocaleString("it-IT")}
+                          <span className="text-slate-400 dark:text-slate-500 font-medium">
+                            {" "}/ {tokenUsage.totalTokenLimit.toLocaleString("it-IT")}
+                          </span>
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full rounded-full bg-slate-300/60 dark:bg-white/10 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${tokenProgressClass}`}
+                          style={{ width: `${tokenUsagePercent}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  )}
+
                   <button
                     onClick={() => setIsDark(!isDark)}
                     className="p-2.5 rounded-full bg-slate-200/50 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 transition text-slate-600 dark:text-slate-300 cursor-pointer"
@@ -2277,6 +2343,25 @@ export default function App() {
             className="sticky bottom-0 px-4 md:px-8 pb-4 md:pb-6"
           >
             <div className="max-w-6xl mx-auto">
+              {/* Token usage announcer bar */}
+              {isTokenLimitReached ? (
+                <div className="mb-3 flex items-center gap-2.5 rounded-xl border px-4 py-3 text-sm font-medium bg-rose-500/15 border-rose-500/50 text-rose-700 dark:text-rose-300">
+                  <span aria-hidden>🛑</span>
+                  <span>
+                    Limite di token raggiunto. Questa conversazione è terminata: avvia una nuova chat per continuare.
+                  </span>
+                </div>
+              ) : (
+                activeTokenAlert && (
+                  <div
+                    className={`mb-3 flex items-center gap-2.5 rounded-xl border px-4 py-3 text-sm font-medium ${TOKEN_ALERT_STYLES[activeTokenAlert.level].wrap}`}
+                  >
+                    <span aria-hidden>{TOKEN_ALERT_STYLES[activeTokenAlert.level].icon}</span>
+                    <span>{activeTokenAlert.message}</span>
+                  </div>
+                )
+              )}
+
               {selectedFiles.length > 0 && (
                 <div className="mb-3 flex flex-wrap gap-2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-xl p-3 border border-slate-200 dark:border-slate-700">
                   {selectedFiles.map((file, idx) => (
@@ -2311,11 +2396,13 @@ export default function App() {
                       }
                     }}
                     placeholder={
-                      isPreferenceLoading
-                        ? "Caricamento preferenze..."
-                        : !isPreferenceReady
-                          ? "Completa le preferenze di Alex AI prima di chattare."
-                          : "Scrivi il tuo messaggio..."
+                      isTokenLimitReached
+                        ? "Limite di token raggiunto. Avvia una nuova chat per continuare."
+                        : isPreferenceLoading
+                          ? "Caricamento preferenze..."
+                          : !isPreferenceReady
+                            ? "Completa le preferenze di Alex AI prima di chattare."
+                            : "Scrivi il tuo messaggio..."
                     }
                     rows={1}
                     className="flex-1 bg-transparent text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm md:text-base resize-none focus:outline-none min-h-[24px] max-h-[200px] py-2"

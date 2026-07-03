@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
@@ -347,6 +347,21 @@ const AI_TEAM_LIST = [
 
 
 
+// --- TOKEN USAGE ALERT RULES (conversation scope) ---
+// Mirrors the admin "Token Usage Alerts" defaults. Frontend-only for now.
+type TokenAlertLevel = "info" | "warning" | "critical"
+const TOKEN_ALERT_RULES: { percentage: number; level: TokenAlertLevel; message: string }[] = [
+  { percentage: 50, level: "info", message: "Hai usato il 50% dei token della conversazione. Valuta di concludere a breve." },
+  { percentage: 75, level: "warning", message: "75% dei token della conversazione utilizzati. Ti stai avvicinando al limite." },
+  { percentage: 90, level: "critical", message: "90% raggiunto! La conversazione terminerà presto. Salva subito le informazioni importanti." },
+]
+
+const TOKEN_ALERT_STYLES: Record<TokenAlertLevel, { wrap: string; icon: string }> = {
+  info: { wrap: "bg-sky-500/10 border-sky-400/40 text-sky-700 dark:text-sky-300", icon: "ℹ️" },
+  warning: { wrap: "bg-amber-500/10 border-amber-400/40 text-amber-700 dark:text-amber-300", icon: "⚠️" },
+  critical: { wrap: "bg-rose-500/10 border-rose-400/40 text-rose-700 dark:text-rose-300", icon: "🚨" },
+}
+
 export default function App() {
   // --- STATE ---
   const [activeAgentId, setActiveAgentId] = useState<string>("simone-ai")
@@ -420,7 +435,7 @@ export default function App() {
     fetch(`${API_BASE}/token-usage/${userIdentifier}/SIMONE`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (data) setTokenUsage(data)
+        if (data) { /* token usage UI disabled */ }
       })
       .catch(() => {})
   }, [userEmail])
@@ -433,32 +448,6 @@ export default function App() {
 
     if (window.innerWidth < 768) {
       setSidebarVisible(false)
-    }
-
-    const savedChats = localStorage.getItem("simone-ai-chats")
-    if (savedChats) {
-      try {
-        const parsedChats = JSON.parse(savedChats) as Record<string, ChatSession>
-        setChats(parsedChats)
-        if (Object.keys(parsedChats).length > 0) {
-          const sorted = Object.entries(parsedChats).sort(
-            ([, a], [, b]) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime(),
-          )
-          const recentChatId = sorted[0][0]
-          setCurrentChatId(recentChatId)
-          setMessages(parsedChats[recentChatId].messages || [])
-          if (parsedChats[recentChatId].agentId) {
-            setActiveAgentId(parsedChats[recentChatId].agentId)
-          }
-        } else {
-          initNewChatForAgent(currentAgent)
-        }
-      } catch (e) {
-        console.error("Failed to parse saved chats", e)
-        initNewChatForAgent(currentAgent)
-      }
-    } else {
-      initNewChatForAgent(currentAgent)
     }
 
     const savedFolders = localStorage.getItem("simone-ai-folders")
@@ -479,11 +468,11 @@ export default function App() {
     console.log("🔍 API Base URL:", API_BASE || "(empty - will use relative path)")
 
     const migrationKey = "simone-ai-migrated"
-    const migrationVersionKey = "simone-ai-migration-v5"
+    const migrationVersionKey = "simone-ai-migration-v6"
 
-    const hasMigrationV5 = localStorage.getItem(migrationVersionKey)
-    if (!hasMigrationV5) {
-      console.log("🔄 Simone AI: Migration v5 not found, forcing re-migration...")
+    const hasMigrationV6 = localStorage.getItem(migrationVersionKey)
+    if (!hasMigrationV6) {
+      console.log("🔄 Simone AI: Migration v6 not found, forcing re-migration...")
       localStorage.removeItem(migrationKey)
       localStorage.setItem(migrationVersionKey, "true")
     }
@@ -810,7 +799,7 @@ export default function App() {
     }
   }
 
-  const initNewChatForAgent = (agent: any, specificAgentId?: string) => {
+  const initNewChatForAgent = async (agent: any, specificAgentId?: string) => {
     const targetAgentId = specificAgentId || activeAgentId
     const newChatId = "chat_" + Date.now()
     const newSessionId = "session_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9)
@@ -830,21 +819,39 @@ export default function App() {
     setCurrentChatId(newChatId)
     setMessages([welcomeMsg])
 
+    const newChat: ChatSession = {
+      id: newChatId,
+      messages: [welcomeMsg],
+      title: `Missione con ${agent.name}`,
+      lastUpdated: new Date().toISOString(),
+      folderId: null,
+      archived: false,
+      agentId: targetAgentId,
+      sessionId: newSessionId,
+    }
+
     setChats((prev) => {
-      const newChat: ChatSession = {
-        id: newChatId,
-        messages: [welcomeMsg],
-        title: `Missione con ${agent.name}`,
-        lastUpdated: new Date().toISOString(),
-        folderId: null,
-        archived: false,
-        agentId: targetAgentId,
-        sessionId: newSessionId, // Store sessionId with the chat
-      }
       const newChats = { [newChatId]: newChat, ...prev }
       localStorage.setItem("simone-ai-chats", JSON.stringify(newChats))
       return newChats
     })
+
+    if (user?.id) {
+      try {
+        await conversationService.createConversation(user.id, {
+          id: newChatId,
+          title: `Missione con ${agent.name}`,
+          agentId: targetAgentId,
+          sessionId: newSessionId,
+          folderId: null,
+          archived: false,
+          messages: [welcomeMsg],
+        })
+        console.log("Simone AI: Conversation created in database:", newChatId)
+      } catch (error) {
+        console.error("Simone AI: Failed to create conversation in database:", error)
+      }
+    }
   }
 
   const updateChatState = (chatId: string, updates: Partial<ChatSession>) => {
@@ -858,13 +865,13 @@ export default function App() {
     })
   }
 
-  const createNewChat = () => {
-    initNewChatForAgent(currentAgent)
+  const createNewChat = async () => {
+    await initNewChatForAgent(currentAgent)
     setSidebarVisible(true)
     setSidebarMode("chats")
   }
 
-  const loadChat = (chatId: string) => {
+  const loadChat = async (chatId: string) => {
     if (!chats[chatId]) return
     setCurrentChatId(chatId)
     setMessages(chats[chatId].messages || [])
@@ -874,6 +881,22 @@ export default function App() {
     setActiveMenu(null)
     if (window.innerWidth < 768) {
       setSidebarVisible(false)
+    }
+
+    if (user?.id) {
+      try {
+        const apiMessages = await conversationService.getMessages(user.id, chatId)
+        if (apiMessages && apiMessages.length > 0) {
+          setMessages(apiMessages)
+          setChats((prev) => ({
+            ...prev,
+            [chatId]: { ...prev[chatId], messages: apiMessages },
+          }))
+          console.log("Simone AI: Loaded", apiMessages.length, "messages from API for chat:", chatId)
+        }
+      } catch (error) {
+        console.error("Simone AI: Failed to load messages from API:", error)
+      }
     }
   }
 
@@ -934,7 +957,7 @@ export default function App() {
   }
 
   // --- CONTEXT MENU ACTIONS ---
-  const deleteChat = (chatIdToDelete: string, e?: React.MouseEvent) => {
+  const deleteChat = async (chatIdToDelete: string, e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault()
       e.stopPropagation()
@@ -945,6 +968,15 @@ export default function App() {
 
     if (!confirm("Sei sicuro di voler eliminare questa chat?")) return
 
+    if (user?.id) {
+      try {
+        await conversationService.deleteConversation(user.id, chatIdToDelete)
+        console.log("Simone AI: Conversation deleted from database:", chatIdToDelete)
+      } catch (error) {
+        console.error("Simone AI: Failed to delete conversation from database:", error)
+      }
+    }
+
     const updatedChats = { ...chats }
     if (!updatedChats[chatIdToDelete]) return
 
@@ -952,31 +984,7 @@ export default function App() {
     const remainingIds = Object.keys(updatedChats)
 
     if (remainingIds.length === 0) {
-      const agent = AGENTS_DB[activeAgentId]
-      const newChatId = "chat_" + Date.now()
-      const welcomeMsg: Message = {
-        text: `Ciao! Sono **${agent.name}**. ${agent.description} Come posso aiutarti?`,
-        sender: "ai",
-        time: new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }),
-      }
-
-      const newChatState = {
-        [newChatId]: {
-          id: newChatId,
-          messages: [welcomeMsg],
-          title: `Missione con ${agent.name}`,
-          lastUpdated: new Date().toISOString(),
-          folderId: null,
-          archived: false,
-          agentId: activeAgentId,
-          sessionId: "session_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9),
-        },
-      }
-
-      localStorage.setItem("simone-ai-chats", JSON.stringify(newChatState))
-      setChats(newChatState)
-      setCurrentChatId(newChatId)
-      setMessages([welcomeMsg])
+      await initNewChatForAgent(AGENTS_DB[activeAgentId])
     } else {
       localStorage.setItem("simone-ai-chats", JSON.stringify(updatedChats))
       setChats(updatedChats)
@@ -1012,12 +1020,24 @@ export default function App() {
     setActiveMenu(null)
   }
 
-  const confirmRename = (chatId: string) => {
+  const confirmRename = async (chatId: string) => {
     if (!renameValue.trim()) {
       setRenamingChat(null)
       return
     }
-    updateChatState(chatId, { title: renameValue.trim() })
+
+    const newTitle = renameValue.trim()
+    updateChatState(chatId, { title: newTitle })
+
+    if (user?.id) {
+      try {
+        await conversationService.updateConversation(user.id, chatId, { title: newTitle })
+        console.log("Simone AI: Conversation renamed in database:", chatId, "->", newTitle)
+      } catch (error) {
+        console.error("Simone AI: Failed to rename conversation in database:", error)
+      }
+    }
+
     setRenamingChat(null)
     setRenameValue("")
   }
@@ -1058,10 +1078,74 @@ export default function App() {
     }
   }
 
+  const toPersistableMessage = (message: Message) => ({
+    text: message.text.trim() || `[File: ${message.files?.join(", ") || "attachment"}]`,
+    sender: message.sender,
+    time: message.time,
+  })
+
+  const isNotFoundError = (error: unknown) => {
+    if (!(error instanceof Error)) return false
+    const message = error.message.toLowerCase()
+    return message.includes("404") || message.includes("not found")
+  }
+
+  const createConversationFromChat = async (chatId: string, chat: ChatSession, chatMessages: Message[]) => {
+    if (!user?.id) return
+
+    await conversationService.createConversation(user.id, {
+      id: chatId,
+      title: chat.title || "Nuova Missione",
+      agentId: chat.agentId || activeAgentId,
+      sessionId: chat.sessionId || `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      folderId: chat.folderId || null,
+      archived: chat.archived || false,
+      messages: chatMessages.map(toPersistableMessage),
+    })
+  }
+
+  const saveMessageToApi = async (
+    chatId: string,
+    chat: ChatSession,
+    message: Message,
+    chatMessages: Message[],
+    label: string,
+  ) => {
+    if (!user?.id) return
+
+    try {
+      await conversationService.addMessage(user.id, chatId, toPersistableMessage(message))
+      console.log(`Simone AI: ${label} message saved to API`)
+    } catch (error) {
+      if (!isNotFoundError(error)) {
+        console.error(`Simone AI: Failed to save ${label} message:`, error)
+        return
+      }
+
+      try {
+        await createConversationFromChat(chatId, chat, chatMessages)
+        console.log("Simone AI: Missing conversation recreated in API:", chatId)
+      } catch (recreateError) {
+        console.error("Simone AI: Failed to recreate missing conversation:", recreateError)
+      }
+    }
+  }
+
   // --- Message Sending Logic ---
   // --- Message Sending Logic ---
+  // Highest crossed threshold drives the announcer bar; hard stop when no tokens left
+  const activeTokenAlert = tokenUsage
+    ? [...TOKEN_ALERT_RULES]
+        .sort((a, b) => b.percentage - a.percentage)
+        .find((rule) => tokenUsagePercent >= rule.percentage) || null
+    : null
+  const isTokenLimitReached = Boolean(
+    tokenUsage && (tokenUsage.totalTokensLeft <= 0 || tokenUsagePercent >= 100),
+  )
+
   const sendMessage = async () => {
     if (!inputValue.trim() && selectedFiles.length === 0) return
+    if (isTokenLimitReached) return
 
     setIsLoading(true)
 
@@ -1088,6 +1172,7 @@ export default function App() {
 
     // Handle creating a new chat if none is active
     let currentChatIdForSend = currentChatId
+    let activeChatForSend = currentChatIdForSend ? chats[currentChatIdForSend] : undefined
     if (!currentChatIdForSend) {
       const newChatId = "chat_" + Date.now()
       const newSessionId = "session_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9)
@@ -1113,20 +1198,47 @@ export default function App() {
       setCurrentChatId(newChatId)
       currentChatIdForSend = newChatId
       currentMessages = [welcomeMsg, userMessage]
+      activeChatForSend = newChat
       setMessages(currentMessages)
       localStorage.setItem("simone-ai-chats", JSON.stringify(updatedChatsState))
+
+      if (user?.id) {
+        try {
+          await conversationService.createConversation(user.id, {
+            id: newChatId,
+            title: `Missione con ${agent.name}`,
+            agentId: activeAgentId,
+            sessionId: newSessionId,
+            folderId: null,
+            archived: false,
+            messages: currentMessages.map(toPersistableMessage),
+          })
+          console.log("✅ Simone AI: New conversation created with messages")
+        } catch (error) {
+          console.error("❌ Simone AI: Failed to create conversation:", error)
+        }
+      }
     } else {
       // Add user message to existing chat
-      const updatedChatSession = {
-        ...chats[currentChatIdForSend],
+      const existingChat = chats[currentChatIdForSend]
+      const updatedChatSession: ChatSession = {
+        id: currentChatIdForSend,
         messages: currentMessages,
         lastUpdated: new Date().toISOString(),
-        title: chats[currentChatIdForSend]?.title || inputValue.slice(0, 30) || "Nuova Missione",
+        title: existingChat?.title || inputValue.slice(0, 30) || "Nuova Missione",
+        folderId: existingChat?.folderId || null,
+        archived: existingChat?.archived || false,
+        agentId: existingChat?.agentId || activeAgentId,
+        sessionId:
+          existingChat?.sessionId || `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       }
       const updatedChatsState = { ...chats, [currentChatIdForSend]: updatedChatSession }
       setChats(updatedChatsState)
       setMessages(currentMessages)
       localStorage.setItem("simone-ai-chats", JSON.stringify(updatedChatsState))
+      activeChatForSend = updatedChatSession
+
+      await saveMessageToApi(currentChatIdForSend, updatedChatSession, userMessage, currentMessages, "User")
     }
 
     // Add a placeholder for the AI's response
@@ -1134,15 +1246,25 @@ export default function App() {
     setMessages((prev) => [...prev, aiResponsePlaceholder])
 
     try {
-      const currentChat = chats[currentChatIdForSend!]
+      const currentChat = activeChatForSend || chats[currentChatIdForSend!]
       let sessionId = currentChat?.sessionId
 
       if (!sessionId) {
         sessionId = "session_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9)
-        const updatedChat = { ...currentChat, sessionId }
+        const updatedChat: ChatSession = {
+          id: currentChatIdForSend!,
+          title: currentChat?.title || "Nuova Missione",
+          messages: currentMessages,
+          lastUpdated: new Date().toISOString(),
+          folderId: currentChat?.folderId || null,
+          archived: currentChat?.archived || false,
+          agentId: currentChat?.agentId || activeAgentId,
+          sessionId,
+        }
         const updatedChatsState = { ...chats, [currentChatIdForSend!]: updatedChat }
         setChats(updatedChatsState)
         localStorage.setItem("simone-ai-chats", JSON.stringify(updatedChatsState))
+        activeChatForSend = updatedChat
       }
 
       if (!currentChatIdForSend) throw new Error("currentChatIdForSend is null")
@@ -1212,20 +1334,30 @@ export default function App() {
         raw: rawText,
       }
 
-      setMessages((prev) => {
-        const newMsgs = [...prev]
-        newMsgs[newMsgs.length - 1] = finalAiMessage
-        // Update the chat in state and localStorage
-        const updatedChatSession = {
-          ...chats[currentChatIdForSend!],
-          messages: newMsgs,
-          lastUpdated: new Date().toISOString(),
-        }
-        const updatedChatsState = { ...chats, [currentChatIdForSend!]: updatedChatSession }
-        localStorage.setItem("simone-ai-chats", JSON.stringify(updatedChatsState))
-        setChats(updatedChatsState)
-        return newMsgs
-      })
+      const finalMessages = [...currentMessages, finalAiMessage]
+      const updatedChatSession: ChatSession = {
+        id: currentChatIdForSend!,
+        title: activeChatForSend?.title || chats[currentChatIdForSend!]?.title || "Nuova Missione",
+        messages: finalMessages,
+        lastUpdated: new Date().toISOString(),
+        folderId: activeChatForSend?.folderId || chats[currentChatIdForSend!]?.folderId || null,
+        archived: activeChatForSend?.archived || chats[currentChatIdForSend!]?.archived || false,
+        agentId: activeChatForSend?.agentId || chats[currentChatIdForSend!]?.agentId || activeAgentId,
+        sessionId:
+          activeChatForSend?.sessionId ||
+          chats[currentChatIdForSend!]?.sessionId ||
+          sessionId ||
+          `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      }
+      const updatedChatsState = { ...chats, [currentChatIdForSend!]: updatedChatSession }
+      setMessages(finalMessages)
+      setChats(updatedChatsState)
+      localStorage.setItem("simone-ai-chats", JSON.stringify(updatedChatsState))
+      activeChatForSend = updatedChatSession
+
+      if (currentChatIdForSend) {
+        await saveMessageToApi(currentChatIdForSend, updatedChatSession, finalAiMessage, finalMessages, "AI")
+      }
 
       const userIdentifier = userEmail ? encodeURIComponent(userEmail) : ""
       const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""
@@ -1256,7 +1388,7 @@ export default function App() {
           const updated = await fetch(`${API_BASE}/token-usage/${userIdentifier}/SIMONE`).then((r) =>
             r.ok ? r.json() : null,
           )
-          if (updated) setTokenUsage(updated)
+          if (updated) { /* token usage UI disabled */ }
         }
       } catch (err) {
         console.error("Simone AI: Failed to update token usage:", err)
@@ -1900,6 +2032,29 @@ export default function App() {
                 </div>
 
                 <div className="flex items-center gap-2 md:gap-4">
+                  {tokenUsage && (
+                    <div className="hidden md:flex flex-col gap-1 px-3 py-2 rounded-xl bg-slate-200/50 dark:bg-white/5 border border-slate-300/50 dark:border-white/10 min-w-[180px]">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                          <Zap size={12} className="text-sky-400" />
+                          Token Usati
+                        </span>
+                        <span className="text-xs font-bold text-slate-900 dark:text-white tabular-nums">
+                          {tokenUsage.totalUsedTokens.toLocaleString("it-IT")}
+                          <span className="text-slate-400 dark:text-slate-500 font-medium">
+                            {" "}/ {tokenUsage.totalTokenLimit.toLocaleString("it-IT")}
+                          </span>
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full rounded-full bg-slate-300/60 dark:bg-white/10 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${tokenProgressClass}`}
+                          style={{ width: `${tokenUsagePercent}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  )}
+
                   <button
                     onClick={() => setIsDark(!isDark)}
                     className="p-2.5 rounded-full bg-slate-200/50 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 transition text-slate-600 dark:text-slate-300 cursor-pointer"
@@ -2003,6 +2158,25 @@ export default function App() {
             className="sticky bottom-0 px-4 md:px-8 pb-4 md:pb-6"
           >
             <div className="max-w-6xl mx-auto">
+              {/* Token usage announcer bar */}
+              {isTokenLimitReached ? (
+                <div className="mb-3 flex items-center gap-2.5 rounded-xl border px-4 py-3 text-sm font-medium bg-rose-500/15 border-rose-500/50 text-rose-700 dark:text-rose-300">
+                  <span aria-hidden>🛑</span>
+                  <span>
+                    Limite di token raggiunto. Questa conversazione è terminata: avvia una nuova chat per continuare.
+                  </span>
+                </div>
+              ) : (
+                activeTokenAlert && (
+                  <div
+                    className={`mb-3 flex items-center gap-2.5 rounded-xl border px-4 py-3 text-sm font-medium ${TOKEN_ALERT_STYLES[activeTokenAlert.level].wrap}`}
+                  >
+                    <span aria-hidden>{TOKEN_ALERT_STYLES[activeTokenAlert.level].icon}</span>
+                    <span>{activeTokenAlert.message}</span>
+                  </div>
+                )
+              )}
+
               {selectedFiles.length > 0 && (
                 <div className="mb-3 flex flex-wrap gap-2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-xl p-3 border border-slate-200 dark:border-slate-700">
                   {selectedFiles.map((file, idx) => (
@@ -2034,14 +2208,14 @@ export default function App() {
                         sendMessage()
                       }
                     }}
-                    placeholder="Scrivi il tuo messaggio..."
+                    placeholder={isTokenLimitReached ? "Limite di token raggiunto. Avvia una nuova chat per continuare." : "Scrivi il tuo messaggio..."}
                     rows={1}
                     className="flex-1 bg-transparent text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm md:text-base resize-none focus:outline-none min-h-[24px] max-h-[200px] py-2"
-                    disabled={isLoading}
+                    disabled={isLoading || isTokenLimitReached}
                   />
                   <button
                     onClick={sendMessage}
-                    disabled={isLoading || (!inputValue.trim() && selectedFiles.length === 0)}
+                    disabled={isLoading || isTokenLimitReached || (!inputValue.trim() && selectedFiles.length === 0)}
                     className={`p-3 md:p-3.5 rounded-xl font-bold uppercase tracking-wider transition-all duration-300 shrink-0 border-2 ${isLoading || (!inputValue.trim() && selectedFiles.length === 0) ? "bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 border-transparent cursor-not-allowed" : "bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-600 hover:to-cyan-600 text-white shadow-lg shadow-sky-500/40 hover:shadow-sky-500/60 hover:scale-105 active:scale-95 border-sky-400 cursor-pointer"}`}
                   >
                     <Send size={20} strokeWidth={2.5} />

@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 // Valentina AI chat page
 
 import type React from "react"
@@ -420,7 +420,7 @@ export default function App() {
     const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""
     fetch(`${API_BASE}/token-usage/${userIdentifier}/VALENTINA`)
       .then((r) => r.ok ? r.json() : null)
-      .then((data) => { if (data) setTokenUsage(data) })
+      .then((data) => { if (data) { /* token usage UI disabled */ } })
       .catch(() => {})
   }, [userEmail])
 
@@ -811,15 +811,20 @@ export default function App() {
     userPreferenceService.get(userEmail, "JIM").then((prefs) => {
       if (prefs) {
         setUserPrefs(prefs)
-        if (prefs.oauthId) {
-          console.log("✅ Valentina AI: Using oauthId for Pinecone namespace:", prefs.oauthId)
-          CURRENT_NAMESPACE.current = userEmail
-        }
       } else {
         setUserPrefs(null)
       }
     }).finally(() => setIsPreferenceLoading(false))
   }, [user?.id, userEmail])
+
+  // --- Set Pinecone namespace ---
+  useEffect(() => {
+    if (user?.id) {
+      // Set namespace immediately from user.id (Clerk oauthId) so Pinecone is always ready
+      CURRENT_NAMESPACE.current = user.id
+      console.log("✅ Valentina AI: Using user.id for Pinecone namespace:", user.id)
+    }
+  }, [user?.id])
 
   useEffect(() => {
     if (isDark) {
@@ -1405,7 +1410,7 @@ export default function App() {
 
         // Refresh token usage display
         const updated = await fetch(`${API_BASE}/token-usage/${userIdentifier}/VALENTINA`).then((r) => r.ok ? r.json() : null)
-        if (updated) setTokenUsage(updated)
+        if (updated) { /* token usage UI disabled */ }
         console.log("✅ Valentina AI: Token usage updated", { totalUsedInputTokens, totalUsedOutputTokens })
       } catch (err) {
         console.error("❌ Valentina AI: Failed to update token usage:", err)
