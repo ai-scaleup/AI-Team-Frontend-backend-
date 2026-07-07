@@ -1218,42 +1218,93 @@ export default function App() {
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ""
-      let rawText = ""
+      let rawText = "" // full text accumulated from the stream so far
       let isFirstChunk = true
 
-      while (true) {
-        const { value, done } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
+      // --- Smooth typewriter reveal ---
+      // n8n streams the reply in chunks, but the network often delivers several
+      // chunks bunched into a single read. React 18 then batches those state
+      // updates into one render, so the text pops in all at once instead of
+      // streaming. We decouple display from arrival: the reader fills `rawText`,
+      // and this timer reveals it character-by-character so it always animates.
+      let displayedLen = 0
+      let streamDone = false
+      let typewriterTimer: ReturnType<typeof setTimeout> | null = null
 
-        const lines = buffer.split(/\r?\n/)
-        buffer = lines.pop() || ""
+      const renderStreaming = (text: string) => {
+        setMessages((prev) => {
+          const newMsgs = [...prev]
+          const last = newMsgs[newMsgs.length - 1]
+          newMsgs[newMsgs.length - 1] = { ...last, text }
+          return newMsgs
+        })
+      }
 
-        for (const line of lines) {
-          const trimmed = line.replace(/^data:\s?/, "").trim()
-          if (!trimmed) continue
-          try {
-            const obj = JSON.parse(trimmed)
-            if (obj.type === "item" && typeof obj.content === "string") {
-              if (isFirstChunk) {
-                rawText = obj.content
-                isFirstChunk = false
-              } else {
-                rawText += obj.content
+      const typewriterDone = new Promise<void>((resolve) => {
+        const tick = () => {
+          if (displayedLen < rawText.length) {
+            // Reveal faster the further behind we are, so display never lags the
+            // stream, yet still animates a couple of characters near the end.
+            const remaining = rawText.length - displayedLen
+            const step = Math.max(2, Math.ceil(remaining / 20))
+            displayedLen = Math.min(rawText.length, displayedLen + step)
+            renderStreaming(rawText.slice(0, displayedLen))
+          }
+
+          if (streamDone && displayedLen >= rawText.length) {
+            typewriterTimer = null
+            resolve()
+            return
+          }
+          typewriterTimer = setTimeout(tick, 16)
+        }
+        tick()
+      })
+
+      try {
+        while (true) {
+          const { value, done } = await reader.read()
+          if (done) break
+
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split(/\r?\n/)
+          buffer = lines.pop() || ""
+
+          for (const line of lines) {
+            const trimmed = line.replace(/^data:\s?/, "").trim()
+            if (!trimmed) continue
+
+            try {
+              const obj = JSON.parse(trimmed)
+              if (obj.type === "item" && typeof obj.content === "string") {
+                if (isFirstChunk) {
+                  rawText = obj.content
+                  isFirstChunk = false
+                } else {
+                  rawText += obj.content
+                }
+                // The typewriter loop picks up the new rawText on its next tick.
+              } else if (obj.type === "done" || obj.type === "end") {
+                break
               }
-              setMessages((prev) => {
-                const newMsgs = [...prev]
-                newMsgs[newMsgs.length - 1].text = rawText
-                return newMsgs
-              })
-            } else if (obj.type === "done") {
-              break
+            } catch (e) {
+              console.error("Failed to parse JSON chunk:", e, "Line:", trimmed)
             }
-          } catch (e) {
-            console.error("Failed to parse JSON chunk:", e, "Line:", trimmed)
           }
         }
+      } catch (streamError) {
+        // If we already received partial content, use it rather than failing completely
+        if (!rawText) {
+          streamDone = true
+          if (typewriterTimer) clearTimeout(typewriterTimer)
+          throw streamError
+        }
+        console.warn("Streaming interrupted, using partial response", streamError)
       }
+
+      // Let the typewriter drain any remaining buffered characters before finalizing.
+      streamDone = true
+      await typewriterDone
 
       const finalAiMessage: Message = {
         text: rawText.trim() || "La risposta è stata completata.",
@@ -1466,6 +1517,12 @@ export default function App() {
 
         @keyframes brain-float { 0% { transform: translateY(0px); } 50% { transform: translateY(-6px); } 100% { transform: translateY(0px); } }
         .animate-float { animation: brain-float 6s ease-in-out infinite; }
+
+        @keyframes typing-bounce { 0%, 60%, 100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-6px); opacity: 1; } }
+        .typing-indicator { display: inline-flex; align-items: center; gap: 5px; padding: 2px 0; }
+        .typing-indicator span { width: 8px; height: 8px; border-radius: 9999px; background: currentColor; opacity: 0.4; animation: typing-bounce 1.2s infinite ease-in-out; }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
         
         @keyframes brain-wave-flow { 0% { background-position: 0% 50%; opacity: 0.2; } 50% { background-position: 100% 50%; opacity: 0.5; } 100% { background-position: 0% 50%; opacity: 0.2; } }
         .brainwave-overlay { background: linear-gradient(90deg, transparent, rgba(14,165,233,0.3), transparent, rgba(34,211,238,0.3), transparent); background-size: 200% 100%; animation: brain-wave-flow 3s linear infinite; pointer-events: none; }
@@ -2037,21 +2094,31 @@ export default function App() {
                         ))}
                       </div>
                     )}
-                    <div
-                      className="markdown-body prose prose-slate dark:prose-invert max-w-none text-sm md:text-base leading-relaxed"
-                      dangerouslySetInnerHTML={{ __html: formatMessageText(msg.text) }}
-                    />
-                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-200 dark:border-slate-700/50">
-                      <span className="text-[10px] opacity-60 font-mono">{msg.time}</span>
-                      {msg.sender === "ai" && msg.text && msg.text !== "..." && (
-                        <button
-                          onClick={() => handleCopyMessage(msg.text, idx)}
-                          className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer"
-                        >
-                          {copiedMessageIndex === idx ? <Check size={14} /> : <Copy size={14} />}
-                        </button>
-                      )}
-                    </div>
+                    {msg.sender === "ai" && (msg.text === "..." || msg.text === "") ? (
+                      <div className="typing-indicator text-sky-500 dark:text-sky-400" aria-label={`${currentAgent?.name || "L'assistente"} sta scrivendo`}>
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                      </div>
+                    ) : (
+                      <>
+                        <div
+                          className="markdown-body prose prose-slate dark:prose-invert max-w-none text-sm md:text-base leading-relaxed"
+                          dangerouslySetInnerHTML={{ __html: formatMessageText(msg.text) }}
+                        />
+                        <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-200 dark:border-slate-700/50">
+                          <span className="text-[10px] opacity-60 font-mono">{msg.time}</span>
+                          {msg.sender === "ai" && msg.text && (
+                            <button
+                              onClick={() => handleCopyMessage(msg.text, idx)}
+                              className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer"
+                            >
+                              {copiedMessageIndex === idx ? <Check size={14} /> : <Copy size={14} />}
+                            </button>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
                   {msg.sender === "user" && (
                     <div className="w-9 h-9 md:w-10 md:h-10 rounded-full shadow-lg shadow-slate-500/30 shrink-0 border-2 border-white dark:border-slate-900 overflow-hidden">

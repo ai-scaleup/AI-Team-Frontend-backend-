@@ -1304,30 +1304,80 @@ export default function App() {
             const reader = response.body.getReader()
             const decoder = new TextDecoder()
             let buffer = ""
-            let rawText = ""
+            let rawText = "" // full text accumulated from the stream so far
             let isFirstChunk = true
 
+            // --- Smooth typewriter reveal ---
+            // n8n streams the reply in chunks, but the network often delivers several
+            // chunks bunched into a single read. React 18 then batches those state
+            // updates into one render, so the text pops in all at once instead of
+            // streaming. We decouple display from arrival: the reader fills `rawText`,
+            // and this timer reveals it character-by-character so it always animates.
+            let displayedLen = 0
+            let streamDone = false
+            let typewriterTimer: ReturnType<typeof setTimeout> | null = null
 
-
-
-            while (true) {
-                const { value, done } = await reader.read()
-                if (done) break
-                buffer += decoder.decode(value, { stream: true })
-                const lines = buffer.split(/\r?\n/)
-                buffer = lines.pop() || ""
-                for (const line of lines) {
-                    const trimmed = line.replace(/^data:\s?/, "").trim()
-                    if (!trimmed) continue
-                    try {
-                        const obj = JSON.parse(trimmed)
-                        if (obj.type === "item" && typeof obj.content === "string") {
-                            if (isFirstChunk) { rawText = obj.content; isFirstChunk = false } else { rawText += obj.content }
-                            setMessages((prev) => { const newMsgs = [...prev]; newMsgs[newMsgs.length - 1].text = rawText; return newMsgs })
-                        } else if (obj.type === "done") { break }
-                    } catch (e) { console.error("JSON Error:", e) }
-                }
+            const renderStreaming = (text: string) => {
+                setMessages((prev) => {
+                    const newMsgs = [...prev]
+                    const last = newMsgs[newMsgs.length - 1]
+                    newMsgs[newMsgs.length - 1] = { ...last, text }
+                    return newMsgs
+                })
             }
+
+            const typewriterDone = new Promise<void>((resolve) => {
+                const tick = () => {
+                    if (displayedLen < rawText.length) {
+                        const remaining = rawText.length - displayedLen
+                        const step = Math.max(2, Math.ceil(remaining / 20))
+                        displayedLen = Math.min(rawText.length, displayedLen + step)
+                        renderStreaming(rawText.slice(0, displayedLen))
+                    }
+                    if (streamDone && displayedLen >= rawText.length) {
+                        typewriterTimer = null
+                        resolve()
+                        return
+                    }
+                    typewriterTimer = setTimeout(tick, 16)
+                }
+                tick()
+            })
+
+
+
+
+            try {
+                while (true) {
+                    const { value, done } = await reader.read()
+                    if (done) break
+                    buffer += decoder.decode(value, { stream: true })
+                    const lines = buffer.split(/\r?\n/)
+                    buffer = lines.pop() || ""
+                    for (const line of lines) {
+                        const trimmed = line.replace(/^data:\s?/, "").trim()
+                        if (!trimmed) continue
+                        try {
+                            const obj = JSON.parse(trimmed)
+                            if (obj.type === "item" && typeof obj.content === "string") {
+                                if (isFirstChunk) { rawText = obj.content; isFirstChunk = false } else { rawText += obj.content }
+                                // The typewriter loop picks up the new rawText on its next tick.
+                            } else if (obj.type === "done" || obj.type === "end") { break }
+                        } catch (e) { console.error("JSON Error:", e) }
+                    }
+                }
+            } catch (streamError) {
+                if (!rawText) {
+                    streamDone = true
+                    if (typewriterTimer) clearTimeout(typewriterTimer)
+                    throw streamError
+                }
+                console.warn("Streaming interrupted, using partial response", streamError)
+            }
+
+            // Let the typewriter drain any remaining buffered characters before finalizing.
+            streamDone = true
+            await typewriterDone
 
 
 

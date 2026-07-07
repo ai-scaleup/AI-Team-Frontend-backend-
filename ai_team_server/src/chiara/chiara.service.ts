@@ -6,6 +6,27 @@ import { Prisma } from 'src/generated/prisma/client';
 export class ChiaraService {
   constructor(private prisma: PrismaService) {}
 
+  private normalizeSessionId(sessionId: string) {
+    return sessionId
+      .split('||')
+      .map((part) => part.trim())
+      .find(Boolean) ?? sessionId;
+  }
+
+  private getRelatedSessionWhere(sessionId: string): Prisma.ChiaraInboundChatLogWhereInput {
+    const normalizedSessionId = this.normalizeSessionId(sessionId);
+
+    return {
+      OR: [
+        { sessionId },
+        { sessionId: normalizedSessionId },
+        { sessionId: { startsWith: `${normalizedSessionId}||` } },
+        { sessionId: { endsWith: `||${normalizedSessionId}` } },
+        { sessionId: { contains: `||${normalizedSessionId}||` } },
+      ],
+    };
+  }
+
   // ChiaraInboundChatLog methods
   async createChatLog(data: Prisma.ChiaraInboundChatLogCreateInput) {
     return this.prisma.chiaraInboundChatLog.create({
@@ -15,8 +36,8 @@ export class ChiaraService {
 
   async getChatLogsBySessionId(sessionId: string) {
     return this.prisma.chiaraInboundChatLog.findMany({
-      where: { sessionId },
-      orderBy: { createdAt: 'asc' },
+      where: this.getRelatedSessionWhere(sessionId),
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     });
   }
 
@@ -28,11 +49,43 @@ export class ChiaraService {
       orderBy: { _max: { createdAt: 'desc' } },
     });
 
-    return sessions.map((s) => ({
-      sessionId: s.sessionId,
-      lastMessageAt: s._max.createdAt,
-      messageCount: s._count.id,
-    }));
+    const mergedSessions = new Map<
+      string,
+      {
+        sessionId: string;
+        lastMessageAt: Date | null;
+        messageCount: number;
+      }
+    >();
+
+    for (const session of sessions) {
+      const normalizedSessionId = this.normalizeSessionId(session.sessionId);
+      const existing = mergedSessions.get(normalizedSessionId);
+
+      if (!existing) {
+        mergedSessions.set(normalizedSessionId, {
+          sessionId: normalizedSessionId,
+          lastMessageAt: session._max.createdAt,
+          messageCount: session._count.id,
+        });
+        continue;
+      }
+
+      existing.messageCount += session._count.id;
+      if (
+        session._max.createdAt &&
+        (!existing.lastMessageAt || session._max.createdAt > existing.lastMessageAt)
+      ) {
+        existing.lastMessageAt = session._max.createdAt;
+      }
+    }
+
+    return Array.from(mergedSessions.values()).sort((a, b) => {
+      const aTime = a.lastMessageAt?.getTime() ?? 0;
+      const bTime = b.lastMessageAt?.getTime() ?? 0;
+
+      return bTime - aTime;
+    });
   }
 
   // ChiaraLead methods
