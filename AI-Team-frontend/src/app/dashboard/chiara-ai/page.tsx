@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { Fragment, useState, useEffect, useMemo, useRef } from "react"
 import {
     MessageSquare, Loader2, ChevronRight, Search, RefreshCw, Sun, Moon,
-    ChevronLeft, Bot, User
+    ChevronLeft
 } from "lucide-react"
 
 // --- CONFIGURATION ---
@@ -18,12 +18,125 @@ interface Session {
     messageCount: number
 }
 
+interface SessionGroup extends Session {
+    rawSessionIds: string[]
+}
+
 interface ChatLog {
     id: number
     sessionId: string
     sender: string
     messageText: string
     createdAt: string
+}
+
+const normalizeSessionId = (sessionId: string) => {
+    const normalized = sessionId
+        .split("||")
+        .map(part => part.trim())
+        .find(Boolean)
+
+    return normalized || sessionId.trim()
+}
+
+const formatSessionLabel = (sessionId: string) =>
+    sessionId.length > 24 ? `${sessionId.substring(0, 24)}...` : sessionId
+
+const formatDateTime = (value?: string) => {
+    if (!value) return "No date"
+
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return "No date"
+
+    return date.toLocaleString("it-IT", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    })
+}
+
+const formatMessageDate = (value: string) => {
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return "Unknown date"
+
+    return date.toLocaleDateString("it-IT", {
+        weekday: "short",
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+    })
+}
+
+const isSameMessageDate = (left?: string, right?: string) => {
+    if (!left || !right) return false
+
+    const leftDate = new Date(left)
+    const rightDate = new Date(right)
+
+    if (Number.isNaN(leftDate.getTime()) || Number.isNaN(rightDate.getTime())) return false
+
+    return leftDate.toDateString() === rightDate.toDateString()
+}
+
+const mergeSessions = (sessions: Session[]): SessionGroup[] => {
+    const mergedSessions = new Map<string, SessionGroup>()
+
+    sessions.forEach(session => {
+        const normalizedSessionId = normalizeSessionId(session.sessionId)
+        const existing = mergedSessions.get(normalizedSessionId)
+
+        if (!existing) {
+            mergedSessions.set(normalizedSessionId, {
+                sessionId: normalizedSessionId,
+                lastMessageAt: session.lastMessageAt,
+                messageCount: session.messageCount,
+                rawSessionIds: [session.sessionId],
+            })
+            return
+        }
+
+        if (!existing.rawSessionIds.includes(session.sessionId)) {
+            existing.rawSessionIds.push(session.sessionId)
+        }
+
+        existing.messageCount += session.messageCount
+
+        const existingTime = existing.lastMessageAt ? new Date(existing.lastMessageAt).getTime() : 0
+        const sessionTime = session.lastMessageAt ? new Date(session.lastMessageAt).getTime() : 0
+
+        if (sessionTime > existingTime) {
+            existing.lastMessageAt = session.lastMessageAt
+        }
+    })
+
+    return Array.from(mergedSessions.values()).sort((a, b) => {
+        const aTime = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0
+        const bTime = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0
+
+        return bTime - aTime
+    })
+}
+
+const dedupeAndSortLogs = (logs: ChatLog[]) => {
+    const uniqueLogs = new Map<string, ChatLog>()
+
+    logs.forEach(log => {
+        const key = log.id
+            ? String(log.id)
+            : `${log.sessionId}-${log.sender}-${log.createdAt}-${log.messageText}`
+
+        uniqueLogs.set(key, log)
+    })
+
+    return Array.from(uniqueLogs.values()).sort((a, b) => {
+        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0
+        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0
+
+        if (aTime !== bTime) return aTime - bTime
+        return (a.id || 0) - (b.id || 0)
+    })
 }
 
 export default function ChiaraAiPage() {
@@ -43,6 +156,12 @@ export default function ChiaraAiPage() {
 
     // Refs
     const messagesEndRef = useRef<HTMLDivElement>(null)
+
+    const groupedSessions = useMemo(() => mergeSessions(sessions), [sessions])
+    const selectedSessionGroup = useMemo(
+        () => groupedSessions.find(session => session.sessionId === selectedSession),
+        [groupedSessions, selectedSession]
+    )
 
     // --- MOUNT + THEME ---
     useEffect(() => {
@@ -93,11 +212,27 @@ export default function ChiaraAiPage() {
             if (!selectedSession) return
             setLoadingLogs(true)
             try {
-                const res = await fetch(`${API_BASE}/chiara/chat-logs/${selectedSession}`)
-                if (res.ok) {
-                    const data = await res.json()
-                    setChatLogs(data)
-                }
+                const sessionIds = selectedSessionGroup?.rawSessionIds.length
+                    ? selectedSessionGroup.rawSessionIds
+                    : [selectedSession]
+
+                const logsBySession = await Promise.all(
+                    sessionIds.map(async sessionId => {
+                        try {
+                            const res = await fetch(`${API_BASE}/chiara/chat-logs/${encodeURIComponent(sessionId)}`)
+                            if (!res.ok) return []
+
+                            const data = await res.json()
+                            return Array.isArray(data) ? data as ChatLog[] : []
+                        } catch (error) {
+                            console.error(`Error fetching Chiara logs for session ${sessionId}:`, error)
+                            return []
+                        }
+
+                    })
+                )
+
+                setChatLogs(dedupeAndSortLogs(logsBySession.flat()))
             } catch (error) {
                 console.error("Error fetching logs:", error)
             } finally {
@@ -105,7 +240,7 @@ export default function ChiaraAiPage() {
             }
         }
         fetchLogs()
-    }, [selectedSession])
+    }, [selectedSession, selectedSessionGroup])
 
     // Auto-scroll messages
     useEffect(() => {
@@ -113,8 +248,9 @@ export default function ChiaraAiPage() {
     }, [chatLogs])
 
     // Filter sessions by search
-    const filteredSessions = sessions.filter(s =>
-        s.sessionId.toLowerCase().includes(searchQuery.toLowerCase())
+    const filteredSessions = groupedSessions.filter(session =>
+        session.sessionId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        session.rawSessionIds.some(rawSessionId => rawSessionId.toLowerCase().includes(searchQuery.toLowerCase()))
     )
 
     // --- SAFE RENDER ---
@@ -174,7 +310,7 @@ export default function ChiaraAiPage() {
                     <div className="w-80 shrink-0 glass-panel flex flex-col overflow-hidden border-r border-slate-200 dark:border-slate-700/50">
                         <div className="p-4 border-b border-slate-200 dark:border-slate-700/50 space-y-3">
                             <div className="flex items-center justify-between">
-                                <h3 className="font-bold text-slate-800 dark:text-white truncate">Chats ({sessions.length})</h3>
+                                <h3 className="font-bold text-slate-800 dark:text-white truncate">Chats ({groupedSessions.length})</h3>
                                 <div className="flex items-center gap-2">
                                     <span className="text-[10px] text-slate-400 font-mono">{lastPollTime}</span>
                                     <button onClick={() => fetchSessions(true)} className={`p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 transition-colors ${loadingSessions ? 'animate-spin text-emerald-500' : 'text-slate-400'}`}>
@@ -215,10 +351,19 @@ export default function ChiaraAiPage() {
                                     >
                                         <div className="flex items-center justify-between">
                                             <span className="font-semibold text-slate-700 dark:text-slate-200 text-xs truncate max-w-[200px] font-mono">
-                                                {session.sessionId.length > 24 ? session.sessionId.substring(0, 24) + '...' : session.sessionId}
+                                                {formatSessionLabel(session.sessionId)}
                                             </span>
                                             <ChevronRight size={14} className={`text-slate-400 transition-opacity ${selectedSession === session.sessionId ? 'opacity-100' : 'opacity-0'}`} />
                                         </div>
+                                        <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-slate-400">
+                                            <span>{formatDateTime(session.lastMessageAt)}</span>
+                                            <span>{session.messageCount} msg</span>
+                                        </div>
+                                        {session.rawSessionIds.length > 1 && (
+                                            <p className="mt-1 text-[10px] text-emerald-500">
+                                                Joined {session.rawSessionIds.length} backend chats
+                                            </p>
+                                        )}
                                     </div>
                                 ))
                             )}
@@ -231,9 +376,17 @@ export default function ChiaraAiPage() {
                         <div className="p-4 border-b border-slate-200 dark:border-slate-700/50 flex items-center justify-between bg-white/50 dark:bg-black/20">
                             <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2 text-sm">
                                 <MessageSquare size={16} />
-                                {selectedSession ? `Session: ${selectedSession.substring(0, 20)}...` : "Chat Transcript"}
+                                {selectedSession ? `Session: ${formatSessionLabel(selectedSession)}` : "Chat Transcript"}
                             </h3>
                             <div className="flex items-center gap-3">
+                                {selectedSessionGroup && (
+                                    <div className="hidden sm:flex flex-col items-end text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
+                                        <span>Last activity: {formatDateTime(selectedSessionGroup.lastMessageAt)}</span>
+                                        {selectedSessionGroup.rawSessionIds.length > 1 && (
+                                            <span>Joined {selectedSessionGroup.rawSessionIds.length} backend chats</span>
+                                        )}
+                                    </div>
+                                )}
                                 {selectedSession && chatLogs.length > 0 && (
                                     <span className="text-xs opacity-60">{chatLogs.length} messages</span>
                                 )}
@@ -262,22 +415,33 @@ export default function ChiaraAiPage() {
                             ) : (
                                 chatLogs.map((log, idx) => {
                                     const isUser = log.sender === 'user'
+                                    const showDateSeparator = idx === 0 || !isSameMessageDate(chatLogs[idx - 1]?.createdAt, log.createdAt)
+
                                     return (
-                                        <div key={idx} className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
-                                            {!isUser && <img src={CHIARA_AVATAR} className="w-8 h-8 rounded-full shadow-sm object-cover" alt="Chiara AI" />}
-                                            <div className={`max-w-[85%] p-4 rounded-2xl text-sm shadow-sm ${isUser
-                                                ? 'bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white rounded-tr-none'
-                                                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-tl-none'
-                                                }`}>
-                                                <p>{log.messageText}</p>
-                                                {log.createdAt && (
-                                                    <p className="text-[10px] opacity-40 mt-2 text-right">
-                                                        {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                    </p>
-                                                )}
+                                        <Fragment key={`${log.sessionId}-${log.id}-${idx}`}>
+                                            {showDateSeparator && (
+                                                <div className="flex justify-center">
+                                                    <span className="rounded-full border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 px-3 py-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                                                        {formatMessageDate(log.createdAt)}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            <div className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
+                                                {!isUser && <img src={CHIARA_AVATAR} className="w-8 h-8 rounded-full shadow-sm object-cover" alt="Chiara AI" />}
+                                                <div className={`max-w-[85%] p-4 rounded-2xl text-sm shadow-sm ${isUser
+                                                    ? 'bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white rounded-tr-none'
+                                                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-tl-none'
+                                                    }`}>
+                                                    <p>{log.messageText}</p>
+                                                    {log.createdAt && (
+                                                        <p className="text-[10px] opacity-40 mt-2 text-right">
+                                                            {formatDateTime(log.createdAt)}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                {isUser && <img src={USER_AVATAR_URL} className="w-8 h-8 rounded-full shadow-sm object-cover" alt="User" />}
                                             </div>
-                                            {isUser && <img src={USER_AVATAR_URL} className="w-8 h-8 rounded-full shadow-sm object-cover" alt="User" />}
-                                        </div>
+                                        </Fragment>
                                     )
                                 })
                             )}
