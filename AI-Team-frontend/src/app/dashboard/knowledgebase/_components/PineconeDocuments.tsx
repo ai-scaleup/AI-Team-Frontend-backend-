@@ -25,12 +25,16 @@ export default function PineconeDocuments({
     query = "",
     agentKey,
     useDefaultNamespace = false,
+    apiEndpoint = "/api/knowledgebase/pinecone",
+    adminTargetUserId,
 }: {
     namespace: string
     isDark: boolean
     query?: string
     agentKey?: string
     useDefaultNamespace?: boolean
+    apiEndpoint?: string
+    adminTargetUserId?: string
 }) {
     const [docs, setDocs] = useState<PineconeDoc[]>([])
     const [loading, setLoading] = useState(false)
@@ -46,7 +50,8 @@ export default function PineconeDocuments({
         try {
             const params = new URLSearchParams({ namespace })
             if (agentKey) params.set("agent", agentKey)
-            const res = await fetch(`/api/knowledgebase/pinecone?${params.toString()}`, {
+            if (adminTargetUserId) params.set("targetUserId", adminTargetUserId)
+            const res = await fetch(`${apiEndpoint}?${params.toString()}`, {
                 method: "GET",
                 cache: "no-store",
             })
@@ -58,7 +63,7 @@ export default function PineconeDocuments({
         } finally {
             setLoading(false)
         }
-    }, [namespace, agentKey, useDefaultNamespace])
+    }, [namespace, agentKey, useDefaultNamespace, apiEndpoint, adminTargetUserId])
 
     useEffect(() => {
         load()
@@ -96,10 +101,10 @@ export default function PineconeDocuments({
             }
             if (records.length === 0) throw new Error("Couldn't extract any text from the selected file(s)")
 
-            const res = await fetch("/api/knowledgebase/pinecone", {
+            const res = await fetch(apiEndpoint, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ namespace, agent: agentKey, records }),
+                body: JSON.stringify({ namespace, agent: agentKey, targetUserId: adminTargetUserId, records }),
             })
             if (!res.ok) throw new Error(await readApiError(res, `Upload failed (${res.status})`))
             await load()
@@ -108,7 +113,7 @@ export default function PineconeDocuments({
         } finally {
             setUploading(false)
         }
-    }, [namespace, agentKey, load, useDefaultNamespace])
+    }, [namespace, agentKey, load, useDefaultNamespace, apiEndpoint, adminTargetUserId])
 
     const handleDelete = useCallback(async (doc: PineconeDoc) => {
         if (!namespace && !useDefaultNamespace) return
@@ -117,10 +122,10 @@ export default function PineconeDocuments({
         setDeletingId(doc.docId)
         setError(null)
         try {
-            const res = await fetch("/api/knowledgebase/pinecone", {
+            const res = await fetch(apiEndpoint, {
                 method: "DELETE",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ namespace, agent: agentKey, ids: doc.ids }),
+                body: JSON.stringify({ namespace, agent: agentKey, targetUserId: adminTargetUserId, ids: doc.ids }),
             })
             if (!res.ok) throw new Error(await readApiError(res, `Delete failed (${res.status})`))
             setDocs(prev => prev.filter(d => d.docId !== doc.docId))
@@ -129,7 +134,7 @@ export default function PineconeDocuments({
         } finally {
             setDeletingId(null)
         }
-    }, [namespace, agentKey, useDefaultNamespace])
+    }, [namespace, agentKey, useDefaultNamespace, apiEndpoint, adminTargetUserId])
 
     // Chat transcripts are synced into Pinecone under `chat_*` doc ids purely
     // for agent memory - they aren't user-managed knowledge base documents, so

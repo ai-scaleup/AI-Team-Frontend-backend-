@@ -11,8 +11,10 @@ import {
   LogOut,
   Lock,
   Mail,
-  KeyRound
+  KeyRound,
+  BookOpen
 } from "lucide-react";
+import { isAdminEmail } from "@/lib/adminAccess";
 
 // Frontend-only admin gate credentials (no database involved)
 const PANEL_CREDENTIALS: Record<string, string> = {
@@ -41,7 +43,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const handleGateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const email = gateEmail.trim().toLowerCase();
-    if (PANEL_CREDENTIALS[email] && PANEL_CREDENTIALS[email] === gatePassword) {
+    if (isAdminEmail(email) && PANEL_CREDENTIALS[email] === gatePassword) {
       sessionStorage.setItem(GATE_STORAGE_KEY, "ok");
       setGateAuthed(true);
       setGateError("");
@@ -125,6 +127,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: "Agents & Teams", href: "/dashboard/admin/agents", icon: Bot },
     { name: "Assign & Memberships", href: "/dashboard/admin/assign", icon: CreditCard },
     { name: "Users", href: "/dashboard/admin/users", icon: Users },
+    { name: "Knowledgebase", href: "/dashboard/admin/knowledgebase", icon: BookOpen },
   ];
 
   return (
