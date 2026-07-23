@@ -7,14 +7,19 @@ import Link from "next/link"
 import { Sparkles, Bot } from "lucide-react"
 import KbShell from "../_components/KbShell"
 import PineconeDocuments from "../_components/PineconeDocuments"
-import { KB_AGENTS } from "../_lib/kbData"
+import { KB_AGENTS, KB_SHARED_AGENTS } from "../_lib/kbData"
 
 export default function AgentKnowledgeBasePage({ params }: { params: Promise<{ agent: string }> }) {
     const { agent } = use(params)
     // sharedNamespaceId passed from the agent dashboards (?sharedNamespaceId=<clerk user id>)
     const sharedNamespaceId = useSearchParams().get("sharedNamespaceId") ?? ""
-    const agentMemoryNamespace = sharedNamespaceId && agent ? `${sharedNamespaceId}-${agent}` : ""
-    const meta = KB_AGENTS.find(a => a.key === agent) ?? { key: agent, name: agent, role: "AI Agent", suggestion: "Upload useful documents for this agent" }
+    const isDedicatedIndex = KB_SHARED_AGENTS.some(a => a.key === agent)
+    const agentMemoryNamespace = isDedicatedIndex
+        ? ""
+        : sharedNamespaceId && agent
+            ? `${sharedNamespaceId}-${agent}`
+            : ""
+    const meta = [...KB_SHARED_AGENTS, ...KB_AGENTS].find(a => a.key === agent) ?? { key: agent, name: agent, role: "AI Agent", suggestion: "Upload useful documents for this agent" }
 
     const [query, setQuery] = useState("")
 
@@ -55,7 +60,13 @@ export default function AgentKnowledgeBasePage({ params }: { params: Promise<{ a
                         </div>
                     </div>
 
-                    <PineconeDocuments namespace={agentMemoryNamespace} agentKey={agent} isDark={isDark} query={query} />
+                    <PineconeDocuments
+                        namespace={agentMemoryNamespace}
+                        agentKey={agent}
+                        useDefaultNamespace={isDedicatedIndex}
+                        isDark={isDark}
+                        query={query}
+                    />
                 </div>
             )}
         </KbShell>

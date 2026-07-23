@@ -14,6 +14,11 @@ export type KbAgent = {
     suggestion: string
 }
 
+export const KB_SHARED_AGENTS: KbAgent[] = [
+    { key: "chiara-ai", name: "Chiara AI", role: "AI Agent", suggestion: "Upload documents for Chiara's dedicated knowledge base" },
+    { key: "jennifer-ai", name: "Jennifer AI", role: "AI Agent", suggestion: "Upload documents for Jennifer's dedicated knowledge base" },
+]
+
 export const KB_AGENTS: KbAgent[] = [
     { key: "alex-ai", name: "Alex AI", role: "Cross-Platform Ads Manager", suggestion: "Upload best-practice reports for ad campaigns" },
     { key: "tony-ai", name: "Tony AI", role: "Sales Director", suggestion: "Upload sales scripts and negotiated price lists" },

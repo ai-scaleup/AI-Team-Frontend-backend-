@@ -24,11 +24,13 @@ export default function PineconeDocuments({
     isDark,
     query = "",
     agentKey,
+    useDefaultNamespace = false,
 }: {
     namespace: string
     isDark: boolean
     query?: string
     agentKey?: string
+    useDefaultNamespace?: boolean
 }) {
     const [docs, setDocs] = useState<PineconeDoc[]>([])
     const [loading, setLoading] = useState(false)
@@ -38,7 +40,7 @@ export default function PineconeDocuments({
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     const load = useCallback(async () => {
-        if (!namespace) return
+        if (!namespace && !useDefaultNamespace) return
         setLoading(true)
         setError(null)
         try {
@@ -56,7 +58,7 @@ export default function PineconeDocuments({
         } finally {
             setLoading(false)
         }
-    }, [namespace, agentKey])
+    }, [namespace, agentKey, useDefaultNamespace])
 
     useEffect(() => {
         load()
@@ -65,7 +67,7 @@ export default function PineconeDocuments({
     const handleUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files ?? [])
         e.target.value = ""
-        if (files.length === 0 || !namespace) return
+        if (files.length === 0 || (!namespace && !useDefaultNamespace)) return
 
         setUploading(true)
         setError(null)
@@ -106,10 +108,10 @@ export default function PineconeDocuments({
         } finally {
             setUploading(false)
         }
-    }, [namespace, agentKey, load])
+    }, [namespace, agentKey, load, useDefaultNamespace])
 
     const handleDelete = useCallback(async (doc: PineconeDoc) => {
-        if (!namespace) return
+        if (!namespace && !useDefaultNamespace) return
         if (!window.confirm(`Delete "${doc.name}" from Pinecone? This can't be undone.`)) return
 
         setDeletingId(doc.docId)
@@ -127,7 +129,7 @@ export default function PineconeDocuments({
         } finally {
             setDeletingId(null)
         }
-    }, [namespace, agentKey])
+    }, [namespace, agentKey, useDefaultNamespace])
 
     // Chat transcripts are synced into Pinecone under `chat_*` doc ids purely
     // for agent memory - they aren't user-managed knowledge base documents, so
@@ -135,7 +137,7 @@ export default function PineconeDocuments({
     const documents = docs.filter(d => !d.name.startsWith("chat_"))
     const visible = query.trim() === "" ? documents : documents.filter(d => d.name.toLowerCase().includes(query.toLowerCase()))
 
-    if (!namespace) {
+    if (!namespace && !useDefaultNamespace) {
         return (
             <div className={`rounded-2xl border p-4 flex items-center gap-3 ${isDark ? "bg-[#0F172A] border-white/5 text-white/60" : "bg-white border-gray-200 text-gray-500 shadow-sm"}`}>
                 <AlertCircle size={18} className="shrink-0 text-amber-500" />
@@ -155,7 +157,7 @@ export default function PineconeDocuments({
                         <h3 className={`font-bold ${isDark ? "text-white" : "text-gray-900"}`}>Uploaded to Pinecone</h3>
                         <p className={`text-xs truncate ${isDark ? "text-white/50" : "text-gray-500"}`}>
                             {loading ? "Loading..." : `${documents.length} document${documents.length === 1 ? "" : "s"}`} in namespace{" "}
-                            <span className="font-mono">{namespace}</span>
+                            <span className="font-mono">{namespace || "default"}</span>
                         </p>
                     </div>
                 </div>

@@ -38,6 +38,15 @@ function cleanAgentKey(agent: unknown): string {
     return typeof agent === "string" && /^[a-z0-9-]+$/.test(agent.trim()) ? agent.trim() : ""
 }
 
+const DEDICATED_KINDS: Record<string, PineconeIndexKind> = {
+    "chiara-ai": "chiara",
+    "jennifer-ai": "jennifer",
+}
+
+function isDedicatedAgent(agent: unknown): boolean {
+    return Boolean(DEDICATED_KINDS[cleanAgentKey(agent)])
+}
+
 async function authorizeNamespace(namespace: string, agent?: string): Promise<AuthorizedPineconeTarget | NextResponse> {
     const { userId } = await auth()
     if (!userId) {
@@ -45,22 +54,23 @@ async function authorizeNamespace(namespace: string, agent?: string): Promise<Au
     }
 
     const agentKey = cleanAgentKey(agent)
-    const expectedNamespace = agentKey ? `${userId}-${agentKey}` : userId
+    const dedicatedKind = DEDICATED_KINDS[agentKey]
+    const expectedNamespace = dedicatedKind ? "" : agentKey ? `${userId}-${agentKey}` : userId
     if (namespace !== expectedNamespace) {
         return NextResponse.json({ error: "Forbidden namespace" }, { status: 403 })
     }
 
     return {
-        kind: agentKey ? "agent-memory" : "shared",
+        kind: dedicatedKind ?? (agentKey ? "agent-memory" : "shared"),
         namespace,
         agentKey: agentKey || undefined,
     }
 }
 
 export async function GET(request: NextRequest) {
-    const namespace = request.nextUrl.searchParams.get("namespace")?.trim()
+    const namespace = request.nextUrl.searchParams.get("namespace")?.trim() ?? ""
     const agent = request.nextUrl.searchParams.get("agent")?.trim()
-    if (!namespace) {
+    if (!namespace && !isDedicatedAgent(agent)) {
         return NextResponse.json({ error: "Missing namespace" }, { status: 400 })
     }
 
@@ -86,7 +96,7 @@ export async function POST(request: NextRequest) {
         const agent = typeof body?.agent === "string" ? body.agent.trim() : ""
         const records: unknown[] = Array.isArray(body?.records) ? body.records : []
 
-        if (!namespace) {
+        if (!namespace && !isDedicatedAgent(agent)) {
             return NextResponse.json({ error: "Missing namespace" }, { status: 400 })
         }
         if (records.length === 0) {
@@ -130,7 +140,7 @@ export async function DELETE(request: NextRequest) {
         const agent = typeof body?.agent === "string" ? body.agent.trim() : ""
         const ids = Array.isArray(body?.ids) ? body.ids.filter((id: unknown): id is string => typeof id === "string") : []
 
-        if (!namespace) {
+        if (!namespace && !isDedicatedAgent(agent)) {
             return NextResponse.json({ error: "Missing namespace" }, { status: 400 })
         }
         if (ids.length === 0) {

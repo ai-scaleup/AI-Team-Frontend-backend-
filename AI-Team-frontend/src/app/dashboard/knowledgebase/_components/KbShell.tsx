@@ -14,7 +14,7 @@ import {
     X,
     ChevronLeft,
 } from "lucide-react"
-import { KB_AGENTS } from "../_lib/kbData"
+import { KB_AGENTS, KB_SHARED_AGENTS } from "../_lib/kbData"
 
 type KbShellProps = {
     /** "shared" highlights the Company Info item; otherwise the agent key */
@@ -107,6 +107,16 @@ export default function KbShell({ active, title, subtitle, search, children }: K
                     >
                         <Building2 size={18} /> Company Info
                     </Link>
+                    {KB_SHARED_AGENTS.map(agent => (
+                        <Link
+                            key={agent.key}
+                            href={`/dashboard/knowledgebase/${agent.key}`}
+                            className={`${navItemBase} ${active === agent.key ? activeCls : idleCls}`}
+                        >
+                            <Bot size={18} className="shrink-0" />
+                            <span className="truncate">{agent.name}</span>
+                        </Link>
+                    ))}
                 </div>
 
                 <div>
