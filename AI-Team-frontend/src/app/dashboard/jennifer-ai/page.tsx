@@ -21,6 +21,12 @@ interface ChatLog {
     createdAt: string
 }
 
+interface Session {
+    sessionId: string
+    lastMessageAt: string | null
+    messageCount: number
+}
+
 interface ChiaraLead {
     id: number
     sessionId: string
@@ -57,7 +63,7 @@ export default function JenniferPage() {
     const [isDetailsPanelOpen, setIsDetailsPanelOpen] = useState(false)
 
     // Session / Chat state
-    const [sessions, setSessions] = useState<string[]>([])
+    const [sessions, setSessions] = useState<Session[]>([])
     const [selectedSession, setSelectedSession] = useState<string | null>(null)
     const [chatLogs, setChatLogs] = useState<ChatLog[]>([])
     const [loadingSessions, setLoadingSessions] = useState(true)
@@ -127,7 +133,19 @@ export default function JenniferPage() {
             const res = await fetch(`${API_BASE}/jennifer/sessions`)
             if (res.ok) {
                 const data = await res.json()
-                setSessions([...data].sort((a: string, b: string) => b.localeCompare(a)))
+                // Tolerate the legacy string[] shape as well as the current object shape
+                const normalized: Session[] = (Array.isArray(data) ? data : []).map((item: string | Session) =>
+                    typeof item === 'string'
+                        ? { sessionId: item, lastMessageAt: null, messageCount: 0 }
+                        : item
+                )
+                // Latest message first
+                normalized.sort((a, b) => {
+                    const aTime = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0
+                    const bTime = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0
+                    return bTime - aTime
+                })
+                setSessions(normalized)
                 setLastPollTime(new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
             }
         } catch (error) {
@@ -391,8 +409,18 @@ export default function JenniferPage() {
 
     // Filter sessions by search
     const filteredSessions = sessions.filter(s =>
-        s.toLowerCase().includes(searchQuery.toLowerCase())
+        s.sessionId.toLowerCase().includes(searchQuery.toLowerCase())
     )
+
+    const formatDateTime = (value: string | null) => {
+        if (!value) return '—'
+        const date = new Date(value)
+        if (Number.isNaN(date.getTime())) return '—'
+        return date.toLocaleString('it-IT', {
+            day: '2-digit', month: '2-digit', year: '2-digit',
+            hour: '2-digit', minute: '2-digit'
+        })
+    }
 
     // --- SAFE RENDER ---
     if (!mounted) return <div className="h-screen w-full bg-slate-900 flex items-center justify-center text-indigo-500">Loading Jennifer AI...</div>
@@ -449,18 +477,21 @@ export default function JenniferPage() {
                     {sessions.length === 0 ? (
                         <div className="p-8 text-center text-sm text-slate-400">No sessions found.</div>
                     ) : (
-                        sessions.slice(0, 20).map((sessionId, idx) => (
-                            <div key={sessionId} className="px-4 py-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
-                                onClick={() => { setSelectedSession(sessionId); setSection("conversations") }}>
+                        sessions.slice(0, 20).map((session, idx) => (
+                            <div key={session.sessionId} className="px-4 py-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                                onClick={() => { setSelectedSession(session.sessionId); setSection("conversations") }}>
                                 <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 text-xs font-bold">
                                         {idx + 1}
                                     </div>
                                     <span className="text-sm font-mono text-slate-600 dark:text-slate-300 truncate max-w-[300px]">
-                                        {sessionId}
+                                        {session.sessionId}
                                     </span>
                                 </div>
-                                <ChevronRight size={16} className="text-slate-400" />
+                                <div className="flex items-center gap-3">
+                                    <span className="text-xs text-slate-400">{formatDateTime(session.lastMessageAt)}</span>
+                                    <ChevronRight size={16} className="text-slate-400" />
+                                </div>
                             </div>
                         ))
                     )}
@@ -513,19 +544,23 @@ export default function JenniferPage() {
                                 </button>
                             </div>
                         ) : (
-                            filteredSessions.map(sessionId => (
-                                <div key={sessionId}
-                                    onClick={() => setSelectedSession(sessionId)}
-                                    className={`p-2.5 rounded-lg cursor-pointer border transition-all ${String(selectedSession) === String(sessionId)
+                            filteredSessions.map(session => (
+                                <div key={session.sessionId}
+                                    onClick={() => setSelectedSession(session.sessionId)}
+                                    className={`p-2.5 rounded-lg cursor-pointer border transition-all ${String(selectedSession) === String(session.sessionId)
                                         ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-500/30'
                                         : 'border-transparent hover:bg-slate-50 dark:hover:bg-white/5'
                                         }`}
                                 >
                                     <div className="flex items-center justify-between">
                                         <span className="font-semibold text-slate-700 dark:text-slate-200 text-xs truncate max-w-[200px] font-mono">
-                                            {sessionId.length > 24 ? sessionId.substring(0, 24) + '...' : sessionId}
+                                            {session.sessionId.length > 24 ? session.sessionId.substring(0, 24) + '...' : session.sessionId}
                                         </span>
-                                        <ChevronRight size={14} className={`text-slate-400 transition-opacity ${selectedSession === sessionId ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
+                                        <ChevronRight size={14} className={`text-slate-400 transition-opacity ${selectedSession === session.sessionId ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
+                                    </div>
+                                    <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-slate-400">
+                                        <span>{formatDateTime(session.lastMessageAt)}</span>
+                                        <span>{session.messageCount} msg</span>
                                     </div>
                                 </div>
                             ))
