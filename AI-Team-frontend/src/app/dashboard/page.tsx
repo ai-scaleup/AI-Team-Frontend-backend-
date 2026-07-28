@@ -10,7 +10,7 @@ import { Moon, Sun } from "lucide-react"
 
 /* ---------------------------- API base URL ---------------------------- */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "https://ai-team-server.onrender.com"
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE
 
 /* ------------------------------ Types ------------------------------ */
 

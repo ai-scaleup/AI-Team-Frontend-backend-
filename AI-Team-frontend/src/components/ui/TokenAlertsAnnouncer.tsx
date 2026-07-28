@@ -14,7 +14,7 @@ export default function TokenAlertsAnnouncer() {
     const fetchAlerts = async () => {
       try {
         const token = await getToken();
-        const base = process.env.NEXT_PUBLIC_API_BASE ?? "https://ai-team-server.onrender.com";
+        const base = process.env.NEXT_PUBLIC_API_BASE;
         const res = await fetch(`${base}/users/${userId}/alerts`, {
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -37,7 +37,7 @@ export default function TokenAlertsAnnouncer() {
     setAlerts(prev => prev.filter(a => a.id !== id));
     try {
       const token = await getToken();
-      const base = process.env.NEXT_PUBLIC_API_BASE ?? "https://ai-team-server.onrender.com";
+      const base = process.env.NEXT_PUBLIC_API_BASE;
       await fetch(`${base}/users/alerts/${id}/dismiss`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}` }

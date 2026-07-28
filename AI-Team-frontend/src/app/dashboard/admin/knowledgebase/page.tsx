@@ -17,7 +17,7 @@ import {
 import PineconeDocuments from "@/app/dashboard/knowledgebase/_components/PineconeDocuments";
 import { KB_AGENTS, KB_SHARED_AGENTS } from "@/app/dashboard/knowledgebase/_lib/kbData";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "https://ai-team-server.onrender.com";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE;
 const ADMIN_KB_ENDPOINT = "/api/admin/knowledgebase/pinecone";
 
 type KnowledgebaseUser = {

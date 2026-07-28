@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react"
 import { useUser } from "@clerk/nextjs"
 import { markUserSynced } from "@/lib/userSyncGate"
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "https://ai-team-server.onrender.com"
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE
 
 export default function UserSync() {
   const { user, isLoaded } = useUser()

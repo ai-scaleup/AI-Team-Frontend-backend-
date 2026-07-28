@@ -8,7 +8,7 @@ import {
 } from '@/types/preferences';
 import { waitForUserSync } from '@/lib/userSyncGate';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "https://ai-team-server.onrender.com";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE;
 
 // Helper function to check if running in browser
 const isBrowser = () => typeof window !== 'undefined';

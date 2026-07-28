@@ -10,8 +10,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE ?? "https://ai-team-server.onrender.com";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE;
 
 const AGENT_OPTIONS = [
   "JIM",

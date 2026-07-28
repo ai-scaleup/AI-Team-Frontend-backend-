@@ -10,7 +10,7 @@ import {
   DollarSign, Euro, Loader2, CheckCircle2, AlertCircle
 } from "lucide-react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "https://ai-team-server.onrender.com";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE;
 
 /* ──────────────────────────── MOCK DATA ──────────────────────────── */
 

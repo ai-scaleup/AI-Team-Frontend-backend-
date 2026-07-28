@@ -18,7 +18,7 @@ import {
 const SONNET_4_6_INPUT_USD_PER_TOKEN = 3 / 1000000;
 const SONNET_4_6_OUTPUT_USD_PER_TOKEN = 15 / 1000000;
 const EUR_RATE = 0.92;
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "https://ai-team-server.onrender.com";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE;
 
 type CurrencyMode = "tokens" | "USD" | "EUR";
 
