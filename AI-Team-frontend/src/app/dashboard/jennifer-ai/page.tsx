@@ -13,6 +13,58 @@ import {
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE
 const JENNIFER_AVATAR = "/assets/agents/chiara-ai-Whats-App-Image-2026-02-25-at-15-34-49-1.jpg"
 const USER_AVATAR_URL = "https://www.shutterstock.com/image-vector/vector-flat-illustration-grayscale-avatar-600nw-2264922221.jpg"
+const ROME_TIME_ZONE = "Europe/Rome"
+
+const formatRomeDateTime = (value: string | Date | null, includeSeconds = false) => {
+    if (!value) return "—"
+    const date = value instanceof Date ? value : new Date(value)
+    if (Number.isNaN(date.getTime())) return "—"
+
+    return date.toLocaleString("it-IT", {
+        timeZone: ROME_TIME_ZONE,
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        ...(includeSeconds ? { second: "2-digit" as const } : {}),
+    })
+}
+
+const formatRomeTime = (value: string | Date, includeSeconds = false) => {
+    const date = value instanceof Date ? value : new Date(value)
+    if (Number.isNaN(date.getTime())) return "—"
+
+    return date.toLocaleTimeString("it-IT", {
+        timeZone: ROME_TIME_ZONE,
+        hour: "2-digit",
+        minute: "2-digit",
+        ...(includeSeconds ? { second: "2-digit" as const } : {}),
+    })
+}
+
+const formatRomeDate = (value: string | Date) => {
+    const date = value instanceof Date ? value : new Date(value)
+    if (Number.isNaN(date.getTime())) return "—"
+
+    return date.toLocaleDateString("it-IT", {
+        timeZone: ROME_TIME_ZONE,
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+    })
+}
+
+const getRomeUtcOffset = () => {
+    const offset = new Intl.DateTimeFormat("it-IT", {
+        timeZone: ROME_TIME_ZONE,
+        timeZoneName: "shortOffset",
+    })
+        .formatToParts(new Date())
+        .find((part) => part.type === "timeZoneName")?.value
+
+    return (offset || "GMT+2").replace("GMT", "UTC")
+}
 
 // --- TYPES ---
 interface ChatLog {
@@ -69,7 +121,7 @@ export default function JenniferPage() {
     const [loadingSessions, setLoadingSessions] = useState(true)
     const [loadingLogs, setLoadingLogs] = useState(false)
     const [searchQuery, setSearchQuery] = useState("")
-    const [lastPollTime, setLastPollTime] = useState<string>("Never")
+    const [lastPollTime, setLastPollTime] = useState<string>("Mai")
 
     // Lead state
     const [leadData, setLeadData] = useState<ChiaraLead | null>(null)
@@ -146,7 +198,7 @@ export default function JenniferPage() {
                     return bTime - aTime
                 })
                 setSessions(normalized)
-                setLastPollTime(new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
+                setLastPollTime(formatRomeTime(new Date(), true))
             }
         } catch (error) {
             console.error("Error fetching sessions:", error)
@@ -325,7 +377,6 @@ export default function JenniferPage() {
                     const data = await resTags.json()
                     if (data && data.tags && data.tags.length > 0) {
                         setGeneratedTags(data.tags)
-                        setShowTagsPanel(true)
                     }
                 }
             } catch (error) {
@@ -347,6 +398,7 @@ export default function JenniferPage() {
         setLeadError(null)
         setShowLead(true)
         setIsDetailsPanelOpen(true)
+        setShowTagsPanel(false)
         try {
             const res = await fetch(`${API_BASE}/chiara/leads/${selectedSession}`)
             if (res.ok) {
@@ -355,17 +407,17 @@ export default function JenniferPage() {
                     setLeadData(data)
                 } else {
                     setLeadData(null)
-                    setLeadError("No lead found for this session.")
+                    setLeadError("Nessun lead trovato per questa sessione.")
                 }
             } else if (res.status === 404) {
                 setLeadData(null)
-                setLeadError("No lead found for this session.")
+                setLeadError("Nessun lead trovato per questa sessione.")
             } else {
-                setLeadError("Failed to fetch lead data.")
+                setLeadError("Impossibile recuperare i dati del lead.")
             }
         } catch (error) {
             console.error("Error fetching lead:", error)
-            setLeadError("Error fetching lead data.")
+            setLeadError("Errore durante il recupero dei dati del lead.")
         } finally {
             setLoadingLead(false)
         }
@@ -380,6 +432,8 @@ export default function JenniferPage() {
         if (!selectedSession) return
         setLoadingGenerateTags(true)
         setShowTagsPanel(true)
+        setShowLead(false)
+        setIsDetailsPanelOpen(false)
         try {
             const url = `${API_BASE}/tags/generate`
             console.log('[GenerateTags] Calling:', url, 'with sessionId:', selectedSession)
@@ -412,18 +466,8 @@ export default function JenniferPage() {
         s.sessionId.toLowerCase().includes(searchQuery.toLowerCase())
     )
 
-    const formatDateTime = (value: string | null) => {
-        if (!value) return '—'
-        const date = new Date(value)
-        if (Number.isNaN(date.getTime())) return '—'
-        return date.toLocaleString('it-IT', {
-            day: '2-digit', month: '2-digit', year: '2-digit',
-            hour: '2-digit', minute: '2-digit'
-        })
-    }
-
     // --- SAFE RENDER ---
-    if (!mounted) return <div className="h-screen w-full bg-slate-900 flex items-center justify-center text-indigo-500">Loading Jennifer AI...</div>
+    if (!mounted) return <div className="h-screen w-full bg-slate-900 flex items-center justify-center text-indigo-500">Caricamento di Jennifer AI...</div>
 
     // ============================
     // RENDER: ANALYTICS
@@ -431,37 +475,37 @@ export default function JenniferPage() {
     const renderAnalytics = () => (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Analytics</h2>
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Analisi</h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Card 1: Total Sessions */}
+                {/* Card 1: Sessioni totali */}
                 <div className="glass-panel p-6 rounded-xl border border-slate-200 dark:border-slate-700/50">
                     <div className="flex justify-between items-start mb-4">
-                        <h3 className="text-slate-500 dark:text-slate-400 font-medium">Total Sessions</h3>
+                        <h3 className="text-slate-500 dark:text-slate-400 font-medium">Sessioni totali</h3>
                         <span className="px-2 py-1 rounded-md bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-xs font-bold flex items-center gap-1">
-                            <MessageSquare size={12} /> Live
+                            <MessageSquare size={12} /> In tempo reale
                         </span>
                     </div>
                     <div className="text-5xl font-bold text-slate-800 dark:text-white mb-2">
                         {totalSessions}
                     </div>
-                    <p className="text-sm text-slate-400">Unique chat sessions recorded</p>
+                    <p className="text-sm text-slate-400">Sessioni chat uniche registrate</p>
                 </div>
 
                 {/* Card 2: Messages in Selected Session */}
                 <div className="glass-panel p-6 rounded-xl border border-slate-200 dark:border-slate-700/50">
                     <div className="flex justify-between items-start mb-4">
-                        <h3 className="text-slate-500 dark:text-slate-400 font-medium">Messages (Selected)</h3>
+                        <h3 className="text-slate-500 dark:text-slate-400 font-medium">Messaggi (selezionati)</h3>
                         <span className="px-2 py-1 rounded-md bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold flex items-center gap-1">
-                            <BarChart3 size={12} /> Count
+                            <BarChart3 size={12} /> Conteggio
                         </span>
                     </div>
                     <div className="text-5xl font-bold text-slate-800 dark:text-white mb-2">
                         {selectedSession ? totalMessages : "—"}
                     </div>
                     <p className="text-sm text-slate-400">
-                        {selectedSession ? `Messages in session ${selectedSession.substring(0, 12)}...` : "Select a session to see message count"}
+                        {selectedSession ? `Messaggi nella sessione ${selectedSession.substring(0, 12)}...` : "Seleziona una sessione per vedere il numero di messaggi"}
                     </p>
                 </div>
             </div>
@@ -470,12 +514,12 @@ export default function JenniferPage() {
             <div className="glass-panel rounded-xl border border-slate-200 dark:border-slate-700/50 overflow-hidden">
                 <div className="p-4 border-b border-slate-200 dark:border-slate-700/50">
                     <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                        <Calendar size={16} /> Recent Sessions
+                        <Calendar size={16} /> Sessioni recenti
                     </h3>
                 </div>
                 <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-[400px] overflow-y-auto custom-scrollbar">
                     {sessions.length === 0 ? (
-                        <div className="p-8 text-center text-sm text-slate-400">No sessions found.</div>
+                        <div className="p-8 text-center text-sm text-slate-400">Nessuna sessione trovata.</div>
                     ) : (
                         sessions.slice(0, 20).map((session, idx) => (
                             <div key={session.sessionId} className="px-4 py-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
@@ -489,7 +533,7 @@ export default function JenniferPage() {
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <span className="text-xs text-slate-400">{formatDateTime(session.lastMessageAt)}</span>
+                                    <span className="text-xs text-slate-400">{formatRomeDateTime(session.lastMessageAt)}</span>
                                     <ChevronRight size={16} className="text-slate-400" />
                                 </div>
                             </div>
@@ -506,14 +550,17 @@ export default function JenniferPage() {
     const renderConversations = () => {
         const showDetails = isDetailsPanelOpen && showLead
         return (
-            <div className="flex h-[calc(100vh-140px)] gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-hidden">
+            <div className="relative flex flex-col lg:flex-row h-auto lg:h-[calc(100dvh-3rem)] min-h-0 gap-3 lg:gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 lg:overflow-hidden">
                 {/* Session List Column */}
-                <div className="w-80 shrink-0 glass-panel rounded-xl flex flex-col overflow-hidden border border-slate-200 dark:border-slate-700/50">
+                <div className="w-full lg:w-72 xl:w-80 h-64 sm:h-72 lg:h-auto shrink-0 glass-panel rounded-xl flex flex-col overflow-hidden border border-slate-200 dark:border-slate-700/50">
                     <div className="p-4 border-b border-slate-200 dark:border-slate-700/50 space-y-3">
                         <div className="flex items-center justify-between">
-                            <h3 className="font-bold text-slate-800 dark:text-white truncate">Chats ({sessions.length})</h3>
+                            <h3 className="font-bold text-slate-800 dark:text-white truncate">Chat ({sessions.length})</h3>
                             <div className="flex items-center gap-2">
-                                <span className="text-[10px] text-slate-400 font-mono">{lastPollTime}</span>
+                                <div className="hidden sm:flex flex-col items-end leading-tight">
+                                    <span className="text-[9px] font-semibold uppercase tracking-wider text-indigo-400">Roma · {getRomeUtcOffset()}</span>
+                                    <span className="text-[10px] text-slate-400 font-mono">{lastPollTime}</span>
+                                </div>
                                 <button onClick={() => fetchSessions(true)} className={`p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 transition-colors ${loadingSessions ? 'animate-spin text-indigo-500' : 'text-slate-400'}`}>
                                     <RefreshCw size={16} />
                                 </button>
@@ -538,9 +585,9 @@ export default function JenniferPage() {
                             </div>
                         ) : filteredSessions.length === 0 ? (
                             <div className="p-4 text-center">
-                                <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">No sessions found.</p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">Nessuna sessione trovata.</p>
                                 <button onClick={() => fetchSessions(true)} className="text-[10px] text-indigo-500 hover:underline">
-                                    Reload
+                                    Ricarica
                                 </button>
                             </div>
                         ) : (
@@ -559,7 +606,7 @@ export default function JenniferPage() {
                                         <ChevronRight size={14} className={`text-slate-400 transition-opacity ${selectedSession === session.sessionId ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
                                     </div>
                                     <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-slate-400">
-                                        <span>{formatDateTime(session.lastMessageAt)}</span>
+                                        <span>{formatRomeDateTime(session.lastMessageAt)}</span>
                                         <span>{session.messageCount} msg</span>
                                     </div>
                                 </div>
@@ -569,16 +616,17 @@ export default function JenniferPage() {
                 </div>
 
                 {/* Chat Transcript Column */}
-                <div className="flex-1 glass-panel rounded-xl flex flex-col overflow-hidden border border-slate-200 dark:border-slate-700/50 relative min-w-[300px]">
+                <div className="w-full lg:flex-1 h-[65dvh] min-h-[420px] lg:h-auto lg:min-h-0 glass-panel rounded-xl flex flex-col overflow-hidden border border-slate-200 dark:border-slate-700/50 relative min-w-0">
                     {/* Header */}
-                    <div className="p-4 border-b border-slate-200 dark:border-slate-700/50 flex items-center justify-between bg-white/50 dark:bg-black/20">
-                        <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2 text-sm">
+                    <div className="p-3 sm:p-4 border-b border-slate-200 dark:border-slate-700/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/50 dark:bg-black/20">
+                        <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2 text-sm min-w-0">
                             <MessageSquare size={16} />
-                            {selectedSession ? `Session: ${selectedSession.substring(0, 20)}...` : "Chat Transcript"}
+                            <span className="truncate">{selectedSession ? `Sessione: ${selectedSession.substring(0, 20)}...` : "Conversazione"}</span>
                         </h3>
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                            <span className="sm:hidden text-[9px] font-semibold uppercase tracking-wider text-indigo-400 mr-auto">Roma · {getRomeUtcOffset()}</span>
                             {selectedSession && chatLogs.length > 0 && (
-                                <span className="text-xs opacity-60">{chatLogs.length} messages</span>
+                                <span className="text-xs opacity-60">{chatLogs.length} messaggi</span>
                             )}
                             {selectedSession && (
                                 <button
@@ -593,7 +641,7 @@ export default function JenniferPage() {
                                     ) : (
                                         <UserCheck className="w-3.5 h-3.5" />
                                     )}
-                                    Get Lead
+                                    Mostra lead
                                 </button>
                             )}
                             {selectedSession && (
@@ -609,7 +657,7 @@ export default function JenniferPage() {
                                     ) : (
                                         <Tag className="w-3.5 h-3.5" />
                                     )}
-                                    Generate Tags
+                                    Genera tag
                                 </button>
                             )}
                             {showLead && (
@@ -629,11 +677,11 @@ export default function JenniferPage() {
                     </div>
 
                     {/* Messages */}
-                    <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-slate-50/50 dark:bg-black/20">
+                    <div className="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-6 space-y-4 sm:space-y-6 custom-scrollbar bg-slate-50/50 dark:bg-black/20">
                         {!selectedSession ? (
                             <div className="h-full flex flex-col items-center justify-center opacity-40">
                                 <MessageSquare className="w-12 h-12 mb-4" />
-                                <p>Select a session to view the conversation</p>
+                                <p>Seleziona una sessione per visualizzare la conversazione</p>
                             </div>
                         ) : loadingLogs ? (
                             <div className="h-full flex items-center justify-center">
@@ -642,26 +690,26 @@ export default function JenniferPage() {
                         ) : chatLogs.length === 0 ? (
                             <div className="h-full flex flex-col items-center justify-center opacity-40">
                                 <MessageSquare className="w-10 h-10 mb-3" />
-                                <p className="text-sm">No logs found for this session.</p>
+                                <p className="text-sm">Nessun messaggio trovato per questa sessione.</p>
                             </div>
                         ) : (
                             chatLogs.map((log, idx) => {
                                 const isUser = log.sender === 'user'
                                 return (
                                     <div key={idx} className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
-                                        {!isUser && <img src={JENNIFER_AVATAR} className="w-8 h-8 rounded-full shadow-sm object-cover" alt="Jennifer AI" />}
+                                        {!isUser && <img src={JENNIFER_AVATAR} className="w-7 h-7 sm:w-8 sm:h-8 rounded-full shadow-sm object-cover shrink-0" alt="Jennifer AI" />}
                                         <div className={`max-w-[85%] p-4 rounded-2xl text-sm shadow-sm ${isUser
                                             ? 'bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white rounded-tr-none'
                                             : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-tl-none'
                                             }`}>
-                                            <p>{log.messageText}</p>
+                                            <p className="whitespace-pre-wrap break-words">{log.messageText}</p>
                                             {log.createdAt && (
                                                 <p className="text-[10px] opacity-40 mt-2 text-right">
-                                                    {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    {formatRomeTime(log.createdAt)}
                                                 </p>
                                             )}
                                         </div>
-                                        {isUser && <img src={USER_AVATAR_URL} className="w-8 h-8 rounded-full shadow-sm object-cover" alt="User" />}
+                                        {isUser && <img src={USER_AVATAR_URL} className="w-7 h-7 sm:w-8 sm:h-8 rounded-full shadow-sm object-cover shrink-0" alt="User" />}
                                     </div>
                                 )
                             })
@@ -670,13 +718,13 @@ export default function JenniferPage() {
                     </div>
                 </div>
 
-                {/* Lead Details Column */}
-                <div className={`glass-panel rounded-xl flex flex-col border border-slate-200 dark:border-slate-700/50 transition-all duration-300 ease-in-out overflow-hidden ${showDetails ? 'w-72 opacity-100 mr-0' : 'w-0 opacity-0 -mr-4 border-0'}`}>
-                    <div className="w-72 shrink-0">
+                {/* Dettagli lead Column */}
+                <div className={`glass-panel rounded-xl flex flex-col border border-slate-200 dark:border-slate-700/50 transition-all duration-300 ease-in-out overflow-hidden ${showDetails ? 'absolute inset-y-0 right-0 z-30 w-full sm:w-80 opacity-100 shadow-2xl' : 'absolute inset-y-0 right-0 z-30 w-0 opacity-0 pointer-events-none border-0'}`}>
+                    <div className="w-full h-full shrink-0 overflow-y-auto custom-scrollbar">
                         <div className={`p-4 border-b border-slate-200 dark:border-slate-700/50 flex items-center justify-between bg-emerald-900/20`}>
                             <h2 className="font-semibold flex items-center gap-2 text-sm text-emerald-400">
                                 <UserCheck className="w-4 h-4" />
-                                Lead Details
+                                Dettagli lead
                             </h2>
                             <button
                                 onClick={() => { setShowLead(false); setIsDetailsPanelOpen(false); setLeadData(null); setLeadError(null) }}
@@ -700,7 +748,7 @@ export default function JenniferPage() {
                                 <>
                                     {/* Name */}
                                     <div className="p-3 rounded-lg bg-white/5">
-                                        <label className="text-[10px] uppercase tracking-wider font-semibold mb-1 block text-gray-500">Name</label>
+                                        <label className="text-[10px] uppercase tracking-wider font-semibold mb-1 block text-gray-500">Nome</label>
                                         <div className="flex items-center gap-2">
                                             <User className="w-4 h-4 opacity-50" />
                                             <span className="text-sm font-medium">{leadData.name}</span>
@@ -716,7 +764,7 @@ export default function JenniferPage() {
                                     </div>
                                     {/* Phone */}
                                     <div className="p-3 rounded-lg bg-white/5">
-                                        <label className="text-[10px] uppercase tracking-wider font-semibold mb-1 block text-gray-500">Phone</label>
+                                        <label className="text-[10px] uppercase tracking-wider font-semibold mb-1 block text-gray-500">Telefono</label>
                                         <div className="flex items-center gap-2">
                                             <Phone className="w-4 h-4 opacity-50" />
                                             <span className="text-sm">{leadData.phone}</span>
@@ -724,18 +772,18 @@ export default function JenniferPage() {
                                     </div>
                                     {/* Created */}
                                     <div className="p-3 rounded-lg bg-white/5">
-                                        <label className="text-[10px] uppercase tracking-wider font-semibold mb-1 block text-gray-500">Created</label>
+                                        <label className="text-[10px] uppercase tracking-wider font-semibold mb-1 block text-gray-500">Creato</label>
                                         <div className="flex items-center gap-2">
                                             <Calendar className="w-4 h-4 opacity-50" />
-                                            <span className="text-sm">{new Date(leadData.createdAt).toLocaleString()}</span>
+                                            <span className="text-sm">{formatRomeDateTime(leadData.createdAt)}</span>
                                         </div>
                                     </div>
                                     {/* Updated */}
                                     <div className="p-3 rounded-lg bg-white/5">
-                                        <label className="text-[10px] uppercase tracking-wider font-semibold mb-1 block text-gray-500">Updated</label>
+                                        <label className="text-[10px] uppercase tracking-wider font-semibold mb-1 block text-gray-500">Aggiornato</label>
                                         <div className="flex items-center gap-2">
                                             <Calendar className="w-4 h-4 opacity-50" />
-                                            <span className="text-sm">{new Date(leadData.updatedAt).toLocaleString()}</span>
+                                            <span className="text-sm">{formatRomeDateTime(leadData.updatedAt)}</span>
                                         </div>
                                     </div>
                                 </>
@@ -745,12 +793,12 @@ export default function JenniferPage() {
                 </div>
 
                 {/* Tags Sidebar Column */}
-                <div className={`glass-panel rounded-xl flex flex-col border border-slate-200 dark:border-slate-700/50 transition-all duration-300 ease-in-out overflow-hidden ${showTagsPanel && generatedTags.length > 0 ? 'w-72 opacity-100 mr-0' : 'w-0 opacity-0 -mr-4 border-0'}`}>
-                    <div className="w-72 shrink-0">
+                <div className={`glass-panel rounded-xl flex flex-col border border-slate-200 dark:border-slate-700/50 transition-all duration-300 ease-in-out overflow-hidden ${showTagsPanel ? 'absolute inset-y-0 right-0 z-30 w-full sm:w-80 opacity-100 shadow-2xl' : 'absolute inset-y-0 right-0 z-30 w-0 opacity-0 pointer-events-none border-0'}`}>
+                    <div className="w-full h-full shrink-0 overflow-y-auto custom-scrollbar">
                         <div className="p-4 border-b border-slate-200 dark:border-slate-700/50 flex items-center justify-between bg-purple-900/20">
                             <h2 className="font-semibold flex items-center gap-2 text-sm text-purple-400">
                                 <Tag className="w-4 h-4" />
-                                Generated Tags
+                                Tag generati
                             </h2>
                             <button
                                 onClick={() => setShowTagsPanel(false)}
@@ -768,11 +816,11 @@ export default function JenniferPage() {
                             ) : generatedTags.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center py-12 opacity-60">
                                     <Tag className="w-10 h-10 mb-3 opacity-30" />
-                                    <p className="text-sm text-center">No tags generated.</p>
+                                    <p className="text-sm text-center">Nessun tag generato.</p>
                                 </div>
                             ) : (
                                 <>
-                                    <p className="text-[10px] uppercase tracking-wider font-semibold text-gray-500 mb-2">Matched Tags ({generatedTags.length})</p>
+                                    <p className="text-[10px] uppercase tracking-wider font-semibold text-gray-500 mb-2">Tag corrispondenti ({generatedTags.length})</p>
                                     <div className="space-y-2">
                                         {generatedTags.map((tag, idx) => (
                                             <div key={idx} className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center gap-3">
@@ -782,7 +830,7 @@ export default function JenniferPage() {
                                         ))}
                                     </div>
                                     <div className="pt-3 mt-3 border-t border-slate-700/30">
-                                        <p className="text-[10px] text-slate-500">Tags are generated by AI based on admin-defined Tag Fields.</p>
+                                        <p className="text-[10px] text-slate-500">I tag vengono generati dall’IA in base ai campi definiti dall’amministratore.</p>
                                     </div>
                                 </>
                             )}
@@ -805,15 +853,15 @@ export default function JenniferPage() {
         )
 
         return (
-            <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ height: 'calc(100vh - 140px)' }}>
+            <div className="relative flex flex-col xl:flex-row gap-4 h-auto xl:h-[calc(100dvh-3rem)] min-h-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {/* Main table area */}
                 <div className={`flex-1 flex flex-col space-y-6 overflow-hidden transition-all duration-300 ${selectedLeadForChat ? 'min-w-0' : ''}`}>
                     {/* Header row */}
-                    <div className="flex items-center justify-between shrink-0">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
                         <div className="flex items-center gap-3">
-                            <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Leads</h2>
+                            <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Lead</h2>
                             <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-bold border border-emerald-500/20">
-                                {allLeads.length} total
+                                {allLeads.length} totali
                             </span>
                         </div>
                         <button
@@ -822,16 +870,16 @@ export default function JenniferPage() {
                             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 ${loadingAllLeads ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
                         >
                             <RefreshCw size={16} className={loadingAllLeads ? 'animate-spin' : ''} />
-                            Refresh
+                            Aggiorna
                         </button>
                     </div>
 
                     {/* Search bar */}
-                    <div className="relative max-w-md">
+                    <div className="relative w-full max-w-md">
                         <Search size={16} className="absolute left-3 top-3 text-slate-400" />
                         <input
                             className="w-full bg-white dark:bg-black/20 border border-slate-200 dark:border-slate-700/50 focus:border-indigo-500 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none dark:text-white glass-panel"
-                            placeholder="Search by name, email, phone, or session..."
+                            placeholder="Cerca per nome, email, telefono o sessione..."
                             value={leadsSearchQuery}
                             onChange={(e) => setLeadsSearchQuery(e.target.value)}
                         />
@@ -846,7 +894,7 @@ export default function JenniferPage() {
                         ) : filteredLeads.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-16 opacity-50">
                                 <Users className="w-12 h-12 mb-4" />
-                                <p className="text-sm">{allLeads.length === 0 ? 'No leads collected yet.' : 'No leads match your search.'}</p>
+                                <p className="text-sm">{allLeads.length === 0 ? 'Nessun lead raccolto.' : 'Nessun lead corrisponde alla ricerca.'}</p>
                             </div>
                         ) : (
                             <div className="overflow-x-auto">
@@ -854,12 +902,12 @@ export default function JenniferPage() {
                                     <thead>
                                         <tr className="border-b border-slate-200 dark:border-slate-700/50 bg-slate-50/50 dark:bg-black/20">
                                             <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">#</th>
-                                            <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Name</th>
+                                            <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Nome</th>
                                             <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Email</th>
-                                            <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Phone</th>
-                                            <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Session</th>
-                                            <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Tags</th>
-                                            <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Date</th>
+                                            <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Telefono</th>
+                                            <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Sessione</th>
+                                            <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Tag</th>
+                                            <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Data</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -918,7 +966,7 @@ export default function JenniferPage() {
                                                     </div>
                                                 </td>
                                                 <td className="px-5 py-4 text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap">
-                                                    {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
+                                                    {lead.createdAt ? formatRomeDate(lead.createdAt) : '—'}
                                                 </td>
                                             </tr>
                                         ))}
@@ -930,15 +978,15 @@ export default function JenniferPage() {
                 </div>
 
                 {/* Conversation Sidebar */}
-                <div className={`glass-panel rounded-xl flex flex-col border border-slate-200 dark:border-slate-700/50 transition-all duration-300 ease-in-out overflow-hidden shrink-0 ${selectedLeadForChat ? 'w-96 opacity-100' : 'w-0 opacity-0 border-0'}`}>
+                <div className={`glass-panel rounded-xl flex flex-col border border-slate-200 dark:border-slate-700/50 transition-all duration-300 ease-in-out overflow-hidden shrink-0 ${selectedLeadForChat ? 'w-full xl:w-96 min-h-[480px] xl:min-h-0 opacity-100' : 'w-0 h-0 opacity-0 border-0'}`}>
                     {selectedLeadForChat && (
-                        <div className="w-96 flex flex-col h-full">
+                        <div className="w-full flex flex-col h-full">
                             {/* Sidebar Header */}
                             <div className="p-4 border-b border-slate-200 dark:border-slate-700/50 flex items-center justify-between bg-indigo-900/20 shrink-0">
                                 <div>
                                     <h3 className="font-semibold text-sm text-indigo-400 flex items-center gap-2">
                                         <MessageSquare size={16} />
-                                        Conversation
+                                        Conversazione
                                     </h3>
                                     <p className="text-[10px] text-slate-400 mt-0.5 font-mono truncate max-w-[280px]">{selectedLeadForChat.sessionId}</p>
                                 </div>
@@ -975,7 +1023,7 @@ export default function JenniferPage() {
                                 ) : leadChatLogs.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center py-12 opacity-40">
                                         <MessageSquare className="w-10 h-10 mb-3" />
-                                        <p className="text-sm">No messages found.</p>
+                                        <p className="text-sm">Nessun messaggio trovato.</p>
                                     </div>
                                 ) : (
                                     leadChatLogs.map((log, idx) => {
@@ -987,10 +1035,10 @@ export default function JenniferPage() {
                                                     ? 'bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white rounded-tr-none'
                                                     : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-tl-none'
                                                     }`}>
-                                                    <p>{log.messageText}</p>
+                                                    <p className="whitespace-pre-wrap break-words">{log.messageText}</p>
                                                     {log.createdAt && (
                                                         <p className="text-[9px] opacity-40 mt-1 text-right">
-                                                            {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                            {formatRomeTime(log.createdAt)}
                                                         </p>
                                                     )}
                                                 </div>
@@ -1013,11 +1061,11 @@ export default function JenniferPage() {
     const renderTags = () => (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                    <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Tag Fields</h2>
+                    <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Campi tag</h2>
                     <span className="px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-400 text-xs font-bold border border-purple-500/20">
-                        {tagFields.length} total
+                        {tagFields.length} totali
                     </span>
                 </div>
                 <button
@@ -1026,31 +1074,31 @@ export default function JenniferPage() {
                     className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 ${loadingTagFields ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
                 >
                     <RefreshCw size={16} className={loadingTagFields ? 'animate-spin' : ''} />
-                    Refresh
+                    Aggiorna
                 </button>
             </div>
 
             {/* Create Form */}
             <div className="glass-panel rounded-xl border border-slate-200 dark:border-slate-700/50 p-5">
                 <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                    <Plus size={14} /> Create New Tag Field
+                    <Plus size={14} /> Crea un nuovo campo tag
                 </h3>
-                <div className="flex gap-3 items-end">
+                <div className="flex flex-col lg:flex-row gap-3 lg:items-end">
                     <div className="flex-1">
-                        <label className="text-xs text-slate-400 mb-1 block">Tag Name *</label>
+                        <label className="text-xs text-slate-400 mb-1 block">Nome tag *</label>
                         <input
                             className="w-full bg-white dark:bg-black/20 border border-slate-200 dark:border-slate-700/50 focus:border-indigo-500 rounded-lg px-3 py-2.5 text-sm focus:outline-none dark:text-white"
-                            placeholder="e.g. Sales Inquiry"
+                            placeholder="es. Richiesta commerciale"
                             value={tagForm.tagName}
                             onChange={(e) => setTagForm({ ...tagForm, tagName: e.target.value })}
                             onKeyDown={(e) => e.key === 'Enter' && createTagField()}
                         />
                     </div>
                     <div className="flex-1">
-                        <label className="text-xs text-slate-400 mb-1 block">Description (optional)</label>
+                        <label className="text-xs text-slate-400 mb-1 block">Descrizione (facoltativa)</label>
                         <input
                             className="w-full bg-white dark:bg-black/20 border border-slate-200 dark:border-slate-700/50 focus:border-indigo-500 rounded-lg px-3 py-2.5 text-sm focus:outline-none dark:text-white"
-                            placeholder="Brief description of this tag"
+                            placeholder="Breve descrizione del tag"
                             value={tagForm.description}
                             onChange={(e) => setTagForm({ ...tagForm, description: e.target.value })}
                             onKeyDown={(e) => e.key === 'Enter' && createTagField()}
@@ -1062,12 +1110,12 @@ export default function JenniferPage() {
                         className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 ${savingTag || !tagForm.tagName.trim() ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:scale-105'}`}
                     >
                         {savingTag ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-                        Add
+                        Aggiungi
                     </button>
                 </div>
             </div>
 
-            {/* Tag Fields Table */}
+            {/* Campi tag Table */}
             <div className="glass-panel rounded-xl border border-slate-200 dark:border-slate-700/50 overflow-hidden">
                 {loadingTagFields ? (
                     <div className="flex items-center justify-center py-16">
@@ -1076,17 +1124,18 @@ export default function JenniferPage() {
                 ) : tagFields.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-16 opacity-50">
                         <Tag className="w-12 h-12 mb-4" />
-                        <p className="text-sm">No tag fields created yet.</p>
+                        <p className="text-sm">Nessun campo tag creato.</p>
                     </div>
                 ) : (
-                    <table className="w-full text-sm">
+                    <div className="overflow-x-auto">
+                        <table className="w-full min-w-[720px] text-sm">
                         <thead>
                             <tr className="border-b border-slate-200 dark:border-slate-700/50 bg-slate-50/50 dark:bg-black/20">
                                 <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">#</th>
-                                <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Tag Name</th>
-                                <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Description</th>
-                                <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Created</th>
-                                <th className="text-right px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Actions</th>
+                                <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Nome tag</th>
+                                <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Descrizione</th>
+                                <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Creato</th>
+                                <th className="text-right px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Azioni</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -1120,7 +1169,7 @@ export default function JenniferPage() {
                                         )}
                                     </td>
                                     <td className="px-5 py-4 text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap">
-                                        {new Date(tf.createdAt).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                        {formatRomeDate(tf.createdAt)}
                                     </td>
                                     <td className="px-5 py-4">
                                         <div className="flex items-center justify-end gap-2">
@@ -1163,6 +1212,7 @@ export default function JenniferPage() {
                             ))}
                         </tbody>
                     </table>
+                    </div>
                 )}
             </div>
         </div>
@@ -1185,7 +1235,7 @@ export default function JenniferPage() {
 
             <div className={`flex h-screen w-full ${isDark ? "dark" : ""}`}>
                 {/* =================== SIDEBAR =================== */}
-                <div className={`glass-panel flex flex-col transition-all duration-300 ease-in-out z-40 ${isSidebarCollapsed ? "w-20" : "w-64"} fixed md:relative h-full border-r border-indigo-100 dark:border-indigo-900/30 overflow-hidden`}>
+                <div className={`glass-panel flex flex-col transition-all duration-300 ease-in-out z-40 ${isSidebarCollapsed ? "w-20" : "w-20 md:w-64"} fixed md:relative h-full border-r border-indigo-100 dark:border-indigo-900/30 overflow-hidden`}>
                     <div className={`p-4 border-b border-indigo-100 dark:border-indigo-900/30 bg-gradient-to-b from-white/50 to-transparent dark:from-indigo-900/20 flex flex-col ${isSidebarCollapsed ? 'items-center' : ''}`}>
                         {/* Jennifer AI Branding */}
                         <div className={`flex items-center gap-3 mb-4 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
@@ -1193,28 +1243,28 @@ export default function JenniferPage() {
                                 <img src={JENNIFER_AVATAR} className="w-full h-full object-cover" alt="Jennifer AI" />
                             </div>
                             {!isSidebarCollapsed && (
-                                <div className="flex-1 min-w-0">
+                                <div className="hidden md:block flex-1 min-w-0">
                                     <h1 className="text-lg font-black text-white uppercase tracking-widest leading-none truncate">JENNIFER AI</h1>
                                     <span className="inline-block mt-1 px-2 py-0.5 rounded bg-indigo-500 text-white text-[9px] font-bold tracking-widest shadow-[0_0_10px_rgba(99,102,241,0.5)] uppercase">ONLINE</span>
                                 </div>
                             )}
-                            {!isSidebarCollapsed && <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400"><ChevronLeft size={18} /></button>}
+                            {!isSidebarCollapsed && <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="hidden md:block p-1.5 rounded-lg hover:bg-white/10 text-slate-400"><ChevronLeft size={18} /></button>}
                         </div>
-                        {isSidebarCollapsed && <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="mb-4 p-1.5 rounded-lg hover:bg-white/10 text-slate-400"><ChevronRight size={18} /></button>}
+                        {isSidebarCollapsed && <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="hidden md:block mb-4 p-1.5 rounded-lg hover:bg-white/10 text-slate-400"><ChevronRight size={18} /></button>}
 
                         {/* Nav Items */}
                         <div className="space-y-1">
-                            <button onClick={() => setSection('analytics')} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all ${section === 'analytics' ? 'bg-indigo-500/10 text-indigo-500 border border-indigo-500/20' : 'text-slate-500 hover:bg-white/5'} ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-                                <BarChart3 size={20} /> {!isSidebarCollapsed && "Analytics"}
+                            <button title="Analisi" onClick={() => setSection('analytics')} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all ${section === 'analytics' ? 'bg-indigo-500/10 text-indigo-500 border border-indigo-500/20' : 'text-slate-500 hover:bg-white/5'} ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+                                <BarChart3 size={20} /> {!isSidebarCollapsed && <span className="hidden md:inline">Analisi</span>}
                             </button>
-                            <button onClick={() => setSection('conversations')} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all ${section === 'conversations' ? 'bg-indigo-500/10 text-indigo-500 border border-indigo-500/20' : 'text-slate-500 hover:bg-white/5'} ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-                                <MessageSquare size={20} /> {!isSidebarCollapsed && "Conversations"}
+                            <button title="Conversazioni" onClick={() => setSection('conversations')} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all ${section === 'conversations' ? 'bg-indigo-500/10 text-indigo-500 border border-indigo-500/20' : 'text-slate-500 hover:bg-white/5'} ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+                                <MessageSquare size={20} /> {!isSidebarCollapsed && <span className="hidden md:inline">Conversazioni</span>}
                             </button>
-                            <button onClick={() => setSection('leads')} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all ${section === 'leads' ? 'bg-indigo-500/10 text-indigo-500 border border-indigo-500/20' : 'text-slate-500 hover:bg-white/5'} ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-                                <Users size={20} /> {!isSidebarCollapsed && "Leads"}
+                            <button title="Lead" onClick={() => setSection('leads')} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all ${section === 'leads' ? 'bg-indigo-500/10 text-indigo-500 border border-indigo-500/20' : 'text-slate-500 hover:bg-white/5'} ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+                                <Users size={20} /> {!isSidebarCollapsed && <span className="hidden md:inline">Lead</span>}
                             </button>
-                            <button onClick={() => setSection('tags')} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all ${section === 'tags' ? 'bg-indigo-500/10 text-indigo-500 border border-indigo-500/20' : 'text-slate-500 hover:bg-white/5'} ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-                                <Tag size={20} /> {!isSidebarCollapsed && "Tags"}
+                            <button title="Tag" onClick={() => setSection('tags')} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all ${section === 'tags' ? 'bg-indigo-500/10 text-indigo-500 border border-indigo-500/20' : 'text-slate-500 hover:bg-white/5'} ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+                                <Tag size={20} /> {!isSidebarCollapsed && <span className="hidden md:inline">Tag</span>}
                             </button>
                         </div>
                     </div>
@@ -1226,9 +1276,9 @@ export default function JenniferPage() {
                 </div>
 
                 {/* =================== MAIN CONTENT =================== */}
-                <div className="flex-1 flex flex-col relative h-full overflow-hidden bg-slate-50/50 dark:bg-transparent">
+                <div className="ml-20 md:ml-0 flex-1 min-w-0 flex flex-col relative h-full overflow-hidden bg-slate-50/50 dark:bg-transparent">
                     {/* Content Area */}
-                    <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 custom-scrollbar">
+                    <div className="flex-1 overflow-y-auto px-3 sm:px-4 lg:px-6 xl:px-8 py-3 sm:py-4 lg:py-6 custom-scrollbar">
                         {section === 'analytics' && renderAnalytics()}
                         {section === 'conversations' && renderConversations()}
                         {section === 'leads' && renderLeads()}
