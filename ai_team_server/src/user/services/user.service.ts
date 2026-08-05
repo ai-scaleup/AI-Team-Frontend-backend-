@@ -403,6 +403,19 @@ export class UserService {
       .map((id) => usersById.get(id))
       .filter((user): user is (typeof pageUsers)[number] => Boolean(user));
 
+    // Conversation token limits are assigned in bulk per user, so the list only
+    // needs one aggregate per row rather than the conversations themselves:
+    // the shared limit when every conversation carries the same one, plus the
+    // counts needed to tell "none set" apart from "set on some of them".
+    const limitRows = await this.prisma.conversation.groupBy({
+      by: ['userId'],
+      where: { userId: { in: pageIds } },
+      _min: { tokenLimit: true },
+      _max: { tokenLimit: true },
+      _count: { _all: true, tokenLimit: true },
+    });
+    const limitsByUserId = new Map(limitRows.map((row) => [row.userId, row]));
+
     let summaryMonthlyTokens = 0;
     let summaryMonthlyInputTokens = 0;
     let summaryMonthlyOutputTokens = 0;
@@ -430,8 +443,25 @@ export class UserService {
           user.dailyUsage.filter((item) => item.date >= today),
         );
 
+        const limits = limitsByUserId.get(user.id);
+        const conversations = limits?._count._all ?? 0;
+        const withLimit = limits?._count.tokenLimit ?? 0;
+        // A single reportable limit only exists when every conversation carries
+        // it; anything else is reported as mixed so the caller does not show a
+        // limit that only part of the chats actually has.
+        const isUniform =
+          conversations > 0 &&
+          withLimit === conversations &&
+          limits?._min.tokenLimit === limits?._max.tokenLimit;
+
         return {
           ...user,
+          conversationTokenLimit: {
+            conversations,
+            withLimit,
+            tokenLimit: isUniform ? (limits?._min.tokenLimit ?? null) : null,
+            mixed: withLimit > 0 && !isUniform,
+          },
           usage: {
             monthly: monthlyUsage.totalTokens,
             monthlyInputTokens: monthlyUsage.inputTokens,
