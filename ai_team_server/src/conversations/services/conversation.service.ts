@@ -12,6 +12,7 @@ import {
   CreateConversationDto,
   UpdateConversationDto,
   UpdateConversationTokensDto,
+  SetUserTokenLimitDto,
   AddMessageDto,
 } from '../schemas/conversation.schema';
 
@@ -382,6 +383,77 @@ export class ConversationService {
       )
         throw error;
       this.handlePrismaError(error, 'updateTokens');
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Assign one token limit to every conversation a user owns
+  // ─────────────────────────────────────────────────────────────
+  // Admin-facing bulk quota assignment, keyed on email rather than on a
+  // conversation. Applies to all of the user's conversations, archived ones
+  // included — an archived chat can be restored, so leaving it on the old limit
+  // would reopen a hole in the quota.
+  async setTokenLimitForUser(
+    email: string,
+    data: SetUserTokenLimitDto,
+  ): Promise<{
+    oauthId: string;
+    email: string | null;
+    tokenLimit: number | null;
+    conversationsUpdated: number;
+  }> {
+    try {
+      // Reject a non-email path segment up front. Without this an OAuth ID
+      // falls through to a 404 phrased as "user with email ... not found",
+      // which reads like the account is missing rather than the input being
+      // the wrong kind of value.
+      if (!email?.includes('@')) {
+        throw new BadRequestException({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: `"${email}" is not an email address.`,
+          hint: 'This endpoint is keyed on email, for example /conversations/user/user@gmail.com/token-limit.',
+        });
+      }
+
+      const user = await this.getUserByEmail(email);
+      const { tokenLimit } = data;
+
+      // tokenLeft is recalculated in the same statement: a fresh limit paired
+      // with a stale "remaining" is worse than no limit at all. Doing the
+      // arithmetic in SQL keeps it per-row and atomic — updateMany cannot read
+      // tokenUsed while writing tokenLeft.
+      //
+      // GREATEST(..., 0) covers conversations that already burned past the new
+      // limit, so tokenLeft never goes negative.
+      //
+      // lastUpdated is deliberately untouched, matching updateTokens: an admin
+      // assigning quota should not reshuffle the user's chat list.
+      const conversationsUpdated =
+        tokenLimit === null
+          ? await this.prisma.$executeRaw`
+              UPDATE "Conversation"
+              SET "tokenLimit" = NULL, "tokenLeft" = NULL
+              WHERE "userId" = ${user.id}`
+          : await this.prisma.$executeRaw`
+              UPDATE "Conversation"
+              SET "tokenLimit" = ${tokenLimit},
+                  "tokenLeft" = GREATEST(${tokenLimit} - COALESCE("tokenUsed", 0), 0)
+              WHERE "userId" = ${user.id}`;
+
+      return {
+        oauthId: user.oauthId,
+        email: user.email,
+        tokenLimit,
+        conversationsUpdated,
+      };
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      )
+        throw error;
+      this.handlePrismaError(error, 'setTokenLimitForUser');
     }
   }
 

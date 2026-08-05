@@ -47,6 +47,18 @@ export const updateConversationTokensSchema = z
       'Provide at least one of tokenLimit, tokenUsed or tokenLeft to update.',
   });
 
+// Schema for assigning one token limit across every conversation a user owns.
+// Unlike the per-conversation counters above, `tokenLimit` is required: an
+// omitted key would silently update nothing, which is never what an admin
+// setting a quota means. It may still be null, which clears the limit.
+export const setUserTokenLimitSchema = z.object({
+  tokenLimit: z
+    .number({ message: 'tokenLimit must be a number.' })
+    .int({ message: 'tokenLimit must be a whole number.' })
+    .min(0, { message: 'tokenLimit cannot be negative.' })
+    .nullable(),
+});
+
 // Schema for adding a message to a conversation
 export const addMessageSchema = messageSchema;
 
@@ -57,4 +69,5 @@ export type UpdateConversationDto = z.infer<typeof updateConversationSchema>;
 export type UpdateConversationTokensDto = z.infer<
   typeof updateConversationTokensSchema
 >;
+export type SetUserTokenLimitDto = z.infer<typeof setUserTokenLimitSchema>;
 export type AddMessageDto = z.infer<typeof addMessageSchema>;

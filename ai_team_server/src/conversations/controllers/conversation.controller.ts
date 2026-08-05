@@ -28,6 +28,8 @@ import {
   updateConversationSchema,
   UpdateConversationTokensDto,
   updateConversationTokensSchema,
+  SetUserTokenLimitDto,
+  setUserTokenLimitSchema,
   AddMessageDto,
   addMessageSchema,
 } from '../schemas/conversation.schema';
@@ -210,6 +212,51 @@ export class ConversationController {
     return this.conversationService.updateTokens(
       conversationId,
       updateTokensDto,
+    );
+  }
+
+  // Assign one token limit to every conversation belonging to a user.
+  // The literal 'user' prefix keeps this off the ':oauthId/:conversationId'
+  // shape; the only other three-segment PATCH ends in 'archive', so there is
+  // no overlap in either declaration order.
+  @Patch('user/:email/token-limit')
+  @ApiOperation({
+    summary: 'Set one token limit across all of a user’s conversations',
+    description:
+      'Admin bulk assignment, keyed on email: applies a single tokenLimit to every conversation owned by that user, archived ones included. tokenLeft is recalculated per conversation as tokenLimit minus tokenUsed (never below 0); passing null clears both. Does not bump lastUpdated, so the chat list keeps its order. Responds with the resolved user and the number of conversations updated.',
+  })
+  @ApiParam({
+    name: 'email',
+    example: 'user@gmail.com',
+    description: 'Email of the user. Matching is case-insensitive.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['tokenLimit'],
+      properties: {
+        tokenLimit: {
+          type: 'integer',
+          nullable: true,
+          minimum: 0,
+          example: 100000,
+          description:
+            'Tokens allotted to each of the user’s conversations. Null clears the limit.',
+        },
+      },
+    },
+  })
+  @ApiOkResponse({
+    description: 'Token limit applied to the user’s conversations',
+  })
+  setUserTokenLimit(
+    @Param('email') email: string,
+    @Body(new ZodValidationPipe(setUserTokenLimitSchema))
+    setTokenLimitDto: SetUserTokenLimitDto,
+  ) {
+    return this.conversationService.setTokenLimitForUser(
+      email,
+      setTokenLimitDto,
     );
   }
 
