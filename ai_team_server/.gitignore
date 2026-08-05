@@ -42,6 +42,14 @@ lerna-debug.log*
 .env.production.local
 .env.local
 
+# Database / user dumps — contain production PII, never commit
+database-export.json
+clerk-users-export.json
+
+# Local database backups — production PII. Folder is kept, contents never committed.
+/backups/*
+!/backups/.gitkeep
+
 # temp directory
 .temp
 .tmp

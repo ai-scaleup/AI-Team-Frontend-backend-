@@ -25,7 +25,8 @@
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "postinstall": "prisma generate",
-    "backfill:preference-emails": "ts-node -r tsconfig-paths/register scripts/backfill-user-preference-emails.ts"
+    "backfill:preference-emails": "ts-node -r tsconfig-paths/register scripts/backfill-user-preference-emails.ts",
+    "backup:db": "ts-node -r tsconfig-paths/register scripts/backup-database.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",
