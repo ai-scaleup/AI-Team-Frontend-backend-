@@ -338,13 +338,17 @@ export class ConversationService {
   // Keyed on the conversation ID only — it is the primary key, so it already
   // identifies the row without resolving a user first, the same way
   // updateTokens works.
+  //
+  // Messages are deliberately not included: this returns the conversation's own
+  // fields, and a chat's transcript can run to hundreds of long messages that
+  // callers after the metadata would pay for and discard. Fetch them from
+  // GET :oauthId/:conversationId/messages when they are actually wanted.
   async findConversationByConversationId(
     conversationId: string,
   ): Promise<Conversation> {
     try {
       const conversation = await this.prisma.conversation.findUnique({
         where: { id: conversationId },
-        include: { messages: { orderBy: { createdAt: 'asc' } } },
       });
 
       if (!conversation) {

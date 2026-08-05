@@ -144,7 +144,7 @@ export class ConversationController {
   @ApiOperation({
     summary: 'Get one conversation by conversation ID',
     description:
-      'Looks the conversation up on its ID alone, with no user identifier, and returns it with its messages ordered oldest first.',
+      'Looks the conversation up on its ID alone, with no user identifier. Responds with the conversation’s own fields — title, agent, folder, archive state and token counters — and without its messages; fetch those from GET /conversations/{oauthId}/{conversationId}/messages.',
   })
   @ApiParam({ name: 'conversationId', example: 'chat_1765435414978' })
   @ApiOkResponse({ description: 'Conversation returned' })
