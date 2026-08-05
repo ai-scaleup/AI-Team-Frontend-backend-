@@ -20,6 +20,12 @@ export interface Conversation {
     createdAt?: string;
     lastUpdated: string;
     messages?: Message[];
+    // Token budget for this conversation. Stamped from the user's limit when the
+    // conversation is created and moved by the n8n workflow after each run, so
+    // the frontend only ever reads these. Null means no limit was assigned.
+    tokenLimit?: number | null;
+    tokenUsed?: number | null;
+    tokenLeft?: number | null;
 }
 
 // DTOs

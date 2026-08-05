@@ -4,6 +4,8 @@ import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import { UserButton, useUser } from "@clerk/nextjs"
 import { conversationService } from "@/services/conversationService"
+import ConversationIdBadge from "@/components/ui/ConversationIdBadge"
+import ConversationTokensBadge from "@/components/ui/ConversationTokensBadge"
 import { extractFileContent } from "@/utils/fileExtraction"
 import {
   Edit2,
@@ -381,6 +383,9 @@ export default function App() {
   const [pinnedChats, setPinnedChats] = useState<Set<string>>(new Set())
   const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(null)
   const [isDark, setIsDark] = useState(true)
+  // Bumped once a reply is done so the header re-reads the conversation's token
+  // counters, which the workflow writes at the end of its run.
+  const [tokenRefreshKey, setTokenRefreshKey] = useState(0)
 
   // Folder State
   const [folders, setFolders] = useState<FolderType[]>([])
@@ -1237,6 +1242,11 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
             "agent-memory": `${CURRENT_NAMESPACE.current}-tony-ai`,
             source: "tony-ai",
             email: userEmail,
+            // Same value as the top-level chatId below. The conversation id is
+            // what the token endpoints are keyed on, so n8n needs it to report
+            // usage back; carrying it in metadata as well means a workflow node
+            // can read it from whichever path it already uses.
+            chatId: currentChatIdForSend,
           },
           chatId: currentChatIdForSend,
         }),
@@ -1404,6 +1414,10 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
       } catch (err) {
         console.error("Tony AI: Failed to update token usage:", err)
       }
+
+      // The run is over, so the workflow is about to write this run's usage
+      // onto the conversation. Ask the header to pick the new totals up.
+      setTokenRefreshKey((key) => key + 1)
     } catch (error) {
       console.error("Error sending message:", error)
       setMessages((prev) => {
@@ -2031,13 +2045,15 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
                       <div className="absolute inset-0 bg-sky-500/10 mix-blend-overlay"></div>
                     </div>
                     <div>
-                      <div className="flex items-center gap-3 mb-1">
+                      <div className="flex items-center gap-3 mb-1 flex-wrap">
                         <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white uppercase tracking-widest leading-none drop-shadow-md">
                           {currentAgent.name}
                         </h1>
                         <span className="px-2 py-0.5 rounded bg-sky-500 text-white text-[10px] font-bold tracking-widest shadow-[0_0_10px_rgba(14,165,233,0.5)] uppercase">
                           Online
                         </span>
+                        <ConversationIdBadge conversationId={currentChatId} />
+                        <ConversationTokensBadge conversationId={currentChatId} refreshKey={tokenRefreshKey} />
                       </div>
                       <p
                         className={`text-sm leading-tight max-w-md ${isDark ? "text-slate-300" : "text-slate-700"} font-medium`}

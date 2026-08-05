@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   Search, Calendar, MoreVertical, Edit2, Trash2,
   ChevronDown, ChevronUp, Users, Download, CreditCard, X,
-  Activity, DollarSign, Euro
+  Activity, DollarSign, Euro, Check, Loader2
 } from "lucide-react";
 
 /* ──────────────── CURRENCY HELPERS ──────────────── */
@@ -48,6 +48,21 @@ const formatTokensAsCost = (
   if (usd >= 1) return `$${usd.toFixed(2)}`;
   return `$${usd.toFixed(3)}`;
 };
+
+const formatTokenCount = (value: number) =>
+  new Intl.NumberFormat("en-US").format(value);
+
+async function parseApiError(response: Response) {
+  try {
+    const payload = await response.json();
+    if (typeof payload?.message === "string") return payload.message;
+    if (Array.isArray(payload?.message)) return payload.message.join(", ");
+  } catch {
+    // Use status text below.
+  }
+
+  return response.statusText || "Request failed";
+}
 
 function CurrencyToggle({
   currency,
@@ -117,6 +132,12 @@ type ApiUser = {
   agents?: ApiAssignment[];
   groups?: ApiGroupAssignment[];
   memberships?: ApiMembershipAssignment[];
+  conversationTokenLimit?: {
+    conversations?: number;
+    withLimit?: number;
+    tokenLimit?: number | null;
+    mixed?: boolean;
+  };
   usage?: {
     monthly?: number;
     monthlyInputTokens?: number;
@@ -164,6 +185,11 @@ type UserRow = {
   dailyUsage: number;
   dailyInputUsage: number;
   dailyOutputUsage: number;
+  // Limit shared by every conversation the user owns; null when unset or mixed.
+  tokenLimit: number | null;
+  tokenLimitMixed: boolean;
+  conversationCount: number;
+  conversationsWithLimit: number;
   status: "active" | "expiring" | "expired";
 };
 
@@ -222,6 +248,10 @@ const mapUser = (user: ApiUser): UserRow => {
     dailyUsage: user.usage?.daily ?? 0,
     dailyInputUsage: user.usage?.dailyInputTokens ?? 0,
     dailyOutputUsage: user.usage?.dailyOutputTokens ?? 0,
+    tokenLimit: user.conversationTokenLimit?.tokenLimit ?? null,
+    tokenLimitMixed: user.conversationTokenLimit?.mixed ?? false,
+    conversationCount: user.conversationTokenLimit?.conversations ?? 0,
+    conversationsWithLimit: user.conversationTokenLimit?.withLimit ?? 0,
     status: hasActiveAccess
       ? getStatus(
           primaryMembership?.expiresAt ?? primaryTimedAssignment?.expiresAt,
@@ -363,6 +393,12 @@ export default function AllUsersPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Conversation token limit, edited one row at a time.
+  const [editingLimitFor, setEditingLimitFor] = useState<string | null>(null);
+  const [limitDraft, setLimitDraft] = useState("");
+  const [savingLimitFor, setSavingLimitFor] = useState<string | null>(null);
+  const [limitErrors, setLimitErrors] = useState<Record<string, string>>({});
+
   useEffect(() => {
     const controller = new AbortController();
 
@@ -443,6 +479,89 @@ export default function AllUsersPage() {
         ? prev.filter((id) => !pageIds.includes(id))
         : Array.from(new Set([...prev, ...pageIds])),
     );
+  };
+
+  const clearLimitError = (id: string) =>
+    setLimitErrors((prev) => {
+      if (!(id in prev)) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+
+  const startLimitEdit = (user: UserRow) => {
+    setEditingLimitFor(user.id);
+    setLimitDraft(user.tokenLimit != null ? String(user.tokenLimit) : "");
+    clearLimitError(user.id);
+  };
+
+  const cancelLimitEdit = () => {
+    setEditingLimitFor(null);
+    setLimitDraft("");
+  };
+
+  // Applies one limit to every conversation the user owns, archived included.
+  // A blank input sends null, which clears the limit rather than setting zero.
+  const saveTokenLimit = async (user: UserRow) => {
+    if (savingLimitFor) return;
+    const raw = limitDraft.trim();
+    const tokenLimit = raw === "" ? null : Number(raw);
+
+    if (tokenLimit !== null && (!Number.isInteger(tokenLimit) || tokenLimit < 0)) {
+      setLimitErrors((prev) => ({
+        ...prev,
+        [user.id]: "Whole number ≥ 0, or blank to clear.",
+      }));
+      return;
+    }
+
+    setSavingLimitFor(user.id);
+    clearLimitError(user.id);
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/conversations/user/${encodeURIComponent(user.email)}/token-limit`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tokenLimit }),
+        },
+      );
+
+      if (!response.ok) throw new Error(await parseApiError(response));
+
+      const result = (await response.json().catch(() => null)) as {
+        tokenLimit?: number | null;
+        conversationsUpdated?: number;
+      } | null;
+
+      // The limit now covers every conversation the user owns, so the row can
+      // be updated in place instead of refetching the whole page.
+      const savedLimit = result?.tokenLimit ?? tokenLimit;
+      const updated = result?.conversationsUpdated ?? user.conversationCount;
+      setUsers((prev) =>
+        prev.map((row) =>
+          row.id === user.id
+            ? {
+                ...row,
+                tokenLimit: savedLimit,
+                tokenLimitMixed: false,
+                conversationCount: updated,
+                conversationsWithLimit: savedLimit === null ? 0 : updated,
+              }
+            : row,
+        ),
+      );
+      setEditingLimitFor(null);
+      setLimitDraft("");
+    } catch (err) {
+      setLimitErrors((prev) => ({
+        ...prev,
+        [user.id]: (err as Error).message || "Failed to set token limit",
+      }));
+    } finally {
+      setSavingLimitFor(null);
+    }
   };
 
   const membershipOptions = useMemo(() => {
@@ -534,14 +653,16 @@ export default function AllUsersPage() {
       };
       const header = [
         "Email", "Assigned", "Membership", "Duration (days)", "Expiration",
-        "Status", "Monthly Tokens", "Weekly Tokens", "Daily Tokens",
+        "Status", "Token Limit", "Monthly Tokens", "Weekly Tokens", "Daily Tokens",
       ];
       const lines = [
         header.join(","),
         ...rows.map((u) =>
           [
             u.email, u.assigned.join("; "), u.membership, u.duration,
-            u.expiration, u.status, u.monthlyUsage, u.weeklyUsage, u.dailyUsage,
+            u.expiration, u.status,
+            u.tokenLimitMixed ? "Mixed" : (u.tokenLimit ?? ""),
+            u.monthlyUsage, u.weeklyUsage, u.dailyUsage,
           ].map(escapeCell).join(","),
         ),
       ];
@@ -754,6 +875,9 @@ export default function AllUsersPage() {
                 </th>
                 <th className="px-4 py-4 font-semibold">Expiration</th>
                 <th className="px-4 py-4 font-semibold">Status</th>
+                <th className="px-4 py-4 font-semibold" title="Token limit applied to every conversation the user owns">
+                  Token Limit
+                </th>
                 <th className={`px-4 py-4 font-semibold text-right cursor-pointer hover:text-white transition select-none ${sortField === "monthlyUsage" ? "text-white" : ""}`} onClick={() => handleSort("monthlyUsage")}>
                   <span className="inline-flex items-center justify-end gap-1">
                     {usageColLabel("Monthly")}
@@ -784,12 +908,12 @@ export default function AllUsersPage() {
             <tbody>
               {isLoading && (
                 <tr>
-                  <td colSpan={11} className="px-4 py-12 text-center text-white/40">Loading real users...</td>
+                  <td colSpan={12} className="px-4 py-12 text-center text-white/40">Loading real users...</td>
                 </tr>
               )}
               {!isLoading && error && (
                 <tr>
-                  <td colSpan={11} className="px-4 py-12 text-center text-red-300">{error}</td>
+                  <td colSpan={12} className="px-4 py-12 text-center text-red-300">{error}</td>
                 </tr>
               )}
               {!isLoading && !error && filteredUsers.map((user) => (
@@ -828,6 +952,76 @@ export default function AllUsersPage() {
                       {user.status}
                     </span>
                   </td>
+                  <td className="px-4 py-4">
+                    {editingLimitFor === user.id ? (
+                      <div className="flex items-center gap-1">
+                        <input
+                          autoFocus
+                          type="number"
+                          min={0}
+                          step={1000}
+                          value={limitDraft}
+                          onChange={(e) => setLimitDraft(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") saveTokenLimit(user);
+                            if (e.key === "Escape") cancelLimitEdit();
+                          }}
+                          placeholder="Blank clears"
+                          className="w-[110px] rounded-lg border border-white/10 bg-white/5 px-2 py-1 font-mono text-xs text-white placeholder-white/25 outline-none focus:border-sky-500"
+                        />
+                        <button
+                          onClick={() => saveTokenLimit(user)}
+                          disabled={savingLimitFor === user.id}
+                          title="Apply to all of this user's conversations"
+                          className="rounded-md bg-sky-500/15 p-1.5 text-sky-400 transition hover:bg-sky-500/25 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          {savingLimitFor === user.id
+                            ? <Loader2 size={13} className="animate-spin" />
+                            : <Check size={13} />}
+                        </button>
+                        <button
+                          onClick={cancelLimitEdit}
+                          disabled={savingLimitFor === user.id}
+                          title="Cancel"
+                          className="rounded-md p-1.5 text-white/40 transition hover:bg-white/5 hover:text-white disabled:opacity-40"
+                        >
+                          <X size={13} />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => startLimitEdit(user)}
+                        title={
+                          user.conversationCount === 0
+                            ? "This user has no conversations yet"
+                            : user.tokenLimitMixed
+                              ? `${user.conversationsWithLimit} of ${user.conversationCount} conversations have a limit, and they differ`
+                              : user.tokenLimit != null
+                                ? `Applies to all ${user.conversationCount} conversation(s)`
+                                : `No limit on any of this user's ${user.conversationCount} conversation(s)`
+                        }
+                        className="flex items-center gap-1.5 rounded-lg border border-dashed border-white/10 px-2 py-1 transition hover:border-sky-500/40 hover:bg-white/5"
+                      >
+                        {user.tokenLimit != null ? (
+                          <span className="font-mono text-xs text-white">
+                            {formatTokenCount(user.tokenLimit)}
+                          </span>
+                        ) : user.tokenLimitMixed ? (
+                          <span className="text-[11px] font-medium text-amber-400">Mixed</span>
+                        ) : (
+                          <>
+                            <Edit2 size={11} className="text-white/25" />
+                            <span className="text-[11px] text-white/30">Set limit</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                    {limitErrors[user.id] && (
+                      <p className="mt-1 max-w-[170px] text-[10px] leading-tight text-red-300">
+                        {limitErrors[user.id]}
+                      </p>
+                    )}
+                  </td>
                   <td className="px-4 py-4 text-right font-mono text-sky-300">
                     {formatTokensAsCost(user.monthlyUsage, currency, user.monthlyInputUsage, user.monthlyOutputUsage)}
                   </td>
@@ -844,7 +1038,7 @@ export default function AllUsersPage() {
               ))}
               {!isLoading && !error && filteredUsers.length === 0 && (
                 <tr>
-                  <td colSpan={11} className="px-4 py-12 text-center text-white/40">No users found matching your criteria.</td>
+                  <td colSpan={12} className="px-4 py-12 text-center text-white/40">No users found matching your criteria.</td>
                 </tr>
               )}
             </tbody>

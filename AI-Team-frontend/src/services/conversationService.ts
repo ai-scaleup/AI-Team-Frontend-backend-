@@ -43,6 +43,18 @@ export const conversationService = {
         return response.json();
     },
 
+    // Get a single conversation on its ID alone, without a user identifier.
+    // Conversation IDs are globally unique, and the response carries the token
+    // counters but no messages -- use getMessages for those.
+    async getConversationById(conversationId: string): Promise<Conversation> {
+        const response = await fetch(`${API_BASE}/conversations/by-id/${conversationId}`);
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Failed to fetch conversation');
+        }
+        return response.json();
+    },
+
     // Update a conversation
     async updateConversation(oauthId: string, conversationId: string, data: UpdateConversationDto): Promise<Conversation> {
         const response = await fetch(`${API_BASE}/conversations/${oauthId}/${conversationId}`, {

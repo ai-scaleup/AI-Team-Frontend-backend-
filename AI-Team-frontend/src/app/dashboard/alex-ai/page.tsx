@@ -41,6 +41,8 @@ import { useUser } from "@clerk/nextjs"
 import { type UserPreference } from "@/types/preferences"
 import { userPreferenceService } from "@/services/preferenceService"
 import { conversationService } from "@/services/conversationService"
+import ConversationIdBadge from "@/components/ui/ConversationIdBadge"
+import ConversationTokensBadge from "@/components/ui/ConversationTokensBadge"
 import { Conversation, Message as ApiMessage, CreateConversationDto } from "@/types/conversation"
 import { extractFileContent } from "@/utils/fileExtraction"
 
@@ -377,6 +379,9 @@ export default function App() {
   const [pinnedChats, setPinnedChats] = useState<Set<string>>(new Set())
   const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(null)
   const [isDark, setIsDark] = useState(true)
+  // Bumped once a reply is done so the header re-reads the conversation's token
+  // counters, which the workflow writes at the end of its run.
+  const [tokenRefreshKey, setTokenRefreshKey] = useState(0)
 
   // Folder State
   const [folders, setFolders] = useState<FolderType[]>([])
@@ -1354,6 +1359,11 @@ export default function App() {
           "agent-memory": `${CURRENT_NAMESPACE.current}-alex-ai`,
           source: "alex-ai",
           email: userEmail,
+          // Same value as the top-level chatId below. The conversation id is
+          // what the token endpoints are keyed on, so n8n needs it to report
+          // usage back; carrying it in metadata as well means a workflow node
+          // can read it from whichever path it already uses.
+          chatId: currentChatIdForSend,
         },
         chatId: currentChatIdForSend,
       })
@@ -1529,6 +1539,10 @@ export default function App() {
       } catch (err) {
         console.error("Alex AI: Failed to update token usage:", err)
       }
+
+      // The run is over, so the workflow is about to write this run's usage
+      // onto the conversation. Ask the header to pick the new totals up.
+      setTokenRefreshKey((key) => key + 1)
 
       // Upsert pending file contents to Pinecone on send - REMOVED
       // if (pendingFileContents.length > 0 && CURRENT_NAMESPACE.current) {
@@ -2223,13 +2237,15 @@ export default function App() {
                     </div>
 
                     <div>
-                      <div className="flex items-center gap-3 mb-1">
+                      <div className="flex items-center gap-3 mb-1 flex-wrap">
                         <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white uppercase tracking-widest leading-none drop-shadow-md">
                           {currentAgent.name}
                         </h1>
                         <span className="px-2 py-0.5 rounded bg-sky-500 text-white text-[10px] font-bold tracking-widest shadow-[0_0_10px_rgba(14,165,233,0.5)] uppercase">
                           Online
                         </span>
+                        <ConversationIdBadge conversationId={currentChatId} />
+                        <ConversationTokensBadge conversationId={currentChatId} refreshKey={tokenRefreshKey} />
                       </div>
                       <p
                         className={`text-sm leading-tight max-w-md ${isDark ? "text-slate-300" : "text-slate-700"} font-medium`}
