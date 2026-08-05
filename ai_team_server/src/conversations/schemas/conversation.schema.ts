@@ -26,6 +26,27 @@ export const updateConversationSchema = z.object({
   lastUpdated: z.string().datetime().optional(),
 });
 
+// Token counters are nullable in the database, so null is an accepted value
+// here and means "clear this counter". An omitted key leaves it unchanged.
+const tokenCount = z
+  .number({ message: 'Token counts must be numbers.' })
+  .int({ message: 'Token counts must be whole numbers.' })
+  .min(0, { message: 'Token counts cannot be negative.' })
+  .nullable()
+  .optional();
+
+// Schema for updating a conversation's token counters
+export const updateConversationTokensSchema = z
+  .object({
+    tokenLimit: tokenCount,
+    tokenUsed: tokenCount,
+    tokenLeft: tokenCount,
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message:
+      'Provide at least one of tokenLimit, tokenUsed or tokenLeft to update.',
+  });
+
 // Schema for adding a message to a conversation
 export const addMessageSchema = messageSchema;
 
@@ -33,4 +54,7 @@ export const addMessageSchema = messageSchema;
 export type MessageDto = z.infer<typeof messageSchema>;
 export type CreateConversationDto = z.infer<typeof createConversationSchema>;
 export type UpdateConversationDto = z.infer<typeof updateConversationSchema>;
+export type UpdateConversationTokensDto = z.infer<
+  typeof updateConversationTokensSchema
+>;
 export type AddMessageDto = z.infer<typeof addMessageSchema>;

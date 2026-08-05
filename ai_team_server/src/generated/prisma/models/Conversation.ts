@@ -20,8 +20,22 @@ export type ConversationModel = runtime.Types.Result.DefaultSelection<Prisma.$Co
 
 export type AggregateConversation = {
   _count: ConversationCountAggregateOutputType | null
+  _avg: ConversationAvgAggregateOutputType | null
+  _sum: ConversationSumAggregateOutputType | null
   _min: ConversationMinAggregateOutputType | null
   _max: ConversationMaxAggregateOutputType | null
+}
+
+export type ConversationAvgAggregateOutputType = {
+  tokenLimit: number | null
+  tokenUsed: number | null
+  tokenLeft: number | null
+}
+
+export type ConversationSumAggregateOutputType = {
+  tokenLimit: number | null
+  tokenUsed: number | null
+  tokenLeft: number | null
 }
 
 export type ConversationMinAggregateOutputType = {
@@ -32,6 +46,9 @@ export type ConversationMinAggregateOutputType = {
   agentId: string | null
   sessionId: string | null
   folderId: string | null
+  tokenLimit: number | null
+  tokenUsed: number | null
+  tokenLeft: number | null
   archived: boolean | null
   lastUpdated: Date | null
   createdAt: Date | null
@@ -46,6 +63,9 @@ export type ConversationMaxAggregateOutputType = {
   agentId: string | null
   sessionId: string | null
   folderId: string | null
+  tokenLimit: number | null
+  tokenUsed: number | null
+  tokenLeft: number | null
   archived: boolean | null
   lastUpdated: Date | null
   createdAt: Date | null
@@ -60,6 +80,9 @@ export type ConversationCountAggregateOutputType = {
   agentId: number
   sessionId: number
   folderId: number
+  tokenLimit: number
+  tokenUsed: number
+  tokenLeft: number
   archived: number
   lastUpdated: number
   createdAt: number
@@ -67,6 +90,18 @@ export type ConversationCountAggregateOutputType = {
   _all: number
 }
 
+
+export type ConversationAvgAggregateInputType = {
+  tokenLimit?: true
+  tokenUsed?: true
+  tokenLeft?: true
+}
+
+export type ConversationSumAggregateInputType = {
+  tokenLimit?: true
+  tokenUsed?: true
+  tokenLeft?: true
+}
 
 export type ConversationMinAggregateInputType = {
   id?: true
@@ -76,6 +111,9 @@ export type ConversationMinAggregateInputType = {
   agentId?: true
   sessionId?: true
   folderId?: true
+  tokenLimit?: true
+  tokenUsed?: true
+  tokenLeft?: true
   archived?: true
   lastUpdated?: true
   createdAt?: true
@@ -90,6 +128,9 @@ export type ConversationMaxAggregateInputType = {
   agentId?: true
   sessionId?: true
   folderId?: true
+  tokenLimit?: true
+  tokenUsed?: true
+  tokenLeft?: true
   archived?: true
   lastUpdated?: true
   createdAt?: true
@@ -104,6 +145,9 @@ export type ConversationCountAggregateInputType = {
   agentId?: true
   sessionId?: true
   folderId?: true
+  tokenLimit?: true
+  tokenUsed?: true
+  tokenLeft?: true
   archived?: true
   lastUpdated?: true
   createdAt?: true
@@ -149,6 +193,18 @@ export type ConversationAggregateArgs<ExtArgs extends runtime.Types.Extensions.I
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
+   * Select which fields to average
+  **/
+  _avg?: ConversationAvgAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
+   * Select which fields to sum
+  **/
+  _sum?: ConversationSumAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
    * Select which fields to find the minimum value
   **/
   _min?: ConversationMinAggregateInputType
@@ -179,6 +235,8 @@ export type ConversationGroupByArgs<ExtArgs extends runtime.Types.Extensions.Int
   take?: number
   skip?: number
   _count?: ConversationCountAggregateInputType | true
+  _avg?: ConversationAvgAggregateInputType
+  _sum?: ConversationSumAggregateInputType
   _min?: ConversationMinAggregateInputType
   _max?: ConversationMaxAggregateInputType
 }
@@ -191,11 +249,16 @@ export type ConversationGroupByOutputType = {
   agentId: string
   sessionId: string
   folderId: string | null
+  tokenLimit: number | null
+  tokenUsed: number | null
+  tokenLeft: number | null
   archived: boolean
   lastUpdated: Date
   createdAt: Date
   updatedAt: Date
   _count: ConversationCountAggregateOutputType | null
+  _avg: ConversationAvgAggregateOutputType | null
+  _sum: ConversationSumAggregateOutputType | null
   _min: ConversationMinAggregateOutputType | null
   _max: ConversationMaxAggregateOutputType | null
 }
@@ -226,6 +289,9 @@ export type ConversationWhereInput = {
   agentId?: Prisma.StringFilter<"Conversation"> | string
   sessionId?: Prisma.StringFilter<"Conversation"> | string
   folderId?: Prisma.StringNullableFilter<"Conversation"> | string | null
+  tokenLimit?: Prisma.IntNullableFilter<"Conversation"> | number | null
+  tokenUsed?: Prisma.IntNullableFilter<"Conversation"> | number | null
+  tokenLeft?: Prisma.IntNullableFilter<"Conversation"> | number | null
   archived?: Prisma.BoolFilter<"Conversation"> | boolean
   lastUpdated?: Prisma.DateTimeFilter<"Conversation"> | Date | string
   createdAt?: Prisma.DateTimeFilter<"Conversation"> | Date | string
@@ -242,6 +308,9 @@ export type ConversationOrderByWithRelationInput = {
   agentId?: Prisma.SortOrder
   sessionId?: Prisma.SortOrder
   folderId?: Prisma.SortOrderInput | Prisma.SortOrder
+  tokenLimit?: Prisma.SortOrderInput | Prisma.SortOrder
+  tokenUsed?: Prisma.SortOrderInput | Prisma.SortOrder
+  tokenLeft?: Prisma.SortOrderInput | Prisma.SortOrder
   archived?: Prisma.SortOrder
   lastUpdated?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -261,6 +330,9 @@ export type ConversationWhereUniqueInput = Prisma.AtLeast<{
   agentId?: Prisma.StringFilter<"Conversation"> | string
   sessionId?: Prisma.StringFilter<"Conversation"> | string
   folderId?: Prisma.StringNullableFilter<"Conversation"> | string | null
+  tokenLimit?: Prisma.IntNullableFilter<"Conversation"> | number | null
+  tokenUsed?: Prisma.IntNullableFilter<"Conversation"> | number | null
+  tokenLeft?: Prisma.IntNullableFilter<"Conversation"> | number | null
   archived?: Prisma.BoolFilter<"Conversation"> | boolean
   lastUpdated?: Prisma.DateTimeFilter<"Conversation"> | Date | string
   createdAt?: Prisma.DateTimeFilter<"Conversation"> | Date | string
@@ -277,13 +349,18 @@ export type ConversationOrderByWithAggregationInput = {
   agentId?: Prisma.SortOrder
   sessionId?: Prisma.SortOrder
   folderId?: Prisma.SortOrderInput | Prisma.SortOrder
+  tokenLimit?: Prisma.SortOrderInput | Prisma.SortOrder
+  tokenUsed?: Prisma.SortOrderInput | Prisma.SortOrder
+  tokenLeft?: Prisma.SortOrderInput | Prisma.SortOrder
   archived?: Prisma.SortOrder
   lastUpdated?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.ConversationCountOrderByAggregateInput
+  _avg?: Prisma.ConversationAvgOrderByAggregateInput
   _max?: Prisma.ConversationMaxOrderByAggregateInput
   _min?: Prisma.ConversationMinOrderByAggregateInput
+  _sum?: Prisma.ConversationSumOrderByAggregateInput
 }
 
 export type ConversationScalarWhereWithAggregatesInput = {
@@ -297,6 +374,9 @@ export type ConversationScalarWhereWithAggregatesInput = {
   agentId?: Prisma.StringWithAggregatesFilter<"Conversation"> | string
   sessionId?: Prisma.StringWithAggregatesFilter<"Conversation"> | string
   folderId?: Prisma.StringNullableWithAggregatesFilter<"Conversation"> | string | null
+  tokenLimit?: Prisma.IntNullableWithAggregatesFilter<"Conversation"> | number | null
+  tokenUsed?: Prisma.IntNullableWithAggregatesFilter<"Conversation"> | number | null
+  tokenLeft?: Prisma.IntNullableWithAggregatesFilter<"Conversation"> | number | null
   archived?: Prisma.BoolWithAggregatesFilter<"Conversation"> | boolean
   lastUpdated?: Prisma.DateTimeWithAggregatesFilter<"Conversation"> | Date | string
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Conversation"> | Date | string
@@ -310,6 +390,9 @@ export type ConversationCreateInput = {
   agentId: string
   sessionId: string
   folderId?: string | null
+  tokenLimit?: number | null
+  tokenUsed?: number | null
+  tokenLeft?: number | null
   archived?: boolean
   lastUpdated?: Date | string
   createdAt?: Date | string
@@ -326,6 +409,9 @@ export type ConversationUncheckedCreateInput = {
   agentId: string
   sessionId: string
   folderId?: string | null
+  tokenLimit?: number | null
+  tokenUsed?: number | null
+  tokenLeft?: number | null
   archived?: boolean
   lastUpdated?: Date | string
   createdAt?: Date | string
@@ -340,6 +426,9 @@ export type ConversationUpdateInput = {
   agentId?: Prisma.StringFieldUpdateOperationsInput | string
   sessionId?: Prisma.StringFieldUpdateOperationsInput | string
   folderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  tokenUsed?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  tokenLeft?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   archived?: Prisma.BoolFieldUpdateOperationsInput | boolean
   lastUpdated?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -356,6 +445,9 @@ export type ConversationUncheckedUpdateInput = {
   agentId?: Prisma.StringFieldUpdateOperationsInput | string
   sessionId?: Prisma.StringFieldUpdateOperationsInput | string
   folderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  tokenUsed?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  tokenLeft?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   archived?: Prisma.BoolFieldUpdateOperationsInput | boolean
   lastUpdated?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -371,6 +463,9 @@ export type ConversationCreateManyInput = {
   agentId: string
   sessionId: string
   folderId?: string | null
+  tokenLimit?: number | null
+  tokenUsed?: number | null
+  tokenLeft?: number | null
   archived?: boolean
   lastUpdated?: Date | string
   createdAt?: Date | string
@@ -384,6 +479,9 @@ export type ConversationUpdateManyMutationInput = {
   agentId?: Prisma.StringFieldUpdateOperationsInput | string
   sessionId?: Prisma.StringFieldUpdateOperationsInput | string
   folderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  tokenUsed?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  tokenLeft?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   archived?: Prisma.BoolFieldUpdateOperationsInput | boolean
   lastUpdated?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -398,6 +496,9 @@ export type ConversationUncheckedUpdateManyInput = {
   agentId?: Prisma.StringFieldUpdateOperationsInput | string
   sessionId?: Prisma.StringFieldUpdateOperationsInput | string
   folderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  tokenUsed?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  tokenLeft?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   archived?: Prisma.BoolFieldUpdateOperationsInput | boolean
   lastUpdated?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -422,10 +523,19 @@ export type ConversationCountOrderByAggregateInput = {
   agentId?: Prisma.SortOrder
   sessionId?: Prisma.SortOrder
   folderId?: Prisma.SortOrder
+  tokenLimit?: Prisma.SortOrder
+  tokenUsed?: Prisma.SortOrder
+  tokenLeft?: Prisma.SortOrder
   archived?: Prisma.SortOrder
   lastUpdated?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+}
+
+export type ConversationAvgOrderByAggregateInput = {
+  tokenLimit?: Prisma.SortOrder
+  tokenUsed?: Prisma.SortOrder
+  tokenLeft?: Prisma.SortOrder
 }
 
 export type ConversationMaxOrderByAggregateInput = {
@@ -436,6 +546,9 @@ export type ConversationMaxOrderByAggregateInput = {
   agentId?: Prisma.SortOrder
   sessionId?: Prisma.SortOrder
   folderId?: Prisma.SortOrder
+  tokenLimit?: Prisma.SortOrder
+  tokenUsed?: Prisma.SortOrder
+  tokenLeft?: Prisma.SortOrder
   archived?: Prisma.SortOrder
   lastUpdated?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -450,10 +563,19 @@ export type ConversationMinOrderByAggregateInput = {
   agentId?: Prisma.SortOrder
   sessionId?: Prisma.SortOrder
   folderId?: Prisma.SortOrder
+  tokenLimit?: Prisma.SortOrder
+  tokenUsed?: Prisma.SortOrder
+  tokenLeft?: Prisma.SortOrder
   archived?: Prisma.SortOrder
   lastUpdated?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+}
+
+export type ConversationSumOrderByAggregateInput = {
+  tokenLimit?: Prisma.SortOrder
+  tokenUsed?: Prisma.SortOrder
+  tokenLeft?: Prisma.SortOrder
 }
 
 export type ConversationScalarRelationFilter = {
@@ -524,6 +646,9 @@ export type ConversationCreateWithoutUserInput = {
   agentId: string
   sessionId: string
   folderId?: string | null
+  tokenLimit?: number | null
+  tokenUsed?: number | null
+  tokenLeft?: number | null
   archived?: boolean
   lastUpdated?: Date | string
   createdAt?: Date | string
@@ -538,6 +663,9 @@ export type ConversationUncheckedCreateWithoutUserInput = {
   agentId: string
   sessionId: string
   folderId?: string | null
+  tokenLimit?: number | null
+  tokenUsed?: number | null
+  tokenLeft?: number | null
   archived?: boolean
   lastUpdated?: Date | string
   createdAt?: Date | string
@@ -582,6 +710,9 @@ export type ConversationScalarWhereInput = {
   agentId?: Prisma.StringFilter<"Conversation"> | string
   sessionId?: Prisma.StringFilter<"Conversation"> | string
   folderId?: Prisma.StringNullableFilter<"Conversation"> | string | null
+  tokenLimit?: Prisma.IntNullableFilter<"Conversation"> | number | null
+  tokenUsed?: Prisma.IntNullableFilter<"Conversation"> | number | null
+  tokenLeft?: Prisma.IntNullableFilter<"Conversation"> | number | null
   archived?: Prisma.BoolFilter<"Conversation"> | boolean
   lastUpdated?: Prisma.DateTimeFilter<"Conversation"> | Date | string
   createdAt?: Prisma.DateTimeFilter<"Conversation"> | Date | string
@@ -595,6 +726,9 @@ export type ConversationCreateWithoutMessagesInput = {
   agentId: string
   sessionId: string
   folderId?: string | null
+  tokenLimit?: number | null
+  tokenUsed?: number | null
+  tokenLeft?: number | null
   archived?: boolean
   lastUpdated?: Date | string
   createdAt?: Date | string
@@ -610,6 +744,9 @@ export type ConversationUncheckedCreateWithoutMessagesInput = {
   agentId: string
   sessionId: string
   folderId?: string | null
+  tokenLimit?: number | null
+  tokenUsed?: number | null
+  tokenLeft?: number | null
   archived?: boolean
   lastUpdated?: Date | string
   createdAt?: Date | string
@@ -639,6 +776,9 @@ export type ConversationUpdateWithoutMessagesInput = {
   agentId?: Prisma.StringFieldUpdateOperationsInput | string
   sessionId?: Prisma.StringFieldUpdateOperationsInput | string
   folderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  tokenUsed?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  tokenLeft?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   archived?: Prisma.BoolFieldUpdateOperationsInput | boolean
   lastUpdated?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -654,6 +794,9 @@ export type ConversationUncheckedUpdateWithoutMessagesInput = {
   agentId?: Prisma.StringFieldUpdateOperationsInput | string
   sessionId?: Prisma.StringFieldUpdateOperationsInput | string
   folderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  tokenUsed?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  tokenLeft?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   archived?: Prisma.BoolFieldUpdateOperationsInput | boolean
   lastUpdated?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -667,6 +810,9 @@ export type ConversationCreateManyUserInput = {
   agentId: string
   sessionId: string
   folderId?: string | null
+  tokenLimit?: number | null
+  tokenUsed?: number | null
+  tokenLeft?: number | null
   archived?: boolean
   lastUpdated?: Date | string
   createdAt?: Date | string
@@ -680,6 +826,9 @@ export type ConversationUpdateWithoutUserInput = {
   agentId?: Prisma.StringFieldUpdateOperationsInput | string
   sessionId?: Prisma.StringFieldUpdateOperationsInput | string
   folderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  tokenUsed?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  tokenLeft?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   archived?: Prisma.BoolFieldUpdateOperationsInput | boolean
   lastUpdated?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -694,6 +843,9 @@ export type ConversationUncheckedUpdateWithoutUserInput = {
   agentId?: Prisma.StringFieldUpdateOperationsInput | string
   sessionId?: Prisma.StringFieldUpdateOperationsInput | string
   folderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  tokenUsed?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  tokenLeft?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   archived?: Prisma.BoolFieldUpdateOperationsInput | boolean
   lastUpdated?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -708,6 +860,9 @@ export type ConversationUncheckedUpdateManyWithoutUserInput = {
   agentId?: Prisma.StringFieldUpdateOperationsInput | string
   sessionId?: Prisma.StringFieldUpdateOperationsInput | string
   folderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  tokenUsed?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  tokenLeft?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   archived?: Prisma.BoolFieldUpdateOperationsInput | boolean
   lastUpdated?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -753,6 +908,9 @@ export type ConversationSelect<ExtArgs extends runtime.Types.Extensions.Internal
   agentId?: boolean
   sessionId?: boolean
   folderId?: boolean
+  tokenLimit?: boolean
+  tokenUsed?: boolean
+  tokenLeft?: boolean
   archived?: boolean
   lastUpdated?: boolean
   createdAt?: boolean
@@ -770,6 +928,9 @@ export type ConversationSelectCreateManyAndReturn<ExtArgs extends runtime.Types.
   agentId?: boolean
   sessionId?: boolean
   folderId?: boolean
+  tokenLimit?: boolean
+  tokenUsed?: boolean
+  tokenLeft?: boolean
   archived?: boolean
   lastUpdated?: boolean
   createdAt?: boolean
@@ -785,6 +946,9 @@ export type ConversationSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.
   agentId?: boolean
   sessionId?: boolean
   folderId?: boolean
+  tokenLimit?: boolean
+  tokenUsed?: boolean
+  tokenLeft?: boolean
   archived?: boolean
   lastUpdated?: boolean
   createdAt?: boolean
@@ -800,13 +964,16 @@ export type ConversationSelectScalar = {
   agentId?: boolean
   sessionId?: boolean
   folderId?: boolean
+  tokenLimit?: boolean
+  tokenUsed?: boolean
+  tokenLeft?: boolean
   archived?: boolean
   lastUpdated?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type ConversationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "email" | "title" | "agentId" | "sessionId" | "folderId" | "archived" | "lastUpdated" | "createdAt" | "updatedAt", ExtArgs["result"]["conversation"]>
+export type ConversationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "email" | "title" | "agentId" | "sessionId" | "folderId" | "tokenLimit" | "tokenUsed" | "tokenLeft" | "archived" | "lastUpdated" | "createdAt" | "updatedAt", ExtArgs["result"]["conversation"]>
 export type ConversationInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   messages?: boolean | Prisma.Conversation$messagesArgs<ExtArgs>
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -833,6 +1000,9 @@ export type $ConversationPayload<ExtArgs extends runtime.Types.Extensions.Intern
     agentId: string
     sessionId: string
     folderId: string | null
+    tokenLimit: number | null
+    tokenUsed: number | null
+    tokenLeft: number | null
     archived: boolean
     lastUpdated: Date
     createdAt: Date
@@ -1269,6 +1439,9 @@ export interface ConversationFieldRefs {
   readonly agentId: Prisma.FieldRef<"Conversation", 'String'>
   readonly sessionId: Prisma.FieldRef<"Conversation", 'String'>
   readonly folderId: Prisma.FieldRef<"Conversation", 'String'>
+  readonly tokenLimit: Prisma.FieldRef<"Conversation", 'Int'>
+  readonly tokenUsed: Prisma.FieldRef<"Conversation", 'Int'>
+  readonly tokenLeft: Prisma.FieldRef<"Conversation", 'Int'>
   readonly archived: Prisma.FieldRef<"Conversation", 'Boolean'>
   readonly lastUpdated: Prisma.FieldRef<"Conversation", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"Conversation", 'DateTime'>

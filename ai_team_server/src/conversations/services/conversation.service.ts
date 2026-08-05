@@ -11,6 +11,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import {
   CreateConversationDto,
   UpdateConversationDto,
+  UpdateConversationTokensDto,
   AddMessageDto,
 } from '../schemas/conversation.schema';
 
@@ -339,6 +340,48 @@ export class ConversationService {
       )
         throw error;
       this.handlePrismaError(error, 'updateConversation');
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Update a conversation's token counters
+  // ─────────────────────────────────────────────────────────────
+  // Keyed on the conversation ID alone — it is the primary key, so it already
+  // identifies the row without a user lookup.
+  async updateTokens(
+    conversationId: string,
+    data: UpdateConversationTokensDto,
+  ): Promise<Conversation> {
+    try {
+      const conversation = await this.prisma.conversation.findUnique({
+        where: { id: conversationId },
+        select: { id: true },
+      });
+
+      if (!conversation) {
+        throw new NotFoundException({
+          statusCode: 404,
+          error: 'Not Found',
+          message: `Conversation with ID "${conversationId}" not found.`,
+          hint: 'Ensure the conversation ID is correct.',
+        });
+      }
+
+      // `lastUpdated` is deliberately not touched: it drives chat-list ordering,
+      // and token accounting is bookkeeping rather than user activity.
+      // Messages are not included either — this is a hot path and the caller
+      // only needs the counters back.
+      return this.prisma.conversation.update({
+        where: { id: conversationId },
+        data,
+      });
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      )
+        throw error;
+      this.handlePrismaError(error, 'updateTokens');
     }
   }
 

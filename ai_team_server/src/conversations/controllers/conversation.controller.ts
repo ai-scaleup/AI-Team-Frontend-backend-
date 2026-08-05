@@ -26,6 +26,8 @@ import {
   createConversationSchema,
   UpdateConversationDto,
   updateConversationSchema,
+  UpdateConversationTokensDto,
+  updateConversationTokensSchema,
   AddMessageDto,
   addMessageSchema,
 } from '../schemas/conversation.schema';
@@ -156,6 +158,58 @@ export class ConversationController {
       oauthId,
       conversationId,
       email,
+    );
+  }
+
+  // Update the token counters for a conversation.
+  // Conversation IDs are globally unique, so no user identifier is needed.
+  // MUST stay declared above PATCH :oauthId/:conversationId — that route also
+  // matches a three-segment path and would otherwise swallow this one.
+  @Patch(':conversationId/tokens')
+  @ApiOperation({
+    summary: 'Update token counters for a conversation',
+    description:
+      'Sets any combination of tokenLimit, tokenUsed and tokenLeft, keyed on the conversation ID alone. Omitted fields are left unchanged; an explicit null clears the field. Does not bump lastUpdated, so it will not reorder the chat list. Responds with the conversation without its messages.',
+  })
+  @ApiParam({ name: 'conversationId', example: 'chat_1765435414978' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      minProperties: 1,
+      properties: {
+        tokenLimit: {
+          type: 'integer',
+          nullable: true,
+          minimum: 0,
+          example: 100000,
+          description: 'Total tokens allotted to this conversation.',
+        },
+        tokenUsed: {
+          type: 'integer',
+          nullable: true,
+          minimum: 0,
+          example: 2450,
+          description: 'Tokens consumed so far.',
+        },
+        tokenLeft: {
+          type: 'integer',
+          nullable: true,
+          minimum: 0,
+          example: 97550,
+          description: 'Tokens remaining.',
+        },
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Token counters updated' })
+  updateTokens(
+    @Param('conversationId') conversationId: string,
+    @Body(new ZodValidationPipe(updateConversationTokensSchema))
+    updateTokensDto: UpdateConversationTokensDto,
+  ) {
+    return this.conversationService.updateTokens(
+      conversationId,
+      updateTokensDto,
     );
   }
 

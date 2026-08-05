@@ -289,6 +289,9 @@ model Conversation {
   agentId     String
   sessionId   String
   folderId    String?
+  tokenLimit  Int?
+  tokenUsed   Int?
+  tokenLeft   Int?
   archived    Boolean   @default(false)
   lastUpdated DateTime  @default(now())
   createdAt   DateTime  @default(now())
