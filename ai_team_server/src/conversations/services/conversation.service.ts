@@ -204,10 +204,28 @@ export class ConversationService {
         time: msg.time || this.getCurrentTime(),
       }));
 
+      // A new chat opens on the user's assigned allowance. The limit belongs to
+      // the user, so a conversation started after an admin set it must not be
+      // the one chat that runs unmetered. tokenUsed starts at 0 and tokenLeft
+      // at the full limit, which keeps the three counters consistent from the
+      // first message instead of only once something writes them.
+      //
+      // Only the create branch gets these: an upsert that lands on an existing
+      // conversation would otherwise wipe usage that has already accrued.
+      const inheritedTokens =
+        user.tokenLimit === null
+          ? {}
+          : {
+              tokenLimit: user.tokenLimit,
+              tokenUsed: 0,
+              tokenLeft: user.tokenLimit,
+            };
+
       const conversation = await this.prisma.conversation.upsert({
         where: { id: data.id },
         create: {
           ...conversationData,
+          ...inheritedTokens,
           userId: user.id,
           messages: {
             create: messagesWithTime,
@@ -311,6 +329,37 @@ export class ConversationService {
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
       this.handlePrismaError(error, 'findConversationById');
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Get a single conversation by ID alone
+  // ─────────────────────────────────────────────────────────────
+  // Keyed on the conversation ID only — it is the primary key, so it already
+  // identifies the row without resolving a user first, the same way
+  // updateTokens works.
+  async findConversationByConversationId(
+    conversationId: string,
+  ): Promise<Conversation> {
+    try {
+      const conversation = await this.prisma.conversation.findUnique({
+        where: { id: conversationId },
+        include: { messages: { orderBy: { createdAt: 'asc' } } },
+      });
+
+      if (!conversation) {
+        throw new NotFoundException({
+          statusCode: 404,
+          error: 'Not Found',
+          message: `Conversation with ID "${conversationId}" not found.`,
+          hint: 'Ensure the conversation ID is correct.',
+        });
+      }
+
+      return conversation;
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      this.handlePrismaError(error, 'findConversationByConversationId');
     }
   }
 
@@ -429,17 +478,27 @@ export class ConversationService {
       //
       // lastUpdated is deliberately untouched, matching updateTokens: an admin
       // assigning quota should not reshuffle the user's chat list.
-      const conversationsUpdated =
+      //
+      // The limit is also stored on the user, in the same transaction. That
+      // copy is what new conversations inherit, so writing only the rows that
+      // exist today would leave tomorrow's chats unlimited — and would drop the
+      // assignment entirely for a user who has not started a chat yet.
+      const [, conversationsUpdated] = await this.prisma.$transaction([
+        this.prisma.user.update({
+          where: { id: user.id },
+          data: { tokenLimit },
+        }),
         tokenLimit === null
-          ? await this.prisma.$executeRaw`
+          ? this.prisma.$executeRaw`
               UPDATE "Conversation"
               SET "tokenLimit" = NULL, "tokenLeft" = NULL
               WHERE "userId" = ${user.id}`
-          : await this.prisma.$executeRaw`
+          : this.prisma.$executeRaw`
               UPDATE "Conversation"
               SET "tokenLimit" = ${tokenLimit},
                   "tokenLeft" = GREATEST(${tokenLimit} - COALESCE("tokenUsed", 0), 0)
-              WHERE "userId" = ${user.id}`;
+              WHERE "userId" = ${user.id}`,
+      ]);
 
       return {
         oauthId: user.oauthId,

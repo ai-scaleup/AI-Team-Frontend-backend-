@@ -55,6 +55,8 @@ export class ConversationController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Create a conversation for a user by OAuth ID or email',
+    description:
+      'Creates the conversation and stamps it with the user’s token limit: tokenLimit and tokenLeft are set to the user’s assigned limit and tokenUsed to 0. A user with no limit assigned gets a conversation with no limit. Token counters are not part of the request body — set them per conversation with PATCH /conversations/{conversationId}/tokens, or per user with PATCH /conversations/user/{email}/token-limit. Re-posting an existing conversation ID updates it and leaves its counters alone.',
   })
   @ApiParam({
     name: 'oauthId',
@@ -131,6 +133,25 @@ export class ConversationController {
       );
     }
     return this.conversationService.findAllConversations(oauthId, email);
+  }
+
+  // Get a single conversation by conversation ID alone.
+  // Conversation IDs are globally unique, so no user identifier is needed.
+  // The literal 'by-id' prefix keeps this off the ':oauthId' shape, and it MUST
+  // stay declared above GET :oauthId/:conversationId — that route also matches
+  // a two-segment path and would otherwise swallow this one.
+  @Get('by-id/:conversationId')
+  @ApiOperation({
+    summary: 'Get one conversation by conversation ID',
+    description:
+      'Looks the conversation up on its ID alone, with no user identifier, and returns it with its messages ordered oldest first.',
+  })
+  @ApiParam({ name: 'conversationId', example: 'chat_1765435414978' })
+  @ApiOkResponse({ description: 'Conversation returned' })
+  findOneById(@Param('conversationId') conversationId: string) {
+    return this.conversationService.findConversationByConversationId(
+      conversationId,
+    );
   }
 
   // Get a single conversation by ID
@@ -223,7 +244,7 @@ export class ConversationController {
   @ApiOperation({
     summary: 'Set one token limit across all of a user’s conversations',
     description:
-      'Admin bulk assignment, keyed on email: applies a single tokenLimit to every conversation owned by that user, archived ones included. tokenLeft is recalculated per conversation as tokenLimit minus tokenUsed (never below 0); passing null clears both. Does not bump lastUpdated, so the chat list keeps its order. Responds with the resolved user and the number of conversations updated.',
+      'Admin bulk assignment, keyed on email: applies a single tokenLimit to every conversation owned by that user, archived ones included, and stores it on the user so every conversation they create afterwards starts on the same limit. tokenLeft is recalculated per conversation as tokenLimit minus tokenUsed (never below 0); passing null clears both, and clears the limit for future conversations too. Works on a user with no conversations yet — conversationsUpdated is 0 but the limit still applies to their first chat. Does not bump lastUpdated, so the chat list keeps its order. Responds with the resolved user and the number of conversations updated.',
   })
   @ApiParam({
     name: 'email',

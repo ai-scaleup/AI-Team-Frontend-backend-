@@ -453,13 +453,21 @@ export class UserService {
           conversations > 0 &&
           withLimit === conversations &&
           limits?._min.tokenLimit === limits?._max.tokenLimit;
+        const uniformLimit = isUniform
+          ? (limits?._min.tokenLimit ?? null)
+          : null;
 
         return {
           ...user,
           conversationTokenLimit: {
             conversations,
             withLimit,
-            tokenLimit: isUniform ? (limits?._min.tokenLimit ?? null) : null,
+            // The limit stored on the user is the one new conversations
+            // inherit, so it is what this row reports — including for a user
+            // who has no chats yet, where there is nothing to aggregate. The
+            // per-conversation aggregate is only a fallback for limits set
+            // directly on conversations, before any user-level assignment.
+            tokenLimit: user.tokenLimit ?? uniformLimit,
             mixed: withLimit > 0 && !isUniform,
           },
           usage: {

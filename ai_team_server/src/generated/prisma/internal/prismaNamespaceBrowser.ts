@@ -95,6 +95,7 @@ export const UserScalarFieldEnum = {
   email: 'email',
   oauthId: 'oauthId',
   username: 'username',
+  tokenLimit: 'tokenLimit',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

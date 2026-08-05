@@ -20,8 +20,18 @@ export type UserModel = runtime.Types.Result.DefaultSelection<Prisma.$UserPayloa
 
 export type AggregateUser = {
   _count: UserCountAggregateOutputType | null
+  _avg: UserAvgAggregateOutputType | null
+  _sum: UserSumAggregateOutputType | null
   _min: UserMinAggregateOutputType | null
   _max: UserMaxAggregateOutputType | null
+}
+
+export type UserAvgAggregateOutputType = {
+  tokenLimit: number | null
+}
+
+export type UserSumAggregateOutputType = {
+  tokenLimit: number | null
 }
 
 export type UserMinAggregateOutputType = {
@@ -29,6 +39,7 @@ export type UserMinAggregateOutputType = {
   email: string | null
   oauthId: string | null
   username: string | null
+  tokenLimit: number | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -38,6 +49,7 @@ export type UserMaxAggregateOutputType = {
   email: string | null
   oauthId: string | null
   username: string | null
+  tokenLimit: number | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -47,17 +59,27 @@ export type UserCountAggregateOutputType = {
   email: number
   oauthId: number
   username: number
+  tokenLimit: number
   createdAt: number
   updatedAt: number
   _all: number
 }
 
 
+export type UserAvgAggregateInputType = {
+  tokenLimit?: true
+}
+
+export type UserSumAggregateInputType = {
+  tokenLimit?: true
+}
+
 export type UserMinAggregateInputType = {
   id?: true
   email?: true
   oauthId?: true
   username?: true
+  tokenLimit?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -67,6 +89,7 @@ export type UserMaxAggregateInputType = {
   email?: true
   oauthId?: true
   username?: true
+  tokenLimit?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -76,6 +99,7 @@ export type UserCountAggregateInputType = {
   email?: true
   oauthId?: true
   username?: true
+  tokenLimit?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -119,6 +143,18 @@ export type UserAggregateArgs<ExtArgs extends runtime.Types.Extensions.InternalA
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
+   * Select which fields to average
+  **/
+  _avg?: UserAvgAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
+   * Select which fields to sum
+  **/
+  _sum?: UserSumAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
    * Select which fields to find the minimum value
   **/
   _min?: UserMinAggregateInputType
@@ -149,6 +185,8 @@ export type UserGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalArg
   take?: number
   skip?: number
   _count?: UserCountAggregateInputType | true
+  _avg?: UserAvgAggregateInputType
+  _sum?: UserSumAggregateInputType
   _min?: UserMinAggregateInputType
   _max?: UserMaxAggregateInputType
 }
@@ -158,9 +196,12 @@ export type UserGroupByOutputType = {
   email: string
   oauthId: string
   username: string | null
+  tokenLimit: number | null
   createdAt: Date
   updatedAt: Date
   _count: UserCountAggregateOutputType | null
+  _avg: UserAvgAggregateOutputType | null
+  _sum: UserSumAggregateOutputType | null
   _min: UserMinAggregateOutputType | null
   _max: UserMaxAggregateOutputType | null
 }
@@ -188,6 +229,7 @@ export type UserWhereInput = {
   email?: Prisma.StringFilter<"User"> | string
   oauthId?: Prisma.StringFilter<"User"> | string
   username?: Prisma.StringNullableFilter<"User"> | string | null
+  tokenLimit?: Prisma.IntNullableFilter<"User"> | number | null
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"User"> | Date | string
   agents?: Prisma.AssignedAgentListRelationFilter
@@ -206,6 +248,7 @@ export type UserOrderByWithRelationInput = {
   email?: Prisma.SortOrder
   oauthId?: Prisma.SortOrder
   username?: Prisma.SortOrderInput | Prisma.SortOrder
+  tokenLimit?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   agents?: Prisma.AssignedAgentOrderByRelationAggregateInput
@@ -227,6 +270,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   OR?: Prisma.UserWhereInput[]
   NOT?: Prisma.UserWhereInput | Prisma.UserWhereInput[]
   username?: Prisma.StringNullableFilter<"User"> | string | null
+  tokenLimit?: Prisma.IntNullableFilter<"User"> | number | null
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"User"> | Date | string
   agents?: Prisma.AssignedAgentListRelationFilter
@@ -245,11 +289,14 @@ export type UserOrderByWithAggregationInput = {
   email?: Prisma.SortOrder
   oauthId?: Prisma.SortOrder
   username?: Prisma.SortOrderInput | Prisma.SortOrder
+  tokenLimit?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.UserCountOrderByAggregateInput
+  _avg?: Prisma.UserAvgOrderByAggregateInput
   _max?: Prisma.UserMaxOrderByAggregateInput
   _min?: Prisma.UserMinOrderByAggregateInput
+  _sum?: Prisma.UserSumOrderByAggregateInput
 }
 
 export type UserScalarWhereWithAggregatesInput = {
@@ -260,6 +307,7 @@ export type UserScalarWhereWithAggregatesInput = {
   email?: Prisma.StringWithAggregatesFilter<"User"> | string
   oauthId?: Prisma.StringWithAggregatesFilter<"User"> | string
   username?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
+  tokenLimit?: Prisma.IntNullableWithAggregatesFilter<"User"> | number | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"User"> | Date | string
 }
@@ -269,6 +317,7 @@ export type UserCreateInput = {
   email: string
   oauthId: string
   username?: string | null
+  tokenLimit?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   agents?: Prisma.AssignedAgentCreateNestedManyWithoutUserInput
@@ -287,6 +336,7 @@ export type UserUncheckedCreateInput = {
   email: string
   oauthId: string
   username?: string | null
+  tokenLimit?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   agents?: Prisma.AssignedAgentUncheckedCreateNestedManyWithoutUserInput
@@ -305,6 +355,7 @@ export type UserUpdateInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   oauthId?: Prisma.StringFieldUpdateOperationsInput | string
   username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   agents?: Prisma.AssignedAgentUpdateManyWithoutUserNestedInput
@@ -323,6 +374,7 @@ export type UserUncheckedUpdateInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   oauthId?: Prisma.StringFieldUpdateOperationsInput | string
   username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   agents?: Prisma.AssignedAgentUncheckedUpdateManyWithoutUserNestedInput
@@ -341,6 +393,7 @@ export type UserCreateManyInput = {
   email: string
   oauthId: string
   username?: string | null
+  tokenLimit?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -350,6 +403,7 @@ export type UserUpdateManyMutationInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   oauthId?: Prisma.StringFieldUpdateOperationsInput | string
   username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -359,6 +413,7 @@ export type UserUncheckedUpdateManyInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   oauthId?: Prisma.StringFieldUpdateOperationsInput | string
   username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -368,8 +423,13 @@ export type UserCountOrderByAggregateInput = {
   email?: Prisma.SortOrder
   oauthId?: Prisma.SortOrder
   username?: Prisma.SortOrder
+  tokenLimit?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+}
+
+export type UserAvgOrderByAggregateInput = {
+  tokenLimit?: Prisma.SortOrder
 }
 
 export type UserMaxOrderByAggregateInput = {
@@ -377,6 +437,7 @@ export type UserMaxOrderByAggregateInput = {
   email?: Prisma.SortOrder
   oauthId?: Prisma.SortOrder
   username?: Prisma.SortOrder
+  tokenLimit?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -386,8 +447,13 @@ export type UserMinOrderByAggregateInput = {
   email?: Prisma.SortOrder
   oauthId?: Prisma.SortOrder
   username?: Prisma.SortOrder
+  tokenLimit?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+}
+
+export type UserSumOrderByAggregateInput = {
+  tokenLimit?: Prisma.SortOrder
 }
 
 export type UserScalarRelationFilter = {
@@ -401,6 +467,14 @@ export type StringFieldUpdateOperationsInput = {
 
 export type NullableStringFieldUpdateOperationsInput = {
   set?: string | null
+}
+
+export type NullableIntFieldUpdateOperationsInput = {
+  set?: number | null
+  increment?: number
+  decrement?: number
+  multiply?: number
+  divide?: number
 }
 
 export type DateTimeFieldUpdateOperationsInput = {
@@ -538,6 +612,7 @@ export type UserCreateWithoutPreferencesInput = {
   email: string
   oauthId: string
   username?: string | null
+  tokenLimit?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   agents?: Prisma.AssignedAgentCreateNestedManyWithoutUserInput
@@ -555,6 +630,7 @@ export type UserUncheckedCreateWithoutPreferencesInput = {
   email: string
   oauthId: string
   username?: string | null
+  tokenLimit?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   agents?: Prisma.AssignedAgentUncheckedCreateNestedManyWithoutUserInput
@@ -588,6 +664,7 @@ export type UserUpdateWithoutPreferencesInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   oauthId?: Prisma.StringFieldUpdateOperationsInput | string
   username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   agents?: Prisma.AssignedAgentUpdateManyWithoutUserNestedInput
@@ -605,6 +682,7 @@ export type UserUncheckedUpdateWithoutPreferencesInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   oauthId?: Prisma.StringFieldUpdateOperationsInput | string
   username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   agents?: Prisma.AssignedAgentUncheckedUpdateManyWithoutUserNestedInput
@@ -622,6 +700,7 @@ export type UserCreateWithoutAgentsInput = {
   email: string
   oauthId: string
   username?: string | null
+  tokenLimit?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   groups?: Prisma.AssignedGroupCreateNestedManyWithoutUserInput
@@ -639,6 +718,7 @@ export type UserUncheckedCreateWithoutAgentsInput = {
   email: string
   oauthId: string
   username?: string | null
+  tokenLimit?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   groups?: Prisma.AssignedGroupUncheckedCreateNestedManyWithoutUserInput
@@ -672,6 +752,7 @@ export type UserUpdateWithoutAgentsInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   oauthId?: Prisma.StringFieldUpdateOperationsInput | string
   username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   groups?: Prisma.AssignedGroupUpdateManyWithoutUserNestedInput
@@ -689,6 +770,7 @@ export type UserUncheckedUpdateWithoutAgentsInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   oauthId?: Prisma.StringFieldUpdateOperationsInput | string
   username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   groups?: Prisma.AssignedGroupUncheckedUpdateManyWithoutUserNestedInput
@@ -706,6 +788,7 @@ export type UserCreateWithoutGroupsInput = {
   email: string
   oauthId: string
   username?: string | null
+  tokenLimit?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   agents?: Prisma.AssignedAgentCreateNestedManyWithoutUserInput
@@ -723,6 +806,7 @@ export type UserUncheckedCreateWithoutGroupsInput = {
   email: string
   oauthId: string
   username?: string | null
+  tokenLimit?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   agents?: Prisma.AssignedAgentUncheckedCreateNestedManyWithoutUserInput
@@ -756,6 +840,7 @@ export type UserUpdateWithoutGroupsInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   oauthId?: Prisma.StringFieldUpdateOperationsInput | string
   username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   agents?: Prisma.AssignedAgentUpdateManyWithoutUserNestedInput
@@ -773,6 +858,7 @@ export type UserUncheckedUpdateWithoutGroupsInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   oauthId?: Prisma.StringFieldUpdateOperationsInput | string
   username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   agents?: Prisma.AssignedAgentUncheckedUpdateManyWithoutUserNestedInput
@@ -790,6 +876,7 @@ export type UserCreateWithoutConversationsInput = {
   email: string
   oauthId: string
   username?: string | null
+  tokenLimit?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   agents?: Prisma.AssignedAgentCreateNestedManyWithoutUserInput
@@ -807,6 +894,7 @@ export type UserUncheckedCreateWithoutConversationsInput = {
   email: string
   oauthId: string
   username?: string | null
+  tokenLimit?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   agents?: Prisma.AssignedAgentUncheckedCreateNestedManyWithoutUserInput
@@ -840,6 +928,7 @@ export type UserUpdateWithoutConversationsInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   oauthId?: Prisma.StringFieldUpdateOperationsInput | string
   username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   agents?: Prisma.AssignedAgentUpdateManyWithoutUserNestedInput
@@ -857,6 +946,7 @@ export type UserUncheckedUpdateWithoutConversationsInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   oauthId?: Prisma.StringFieldUpdateOperationsInput | string
   username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   agents?: Prisma.AssignedAgentUncheckedUpdateManyWithoutUserNestedInput
@@ -874,6 +964,7 @@ export type UserCreateWithoutTokenUsageInput = {
   email: string
   oauthId: string
   username?: string | null
+  tokenLimit?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   agents?: Prisma.AssignedAgentCreateNestedManyWithoutUserInput
@@ -891,6 +982,7 @@ export type UserUncheckedCreateWithoutTokenUsageInput = {
   email: string
   oauthId: string
   username?: string | null
+  tokenLimit?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   agents?: Prisma.AssignedAgentUncheckedCreateNestedManyWithoutUserInput
@@ -924,6 +1016,7 @@ export type UserUpdateWithoutTokenUsageInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   oauthId?: Prisma.StringFieldUpdateOperationsInput | string
   username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   agents?: Prisma.AssignedAgentUpdateManyWithoutUserNestedInput
@@ -941,6 +1034,7 @@ export type UserUncheckedUpdateWithoutTokenUsageInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   oauthId?: Prisma.StringFieldUpdateOperationsInput | string
   username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   agents?: Prisma.AssignedAgentUncheckedUpdateManyWithoutUserNestedInput
@@ -958,6 +1052,7 @@ export type UserCreateWithoutMembershipsInput = {
   email: string
   oauthId: string
   username?: string | null
+  tokenLimit?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   agents?: Prisma.AssignedAgentCreateNestedManyWithoutUserInput
@@ -975,6 +1070,7 @@ export type UserUncheckedCreateWithoutMembershipsInput = {
   email: string
   oauthId: string
   username?: string | null
+  tokenLimit?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   agents?: Prisma.AssignedAgentUncheckedCreateNestedManyWithoutUserInput
@@ -1008,6 +1104,7 @@ export type UserUpdateWithoutMembershipsInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   oauthId?: Prisma.StringFieldUpdateOperationsInput | string
   username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   agents?: Prisma.AssignedAgentUpdateManyWithoutUserNestedInput
@@ -1025,6 +1122,7 @@ export type UserUncheckedUpdateWithoutMembershipsInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   oauthId?: Prisma.StringFieldUpdateOperationsInput | string
   username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   agents?: Prisma.AssignedAgentUncheckedUpdateManyWithoutUserNestedInput
@@ -1042,6 +1140,7 @@ export type UserCreateWithoutDailyUsageInput = {
   email: string
   oauthId: string
   username?: string | null
+  tokenLimit?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   agents?: Prisma.AssignedAgentCreateNestedManyWithoutUserInput
@@ -1059,6 +1158,7 @@ export type UserUncheckedCreateWithoutDailyUsageInput = {
   email: string
   oauthId: string
   username?: string | null
+  tokenLimit?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   agents?: Prisma.AssignedAgentUncheckedCreateNestedManyWithoutUserInput
@@ -1092,6 +1192,7 @@ export type UserUpdateWithoutDailyUsageInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   oauthId?: Prisma.StringFieldUpdateOperationsInput | string
   username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   agents?: Prisma.AssignedAgentUpdateManyWithoutUserNestedInput
@@ -1109,6 +1210,7 @@ export type UserUncheckedUpdateWithoutDailyUsageInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   oauthId?: Prisma.StringFieldUpdateOperationsInput | string
   username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   agents?: Prisma.AssignedAgentUncheckedUpdateManyWithoutUserNestedInput
@@ -1126,6 +1228,7 @@ export type UserCreateWithoutStopLogsInput = {
   email: string
   oauthId: string
   username?: string | null
+  tokenLimit?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   agents?: Prisma.AssignedAgentCreateNestedManyWithoutUserInput
@@ -1143,6 +1246,7 @@ export type UserUncheckedCreateWithoutStopLogsInput = {
   email: string
   oauthId: string
   username?: string | null
+  tokenLimit?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   agents?: Prisma.AssignedAgentUncheckedCreateNestedManyWithoutUserInput
@@ -1176,6 +1280,7 @@ export type UserUpdateWithoutStopLogsInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   oauthId?: Prisma.StringFieldUpdateOperationsInput | string
   username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   agents?: Prisma.AssignedAgentUpdateManyWithoutUserNestedInput
@@ -1193,6 +1298,7 @@ export type UserUncheckedUpdateWithoutStopLogsInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   oauthId?: Prisma.StringFieldUpdateOperationsInput | string
   username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   agents?: Prisma.AssignedAgentUncheckedUpdateManyWithoutUserNestedInput
@@ -1210,6 +1316,7 @@ export type UserCreateWithoutAlertsInput = {
   email: string
   oauthId: string
   username?: string | null
+  tokenLimit?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   agents?: Prisma.AssignedAgentCreateNestedManyWithoutUserInput
@@ -1227,6 +1334,7 @@ export type UserUncheckedCreateWithoutAlertsInput = {
   email: string
   oauthId: string
   username?: string | null
+  tokenLimit?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   agents?: Prisma.AssignedAgentUncheckedCreateNestedManyWithoutUserInput
@@ -1260,6 +1368,7 @@ export type UserUpdateWithoutAlertsInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   oauthId?: Prisma.StringFieldUpdateOperationsInput | string
   username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   agents?: Prisma.AssignedAgentUpdateManyWithoutUserNestedInput
@@ -1277,6 +1386,7 @@ export type UserUncheckedUpdateWithoutAlertsInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   oauthId?: Prisma.StringFieldUpdateOperationsInput | string
   username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokenLimit?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   agents?: Prisma.AssignedAgentUncheckedUpdateManyWithoutUserNestedInput
@@ -1397,6 +1507,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   email?: boolean
   oauthId?: boolean
   username?: boolean
+  tokenLimit?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   agents?: boolean | Prisma.User$agentsArgs<ExtArgs>
@@ -1416,6 +1527,7 @@ export type UserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   email?: boolean
   oauthId?: boolean
   username?: boolean
+  tokenLimit?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["user"]>
@@ -1425,6 +1537,7 @@ export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   email?: boolean
   oauthId?: boolean
   username?: boolean
+  tokenLimit?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["user"]>
@@ -1434,11 +1547,12 @@ export type UserSelectScalar = {
   email?: boolean
   oauthId?: boolean
   username?: boolean
+  tokenLimit?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "email" | "oauthId" | "username" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
+export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "email" | "oauthId" | "username" | "tokenLimit" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
 export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   agents?: boolean | Prisma.User$agentsArgs<ExtArgs>
   groups?: boolean | Prisma.User$groupsArgs<ExtArgs>
@@ -1472,6 +1586,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     email: string
     oauthId: string
     username: string | null
+    tokenLimit: number | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["user"]>
@@ -1910,6 +2025,7 @@ export interface UserFieldRefs {
   readonly email: Prisma.FieldRef<"User", 'String'>
   readonly oauthId: Prisma.FieldRef<"User", 'String'>
   readonly username: Prisma.FieldRef<"User", 'String'>
+  readonly tokenLimit: Prisma.FieldRef<"User", 'Int'>
   readonly createdAt: Prisma.FieldRef<"User", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"User", 'DateTime'>
 }
