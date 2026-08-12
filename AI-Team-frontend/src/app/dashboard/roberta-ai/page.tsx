@@ -40,6 +40,8 @@ import { useUser } from "@clerk/nextjs"
 import { UserPreferences, UserPreference, AgentName } from "@/types/preferences"
 import { userPreferenceService } from "@/services/preferenceService"
 import { conversationService } from "@/services/conversationService"
+import ConversationIdBadge from "@/components/ui/ConversationIdBadge"
+import ConversationTokensBadge from "@/components/ui/ConversationTokensBadge"
 import { Conversation, Message as ApiMessage, CreateConversationDto } from "@/types/conversation"
 import { extractFileContent } from "@/utils/fileExtraction"
 
@@ -377,6 +379,9 @@ export default function App() {
   const [pinnedChats, setPinnedChats] = useState<Set<string>>(new Set())
   const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(null)
   const [isDark, setIsDark] = useState(true)
+  // Bumped once a reply is done so the header re-reads the conversation's token
+  // counters, which the workflow writes at the end of its run.
+  const [tokenRefreshKey, setTokenRefreshKey] = useState(0)
 
   // Folder State
   const [folders, setFolders] = useState<FolderType[]>([])
@@ -1123,6 +1128,10 @@ export default function App() {
           console.error("❌ Roberta AI: Failed to save AI message:", error)
         }
       }
+
+      // The run is over, so the workflow is about to write this run's usage
+      // onto the conversation. Ask the header to pick the new totals up.
+      setTokenRefreshKey((key) => key + 1)
     } catch (error) {
       console.error("Error sending message:", error)
       setMessages((prev) => {
@@ -1757,6 +1766,8 @@ export default function App() {
                         <span className="px-2 py-0.5 rounded bg-sky-500 text-white text-[10px] font-bold tracking-widest shadow-[0_0_10px_rgba(14,165,233,0.5)] uppercase">
                           Online
                         </span>
+                        <ConversationIdBadge conversationId={currentChatId} />
+                        <ConversationTokensBadge conversationId={currentChatId} refreshKey={tokenRefreshKey} />
                       </div>
                       <p
                         className={`text-sm leading-tight max-w-md ${isDark ? "text-slate-300" : "text-slate-700"} font-medium`}
