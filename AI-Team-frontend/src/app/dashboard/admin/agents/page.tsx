@@ -48,12 +48,16 @@ interface AgentTeam {
   description?: string | null;
   agents: string[];
   users?: number;
+  // Tokens a single chat with one of this team's agents may spend. 0 means the
+  // team sets no budget and its members fall back to their own user limit.
+  singleConversationTokenLimit: number;
 }
 
 interface AgentGroupListItem {
   id: string;
   name: string;
   description?: string | null;
+  singleConversationTokenLimit?: number;
 }
 
 interface AgentGroupListResponse {
@@ -92,12 +96,14 @@ export default function AgentsAndTeamsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [teamName, setTeamName] = useState("");
   const [teamDescription, setTeamDescription] = useState("");
+  const [teamTokenLimit, setTeamTokenLimit] = useState(0);
   const [selectedTeamAgents, setSelectedTeamAgents] = useState<string[]>([]);
   const [isCreatingTeam, setIsCreatingTeam] = useState(false);
   const [deletingTeamId, setDeletingTeamId] = useState<string | null>(null);
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [editTeamName, setEditTeamName] = useState("");
   const [editTeamDescription, setEditTeamDescription] = useState("");
+  const [editTeamTokenLimit, setEditTeamTokenLimit] = useState(0);
   const [editTeamAgents, setEditTeamAgents] = useState<string[]>([]);
   const [isUpdatingTeam, setIsUpdatingTeam] = useState(false);
   const [teamMessage, setTeamMessage] = useState<string | null>(null);
@@ -195,6 +201,7 @@ export default function AgentsAndTeamsPage() {
           name: group.name,
           description: group.description,
           agents: group.agents ?? [],
+          singleConversationTokenLimit: group.singleConversationTokenLimit ?? 0,
         })),
       );
     } catch (error) {
@@ -241,6 +248,7 @@ export default function AgentsAndTeamsPage() {
   const resetCreateTeamForm = () => {
     setTeamName("");
     setTeamDescription("");
+    setTeamTokenLimit(0);
     setSelectedTeamAgents([]);
   };
 
@@ -258,6 +266,7 @@ export default function AgentsAndTeamsPage() {
     setEditingTeamId(team.id);
     setEditTeamName(team.name);
     setEditTeamDescription(team.description ?? "");
+    setEditTeamTokenLimit(team.singleConversationTokenLimit);
     setEditTeamAgents(team.agents);
   };
 
@@ -265,6 +274,7 @@ export default function AgentsAndTeamsPage() {
     setEditingTeamId(null);
     setEditTeamName("");
     setEditTeamDescription("");
+    setEditTeamTokenLimit(0);
     setEditTeamAgents([]);
   };
 
@@ -283,6 +293,11 @@ export default function AgentsAndTeamsPage() {
       return;
     }
 
+    if (!Number.isInteger(teamTokenLimit) || teamTokenLimit < 0) {
+      setTeamError("Single conversation token limit must be a non-negative integer.");
+      return;
+    }
+
     setIsCreatingTeam(true);
 
     try {
@@ -293,6 +308,7 @@ export default function AgentsAndTeamsPage() {
           name: teamName.trim(),
           description: teamDescription.trim() || undefined,
           isActive: true,
+          singleConversationTokenLimit: teamTokenLimit,
           agentNames: selectedTeamAgents,
         }),
       });
@@ -311,6 +327,7 @@ export default function AgentsAndTeamsPage() {
           name: group.name,
           description: group.description,
           agents: selectedTeamAgents,
+          singleConversationTokenLimit: group.singleConversationTokenLimit ?? teamTokenLimit,
         },
         ...prev,
       ]);
@@ -422,9 +439,17 @@ export default function AgentsAndTeamsPage() {
       return;
     }
 
+    if (!Number.isInteger(editTeamTokenLimit) || editTeamTokenLimit < 0) {
+      setTeamError("Single conversation token limit must be a non-negative integer.");
+      return;
+    }
+
     setIsUpdatingTeam(true);
 
     try {
+      // The limit rides along with the rest of the team: the backend pushes a
+      // changed number onto the conversations of everyone holding this team, so
+      // saving here is what makes it take effect on chats already open.
       const groupResponse = await fetch(`${API_BASE}/admin/groups/${team.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -432,6 +457,7 @@ export default function AgentsAndTeamsPage() {
           name: editTeamName.trim(),
           description: editTeamDescription.trim() || undefined,
           isActive: true,
+          singleConversationTokenLimit: editTeamTokenLimit,
         }),
       });
 
@@ -461,6 +487,8 @@ export default function AgentsAndTeamsPage() {
                 name: updatedGroup.name,
                 description: updatedGroup.description,
                 agents: editTeamAgents,
+                singleConversationTokenLimit:
+                  updatedGroup.singleConversationTokenLimit ?? editTeamTokenLimit,
               }
             : item,
         ),
@@ -549,6 +577,22 @@ export default function AgentsAndTeamsPage() {
                       className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-indigo-400/60"
                     />
                   </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs text-white/50">
+                      Single conversation token limit
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={teamTokenLimit}
+                      onChange={(event) => setTeamTokenLimit(Number(event.target.value))}
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-indigo-400/60"
+                    />
+                    <p className="mt-1.5 text-[11px] text-white/35">
+                      Tokens each chat with one of this team&apos;s agents may spend. Leave at 0
+                      to set no team budget — those users keep their own limit.
+                    </p>
+                  </div>
                 </div>
 
                 <div className="mt-4">
@@ -635,6 +679,22 @@ export default function AgentsAndTeamsPage() {
                             className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-indigo-400/60"
                           />
                         </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs text-white/45">
+                            Single conversation token limit
+                          </label>
+                          <input
+                            type="number"
+                            min={0}
+                            value={editTeamTokenLimit}
+                            onChange={(event) => setEditTeamTokenLimit(Number(event.target.value))}
+                            className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-indigo-400/60"
+                          />
+                          <p className="mt-1.5 text-[11px] text-white/35">
+                            Applies to chats already open with these agents. 0 means no team
+                            budget.
+                          </p>
+                        </div>
                       </div>
 
                       <div>
@@ -712,6 +772,19 @@ export default function AgentsAndTeamsPage() {
                             {agent}
                           </span>
                         ))}
+                      </div>
+                      <div className="mb-3 flex items-center gap-2 text-xs">
+                        <Zap size={14} className={team.singleConversationTokenLimit > 0 ? "text-amber-400" : "text-white/25"} />
+                        {team.singleConversationTokenLimit > 0 ? (
+                          <span className="text-white/70">
+                            <span className="font-semibold text-amber-300">
+                              {team.singleConversationTokenLimit.toLocaleString("it-IT")}
+                            </span>{" "}
+                            token per conversation
+                          </span>
+                        ) : (
+                          <span className="text-white/35">No team token limit</span>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 text-xs text-white/40">
                         <Users size={14} />
