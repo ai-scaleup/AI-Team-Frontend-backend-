@@ -155,6 +155,7 @@ export const AgentGroupScalarFieldEnum = {
   name: 'name',
   description: 'description',
   isActive: 'isActive',
+  singleConversationTokenLimit: 'singleConversationTokenLimit',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

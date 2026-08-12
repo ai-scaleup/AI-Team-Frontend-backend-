@@ -236,6 +236,10 @@ model AgentGroup {
   name        String           @unique
   description String?
   isActive    Boolean          @default(true)
+
+  // Token allowance for a single conversation with any agent in this group.
+  singleConversationTokenLimit Int @default(0)
+
   items       AgentGroupItem[]
   assignments AssignedGroup[]
   createdAt   DateTime         @default(now())

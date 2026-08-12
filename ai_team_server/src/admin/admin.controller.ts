@@ -178,6 +178,12 @@ class CreateGroupDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @Transform(toNumber)
+  @IsInt()
+  @Min(0)
+  singleConversationTokenLimit?: number;
 }
 
 class UpdateGroupDto {
@@ -194,6 +200,12 @@ class UpdateGroupDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @Transform(toNumber)
+  @IsInt()
+  @Min(0)
+  singleConversationTokenLimit?: number;
 }
 
 class GroupIdParam {
@@ -288,6 +300,12 @@ class CreateGroupWithAgentsDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @Transform(toNumber)
+  @IsInt()
+  @Min(0)
+  singleConversationTokenLimit?: number;
 
   @IsArray()
   @ArrayMinSize(1)
@@ -577,6 +595,12 @@ export class AdminController {
         name: { type: 'string', example: 'Default Team' },
         description: { type: 'string' },
         isActive: { type: 'boolean', example: true },
+        singleConversationTokenLimit: {
+          type: 'integer',
+          minimum: 0,
+          example: 0,
+          description: 'Optional. Defaults to 0 (no per-conversation cap).',
+        },
       },
     },
   })
@@ -596,6 +620,12 @@ export class AdminController {
         name: { type: 'string', example: 'Default Team' },
         description: { type: 'string' },
         isActive: { type: 'boolean', example: true },
+        singleConversationTokenLimit: {
+          type: 'integer',
+          minimum: 0,
+          example: 0,
+          description: 'Optional. Omit to leave the current limit untouched.',
+        },
       },
     },
   })
@@ -740,6 +770,12 @@ export class AdminController {
         name: { type: 'string', example: 'Default Team' },
         description: { type: 'string' },
         isActive: { type: 'boolean', example: true },
+        singleConversationTokenLimit: {
+          type: 'integer',
+          minimum: 0,
+          example: 0,
+          description: 'Optional. Defaults to 0 (no per-conversation cap).',
+        },
         agentNames: {
           type: 'array',
           items: { type: 'string', enum: Object.values(AgentName) },
@@ -767,6 +803,12 @@ export class AdminController {
         name: { type: 'string', example: 'Default Team' },
         description: { type: 'string' },
         isActive: { type: 'boolean', example: true },
+        singleConversationTokenLimit: {
+          type: 'integer',
+          minimum: 0,
+          example: 0,
+          description: 'Optional. Defaults to 0 (no per-conversation cap).',
+        },
         agentNames: {
           type: 'array',
           items: { type: 'string', enum: Object.values(AgentName) },
@@ -789,6 +831,7 @@ export class AdminController {
         name: dto.name,
         description: dto.description,
         isActive: dto.isActive,
+        singleConversationTokenLimit: dto.singleConversationTokenLimit,
         agentNames: dto.agentNames,
       },
       {
