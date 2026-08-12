@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { Conversation, Message, Prisma } from 'src/generated/prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { conversationAgentIdToAgentName } from 'src/common/agent-slug';
 import {
   CreateConversationDto,
   UpdateConversationDto,
@@ -187,6 +188,46 @@ export class ConversationService {
   }
 
   // ─────────────────────────────────────────────────────────────
+  // Helper: the per-conversation allowance a user's teams grant an agent
+  // ─────────────────────────────────────────────────────────────
+  // Null when no team the user currently holds has a number set for this
+  // agent, which leaves the caller on the user-level limit.
+  //
+  // A group sitting at 0 is excluded: 0 is the column default and means "no
+  // team allowance configured", not "this agent may spend nothing". Expired and
+  // deactivated assignments are excluded the same way getSelectedAgentsByEmail
+  // reads them, so a lapsed team stops granting its allowance.
+  //
+  // When two teams the user holds both cover the agent, the larger allowance
+  // wins — holding a second team should not cost the user tokens.
+  private async resolveTeamTokenLimit(
+    userId: string,
+    agentId: string,
+  ): Promise<number | null> {
+    const agentName = conversationAgentIdToAgentName(agentId);
+    if (!agentName) return null;
+
+    const now = new Date();
+    const groups = await this.prisma.agentGroup.findMany({
+      where: {
+        singleConversationTokenLimit: { gt: 0 },
+        items: { some: { agentName } },
+        assignments: {
+          some: {
+            userId,
+            isActive: true,
+            OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+          },
+        },
+      },
+      select: { singleConversationTokenLimit: true },
+    });
+
+    if (groups.length === 0) return null;
+    return Math.max(...groups.map((g) => g.singleConversationTokenLimit));
+  }
+
+  // ─────────────────────────────────────────────────────────────
   // Create or update a conversation (upsert)
   // ─────────────────────────────────────────────────────────────
   async createConversation(
@@ -210,15 +251,27 @@ export class ConversationService {
       // at the full limit, which keeps the three counters consistent from the
       // first message instead of only once something writes them.
       //
+      // A team the user holds overrides that for its own agents: the team's
+      // singleConversationTokenLimit is the allowance the assignment granted,
+      // so a chat with one of its agents opens on the team's number rather than
+      // the user's. Everything else — an agent on no team the user holds, or a
+      // team with no number set — still falls back to the user's own limit.
+      //
       // Only the create branch gets these: an upsert that lands on an existing
       // conversation would otherwise wipe usage that has already accrued.
+      const teamTokenLimit = await this.resolveTeamTokenLimit(
+        user.id,
+        data.agentId,
+      );
+      const openingTokenLimit = teamTokenLimit ?? user.tokenLimit;
+
       const inheritedTokens =
-        user.tokenLimit === null
+        openingTokenLimit === null
           ? {}
           : {
-              tokenLimit: user.tokenLimit,
+              tokenLimit: openingTokenLimit,
               tokenUsed: 0,
-              tokenLeft: user.tokenLimit,
+              tokenLeft: openingTokenLimit,
             };
 
       const conversation = await this.prisma.conversation.upsert({

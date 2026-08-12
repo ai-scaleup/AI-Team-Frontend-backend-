@@ -56,7 +56,7 @@ export class ConversationController {
   @ApiOperation({
     summary: 'Create a conversation for a user by OAuth ID or email',
     description:
-      'Creates the conversation and stamps it with the user’s token limit: tokenLimit and tokenLeft are set to the user’s assigned limit and tokenUsed to 0. A user with no limit assigned gets a conversation with no limit. Token counters are not part of the request body — set them per conversation with PATCH /conversations/{conversationId}/tokens, or per user with PATCH /conversations/user/{email}/token-limit. Re-posting an existing conversation ID updates it and leaves its counters alone.',
+      'Creates the conversation and stamps it with the applicable token limit: tokenLimit and tokenLeft are set to that limit and tokenUsed to 0. If the user holds a team whose agents include this one and that team has a singleConversationTokenLimit above 0, the team’s number is used; otherwise the user’s own assigned limit is. A user with neither gets a conversation with no limit. Token counters are not part of the request body — set them per conversation with PATCH /conversations/{conversationId}/tokens, per user with PATCH /conversations/user/{email}/token-limit, or per team with PATCH /admin/groups/{id}. Re-posting an existing conversation ID updates it and leaves its counters alone.',
   })
   @ApiParam({
     name: 'oauthId',

@@ -16,6 +16,7 @@ import {
 } from 'src/generated/prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { agentNamesToConversationAgentIds } from 'src/common/agent-slug';
 
 /* ============================================
  * Types
@@ -157,28 +158,122 @@ export class AdminService {
       where: { userId, groupId, isActive: true },
     });
 
-    if (existingActive) {
-      return this.prisma.assignedGroup.update({
-        where: { id: existingActive.id },
-        data: {
-          startsAt: startsAt ?? existingActive.startsAt,
-          ...(expiresAt !== undefined ? { expiresAt } : {}),
-          ...(durationDays !== undefined ? { durationDays } : {}),
-          ...(typeof isActive === 'boolean' ? { isActive } : {}),
-        },
-      });
+    const assignment = existingActive
+      ? await this.prisma.assignedGroup.update({
+          where: { id: existingActive.id },
+          data: {
+            startsAt: startsAt ?? existingActive.startsAt,
+            ...(expiresAt !== undefined ? { expiresAt } : {}),
+            ...(durationDays !== undefined ? { durationDays } : {}),
+            ...(typeof isActive === 'boolean' ? { isActive } : {}),
+          },
+        })
+      : await this.prisma.assignedGroup.create({
+          data: {
+            userId,
+            groupId,
+            ...(startsAt ? { startsAt } : {}),
+            ...(expiresAt !== undefined ? { expiresAt } : {}),
+            ...(durationDays !== undefined ? { durationDays } : {}),
+            isActive: typeof isActive === 'boolean' ? isActive : true,
+          },
+        });
+
+    // Every group-assign route funnels through here, so this is the one place
+    // that has to hand the team's per-conversation allowance to the chats the
+    // user already holds with its agents. New chats pick it up on their own
+    // (see ConversationService.resolveTeamTokenLimit); without this the
+    // allowance would only ever reach conversations started after the
+    // assignment, and the user's existing ones would keep the old number.
+    if (assignment.isActive) {
+      await this.applyGroupTokenLimitToUserConversations(userId, groupId);
     }
 
-    return this.prisma.assignedGroup.create({
-      data: {
-        userId,
-        groupId,
-        ...(startsAt ? { startsAt } : {}),
-        ...(expiresAt !== undefined ? { expiresAt } : {}),
-        ...(durationDays !== undefined ? { durationDays } : {}),
-        isActive: typeof isActive === 'boolean' ? isActive : true,
+    return assignment;
+  }
+
+  /* ------------- team-level single-conversation token allowance ------------- */
+
+  /**
+   * The pieces needed to push a group's allowance onto conversations: the limit
+   * itself and the conversation-side ids of its agents.
+   *
+   * Null when there is nothing to push. A limit of 0 is the column default and
+   * reads as "no team allowance configured" — treating it as a real cap would
+   * silently freeze every chat under a team nobody has set a number on.
+   */
+  private async getGroupTokenLimitTargets(
+    groupId: string,
+  ): Promise<{ limit: number; agentIds: string[] } | null> {
+    const group = await this.prisma.agentGroup.findUnique({
+      where: { id: groupId },
+      select: {
+        singleConversationTokenLimit: true,
+        items: { select: { agentName: true } },
       },
     });
+
+    if (!group || group.singleConversationTokenLimit <= 0) return null;
+
+    const agentIds = agentNamesToConversationAgentIds(
+      group.items.map((i) => i.agentName),
+    );
+    if (agentIds.length === 0) return null;
+
+    return { limit: group.singleConversationTokenLimit, agentIds };
+  }
+
+  /**
+   * Apply a group's allowance to one user's conversations with that group's
+   * agents. Returns how many rows moved.
+   *
+   * tokenLeft is recomputed per row in the same statement, the way
+   * ConversationService.setTokenLimitForUser does it: a new limit next to a
+   * stale "remaining" is worse than no limit, and updateMany cannot read
+   * tokenUsed while writing tokenLeft. GREATEST(..., 0) keeps a conversation
+   * that already burned past the new number from going negative. lastUpdated
+   * stays untouched so assigning a team does not reshuffle the chat list.
+   */
+  private async applyGroupTokenLimitToUserConversations(
+    userId: string,
+    groupId: string,
+  ): Promise<number> {
+    const targets = await this.getGroupTokenLimitTargets(groupId);
+    if (!targets) return 0;
+
+    const { limit, agentIds } = targets;
+    return this.prisma.$executeRaw`
+      UPDATE "Conversation"
+      SET "tokenLimit" = ${limit},
+          "tokenLeft" = GREATEST(${limit} - COALESCE("tokenUsed", 0), 0)
+      WHERE "userId" = ${userId}
+        AND "agentId" IN (${Prisma.join(agentIds)})`;
+  }
+
+  /**
+   * Same push, but for every user currently holding the group — what an admin
+   * editing the team's allowance expects to happen to the chats already open
+   * under it. Inactive and expired assignments are left out: those users are no
+   * longer on the team, so the team's number is not theirs to receive.
+   */
+  private async applyGroupTokenLimitToAssignedConversations(
+    groupId: string,
+  ): Promise<number> {
+    const targets = await this.getGroupTokenLimitTargets(groupId);
+    if (!targets) return 0;
+
+    const { limit, agentIds } = targets;
+    return this.prisma.$executeRaw`
+      UPDATE "Conversation"
+      SET "tokenLimit" = ${limit},
+          "tokenLeft" = GREATEST(${limit} - COALESCE("tokenUsed", 0), 0)
+      WHERE "agentId" IN (${Prisma.join(agentIds)})
+        AND "userId" IN (
+          SELECT "userId" FROM "AssignedGroup"
+          WHERE "groupId" = ${groupId}
+            AND "isActive" = true
+            AND ("expiresAt" IS NULL OR "expiresAt" > NOW())
+        )`;
   }
 
   /* --------------------- CRON: auto-expire agents & groups --------------------- */
@@ -414,6 +509,7 @@ export class AdminService {
     name: string;
     description?: string;
     isActive?: boolean;
+    singleConversationTokenLimit?: number;
   }): Promise<AgentGroup> {
     try {
       return await this.prisma.agentGroup.create({
@@ -421,6 +517,12 @@ export class AdminService {
           name: input.name.trim(),
           description: input.description,
           isActive: input.isActive ?? true,
+          ...(typeof input.singleConversationTokenLimit === 'number'
+            ? {
+                singleConversationTokenLimit:
+                  input.singleConversationTokenLimit,
+              }
+            : {}),
         },
       });
     } catch (e: any) {
@@ -436,10 +538,15 @@ export class AdminService {
   /** Update a group by id. */
   async updateAgentGroup(
     id: string,
-    input: { name?: string; description?: string; isActive?: boolean },
+    input: {
+      name?: string;
+      description?: string;
+      isActive?: boolean;
+      singleConversationTokenLimit?: number;
+    },
   ): Promise<AgentGroup> {
     try {
-      return await this.prisma.agentGroup.update({
+      const group = await this.prisma.agentGroup.update({
         where: { id },
         data: {
           ...(input.name ? { name: input.name.trim() } : {}),
@@ -449,8 +556,24 @@ export class AdminService {
           ...(typeof input.isActive === 'boolean'
             ? { isActive: input.isActive }
             : {}),
+          ...(typeof input.singleConversationTokenLimit === 'number'
+            ? {
+                singleConversationTokenLimit:
+                  input.singleConversationTokenLimit,
+              }
+            : {}),
         },
       });
+
+      // Raising or lowering the team's allowance is meant to be felt now, not
+      // only by chats started afterwards, so it carries to the conversations
+      // its assigned users already hold. Only when a number was actually sent:
+      // an admin renaming the team is not asking to touch anyone's tokens.
+      if (typeof input.singleConversationTokenLimit === 'number') {
+        await this.applyGroupTokenLimitToAssignedConversations(id);
+      }
+
+      return group;
     } catch (e: any) {
       if (e?.code === 'P2025') {
         throw new NotFoundException(`AgentGroup "${id}" not found`);
@@ -562,6 +685,13 @@ export class AdminService {
       skipDuplicates: true, // relies on @@unique([groupId, agentName])
     });
 
+    // An agent joining the team joins its allowance too, otherwise the chats
+    // its assigned users already hold with that agent would sit outside the
+    // team's number until someone reassigned the team.
+    if (result.count > 0) {
+      await this.applyGroupTokenLimitToAssignedConversations(groupId);
+    }
+
     return { count: result.count };
   }
 
@@ -620,6 +750,14 @@ export class AdminService {
         });
       }
     });
+
+    // Same reasoning as addAgentsToGroup: whoever is on the team now gets the
+    // team's allowance on their chats with the agents now in it. Agents just
+    // dropped keep whatever limit their conversations already carry — this
+    // feature grants allowances, it does not revoke them.
+    if (next.length) {
+      await this.applyGroupTokenLimitToAssignedConversations(groupId);
+    }
   }
 
   /**
@@ -815,6 +953,7 @@ export class AdminService {
     name: string;
     description?: string;
     isActive?: boolean;
+    singleConversationTokenLimit?: number;
     agentNames: AgentName[];
   }): Promise<{ group: AgentGroup; itemsCount: number }> {
     if (!input?.name?.trim()) {
@@ -832,6 +971,12 @@ export class AdminService {
               name: input.name.trim(),
               description: input.description,
               isActive: input.isActive ?? true,
+              ...(typeof input.singleConversationTokenLimit === 'number'
+                ? {
+                    singleConversationTokenLimit:
+                      input.singleConversationTokenLimit,
+                  }
+                : {}),
             },
           });
 
@@ -860,6 +1005,7 @@ export class AdminService {
       name: string;
       description?: string;
       isActive?: boolean;
+      singleConversationTokenLimit?: number;
       agentNames: AgentName[];
     },
     opts: BaseAssignOpts = {},

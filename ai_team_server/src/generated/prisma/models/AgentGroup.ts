@@ -20,8 +20,18 @@ export type AgentGroupModel = runtime.Types.Result.DefaultSelection<Prisma.$Agen
 
 export type AggregateAgentGroup = {
   _count: AgentGroupCountAggregateOutputType | null
+  _avg: AgentGroupAvgAggregateOutputType | null
+  _sum: AgentGroupSumAggregateOutputType | null
   _min: AgentGroupMinAggregateOutputType | null
   _max: AgentGroupMaxAggregateOutputType | null
+}
+
+export type AgentGroupAvgAggregateOutputType = {
+  singleConversationTokenLimit: number | null
+}
+
+export type AgentGroupSumAggregateOutputType = {
+  singleConversationTokenLimit: number | null
 }
 
 export type AgentGroupMinAggregateOutputType = {
@@ -29,6 +39,7 @@ export type AgentGroupMinAggregateOutputType = {
   name: string | null
   description: string | null
   isActive: boolean | null
+  singleConversationTokenLimit: number | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -38,6 +49,7 @@ export type AgentGroupMaxAggregateOutputType = {
   name: string | null
   description: string | null
   isActive: boolean | null
+  singleConversationTokenLimit: number | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -47,17 +59,27 @@ export type AgentGroupCountAggregateOutputType = {
   name: number
   description: number
   isActive: number
+  singleConversationTokenLimit: number
   createdAt: number
   updatedAt: number
   _all: number
 }
 
 
+export type AgentGroupAvgAggregateInputType = {
+  singleConversationTokenLimit?: true
+}
+
+export type AgentGroupSumAggregateInputType = {
+  singleConversationTokenLimit?: true
+}
+
 export type AgentGroupMinAggregateInputType = {
   id?: true
   name?: true
   description?: true
   isActive?: true
+  singleConversationTokenLimit?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -67,6 +89,7 @@ export type AgentGroupMaxAggregateInputType = {
   name?: true
   description?: true
   isActive?: true
+  singleConversationTokenLimit?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -76,6 +99,7 @@ export type AgentGroupCountAggregateInputType = {
   name?: true
   description?: true
   isActive?: true
+  singleConversationTokenLimit?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -119,6 +143,18 @@ export type AgentGroupAggregateArgs<ExtArgs extends runtime.Types.Extensions.Int
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
+   * Select which fields to average
+  **/
+  _avg?: AgentGroupAvgAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
+   * Select which fields to sum
+  **/
+  _sum?: AgentGroupSumAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
    * Select which fields to find the minimum value
   **/
   _min?: AgentGroupMinAggregateInputType
@@ -149,6 +185,8 @@ export type AgentGroupGroupByArgs<ExtArgs extends runtime.Types.Extensions.Inter
   take?: number
   skip?: number
   _count?: AgentGroupCountAggregateInputType | true
+  _avg?: AgentGroupAvgAggregateInputType
+  _sum?: AgentGroupSumAggregateInputType
   _min?: AgentGroupMinAggregateInputType
   _max?: AgentGroupMaxAggregateInputType
 }
@@ -158,9 +196,12 @@ export type AgentGroupGroupByOutputType = {
   name: string
   description: string | null
   isActive: boolean
+  singleConversationTokenLimit: number
   createdAt: Date
   updatedAt: Date
   _count: AgentGroupCountAggregateOutputType | null
+  _avg: AgentGroupAvgAggregateOutputType | null
+  _sum: AgentGroupSumAggregateOutputType | null
   _min: AgentGroupMinAggregateOutputType | null
   _max: AgentGroupMaxAggregateOutputType | null
 }
@@ -188,6 +229,7 @@ export type AgentGroupWhereInput = {
   name?: Prisma.StringFilter<"AgentGroup"> | string
   description?: Prisma.StringNullableFilter<"AgentGroup"> | string | null
   isActive?: Prisma.BoolFilter<"AgentGroup"> | boolean
+  singleConversationTokenLimit?: Prisma.IntFilter<"AgentGroup"> | number
   createdAt?: Prisma.DateTimeFilter<"AgentGroup"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AgentGroup"> | Date | string
   items?: Prisma.AgentGroupItemListRelationFilter
@@ -199,6 +241,7 @@ export type AgentGroupOrderByWithRelationInput = {
   name?: Prisma.SortOrder
   description?: Prisma.SortOrderInput | Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  singleConversationTokenLimit?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   items?: Prisma.AgentGroupItemOrderByRelationAggregateInput
@@ -213,6 +256,7 @@ export type AgentGroupWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.AgentGroupWhereInput | Prisma.AgentGroupWhereInput[]
   description?: Prisma.StringNullableFilter<"AgentGroup"> | string | null
   isActive?: Prisma.BoolFilter<"AgentGroup"> | boolean
+  singleConversationTokenLimit?: Prisma.IntFilter<"AgentGroup"> | number
   createdAt?: Prisma.DateTimeFilter<"AgentGroup"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AgentGroup"> | Date | string
   items?: Prisma.AgentGroupItemListRelationFilter
@@ -224,11 +268,14 @@ export type AgentGroupOrderByWithAggregationInput = {
   name?: Prisma.SortOrder
   description?: Prisma.SortOrderInput | Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  singleConversationTokenLimit?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.AgentGroupCountOrderByAggregateInput
+  _avg?: Prisma.AgentGroupAvgOrderByAggregateInput
   _max?: Prisma.AgentGroupMaxOrderByAggregateInput
   _min?: Prisma.AgentGroupMinOrderByAggregateInput
+  _sum?: Prisma.AgentGroupSumOrderByAggregateInput
 }
 
 export type AgentGroupScalarWhereWithAggregatesInput = {
@@ -239,6 +286,7 @@ export type AgentGroupScalarWhereWithAggregatesInput = {
   name?: Prisma.StringWithAggregatesFilter<"AgentGroup"> | string
   description?: Prisma.StringNullableWithAggregatesFilter<"AgentGroup"> | string | null
   isActive?: Prisma.BoolWithAggregatesFilter<"AgentGroup"> | boolean
+  singleConversationTokenLimit?: Prisma.IntWithAggregatesFilter<"AgentGroup"> | number
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"AgentGroup"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"AgentGroup"> | Date | string
 }
@@ -248,6 +296,7 @@ export type AgentGroupCreateInput = {
   name: string
   description?: string | null
   isActive?: boolean
+  singleConversationTokenLimit?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   items?: Prisma.AgentGroupItemCreateNestedManyWithoutGroupInput
@@ -259,6 +308,7 @@ export type AgentGroupUncheckedCreateInput = {
   name: string
   description?: string | null
   isActive?: boolean
+  singleConversationTokenLimit?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   items?: Prisma.AgentGroupItemUncheckedCreateNestedManyWithoutGroupInput
@@ -270,6 +320,7 @@ export type AgentGroupUpdateInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  singleConversationTokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   items?: Prisma.AgentGroupItemUpdateManyWithoutGroupNestedInput
@@ -281,6 +332,7 @@ export type AgentGroupUncheckedUpdateInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  singleConversationTokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   items?: Prisma.AgentGroupItemUncheckedUpdateManyWithoutGroupNestedInput
@@ -292,6 +344,7 @@ export type AgentGroupCreateManyInput = {
   name: string
   description?: string | null
   isActive?: boolean
+  singleConversationTokenLimit?: number
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -301,6 +354,7 @@ export type AgentGroupUpdateManyMutationInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  singleConversationTokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -310,6 +364,7 @@ export type AgentGroupUncheckedUpdateManyInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  singleConversationTokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -319,8 +374,13 @@ export type AgentGroupCountOrderByAggregateInput = {
   name?: Prisma.SortOrder
   description?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  singleConversationTokenLimit?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+}
+
+export type AgentGroupAvgOrderByAggregateInput = {
+  singleConversationTokenLimit?: Prisma.SortOrder
 }
 
 export type AgentGroupMaxOrderByAggregateInput = {
@@ -328,6 +388,7 @@ export type AgentGroupMaxOrderByAggregateInput = {
   name?: Prisma.SortOrder
   description?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  singleConversationTokenLimit?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -337,8 +398,13 @@ export type AgentGroupMinOrderByAggregateInput = {
   name?: Prisma.SortOrder
   description?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  singleConversationTokenLimit?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+}
+
+export type AgentGroupSumOrderByAggregateInput = {
+  singleConversationTokenLimit?: Prisma.SortOrder
 }
 
 export type AgentGroupScalarRelationFilter = {
@@ -379,6 +445,7 @@ export type AgentGroupCreateWithoutItemsInput = {
   name: string
   description?: string | null
   isActive?: boolean
+  singleConversationTokenLimit?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   assignments?: Prisma.AssignedGroupCreateNestedManyWithoutGroupInput
@@ -389,6 +456,7 @@ export type AgentGroupUncheckedCreateWithoutItemsInput = {
   name: string
   description?: string | null
   isActive?: boolean
+  singleConversationTokenLimit?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   assignments?: Prisma.AssignedGroupUncheckedCreateNestedManyWithoutGroupInput
@@ -415,6 +483,7 @@ export type AgentGroupUpdateWithoutItemsInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  singleConversationTokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assignments?: Prisma.AssignedGroupUpdateManyWithoutGroupNestedInput
@@ -425,6 +494,7 @@ export type AgentGroupUncheckedUpdateWithoutItemsInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  singleConversationTokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assignments?: Prisma.AssignedGroupUncheckedUpdateManyWithoutGroupNestedInput
@@ -435,6 +505,7 @@ export type AgentGroupCreateWithoutAssignmentsInput = {
   name: string
   description?: string | null
   isActive?: boolean
+  singleConversationTokenLimit?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   items?: Prisma.AgentGroupItemCreateNestedManyWithoutGroupInput
@@ -445,6 +516,7 @@ export type AgentGroupUncheckedCreateWithoutAssignmentsInput = {
   name: string
   description?: string | null
   isActive?: boolean
+  singleConversationTokenLimit?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   items?: Prisma.AgentGroupItemUncheckedCreateNestedManyWithoutGroupInput
@@ -471,6 +543,7 @@ export type AgentGroupUpdateWithoutAssignmentsInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  singleConversationTokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   items?: Prisma.AgentGroupItemUpdateManyWithoutGroupNestedInput
@@ -481,6 +554,7 @@ export type AgentGroupUncheckedUpdateWithoutAssignmentsInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  singleConversationTokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   items?: Prisma.AgentGroupItemUncheckedUpdateManyWithoutGroupNestedInput
@@ -531,6 +605,7 @@ export type AgentGroupSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   name?: boolean
   description?: boolean
   isActive?: boolean
+  singleConversationTokenLimit?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   items?: boolean | Prisma.AgentGroup$itemsArgs<ExtArgs>
@@ -543,6 +618,7 @@ export type AgentGroupSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   name?: boolean
   description?: boolean
   isActive?: boolean
+  singleConversationTokenLimit?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["agentGroup"]>
@@ -552,6 +628,7 @@ export type AgentGroupSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   name?: boolean
   description?: boolean
   isActive?: boolean
+  singleConversationTokenLimit?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["agentGroup"]>
@@ -561,11 +638,12 @@ export type AgentGroupSelectScalar = {
   name?: boolean
   description?: boolean
   isActive?: boolean
+  singleConversationTokenLimit?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type AgentGroupOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "description" | "isActive" | "createdAt" | "updatedAt", ExtArgs["result"]["agentGroup"]>
+export type AgentGroupOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "description" | "isActive" | "singleConversationTokenLimit" | "createdAt" | "updatedAt", ExtArgs["result"]["agentGroup"]>
 export type AgentGroupInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   items?: boolean | Prisma.AgentGroup$itemsArgs<ExtArgs>
   assignments?: boolean | Prisma.AgentGroup$assignmentsArgs<ExtArgs>
@@ -585,6 +663,7 @@ export type $AgentGroupPayload<ExtArgs extends runtime.Types.Extensions.Internal
     name: string
     description: string | null
     isActive: boolean
+    singleConversationTokenLimit: number
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["agentGroup"]>
@@ -1016,6 +1095,7 @@ export interface AgentGroupFieldRefs {
   readonly name: Prisma.FieldRef<"AgentGroup", 'String'>
   readonly description: Prisma.FieldRef<"AgentGroup", 'String'>
   readonly isActive: Prisma.FieldRef<"AgentGroup", 'Boolean'>
+  readonly singleConversationTokenLimit: Prisma.FieldRef<"AgentGroup", 'Int'>
   readonly createdAt: Prisma.FieldRef<"AgentGroup", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"AgentGroup", 'DateTime'>
 }
