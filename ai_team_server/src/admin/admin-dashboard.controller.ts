@@ -1,5 +1,6 @@
 import {
   Controller,
+  Delete,
   Get,
   Body,
   Param,
@@ -189,6 +190,21 @@ export class AdminDashboardController {
     },
   ) {
     return this.dashboardService.updateAssignment(type, id, body);
+  }
+
+  @Delete('assignments/:type/:id')
+  @ApiOperation({ summary: 'Delete an existing user assignment' })
+  @ApiParam({
+    name: 'type',
+    enum: ['agent', 'group', 'team', 'membership'],
+  })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiOkResponse({ description: 'Assignment deleted' })
+  deleteAssignment(
+    @Param('type') type: 'agent' | 'group' | 'team' | 'membership',
+    @Param('id') id: string,
+  ) {
+    return this.dashboardService.deleteAssignment(type, id);
   }
 
   @Post('usage/reset-all')

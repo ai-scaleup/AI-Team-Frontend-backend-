@@ -579,6 +579,68 @@ export class AdminDashboardService {
     throw new BadRequestException('Assignment type must be agent, group, team, or membership');
   }
 
+  async deleteAssignment(type: AssignmentType, id: string) {
+    if (!id?.trim()) throw new BadRequestException('Assignment id is required');
+
+    const normalizedType = type === 'team' ? 'group' : type;
+
+    if (normalizedType === 'agent') {
+      const existing = await this.prisma.assignedAgent.findUnique({
+        where: { id },
+        include: { user: { select: { oauthId: true } } },
+      });
+      if (!existing) throw new NotFoundException('Agent assignment not found');
+
+      return this.prisma.$transaction(async (tx) => {
+        await tx.assignedAgent.delete({ where: { id } });
+
+        // Quota falls back to userAgentTokenUsage when no assignment grants
+        // the agent, so a removed plan must not leave a spendable budget.
+        const stillAssigned = await tx.assignedAgent.findFirst({
+          where: { userId: existing.userId, agentName: existing.agentName },
+        });
+
+        if (!stillAssigned) {
+          await tx.userAgentTokenUsage.updateMany({
+            where: {
+              oauthId: existing.user.oauthId,
+              agentName: existing.agentName,
+            },
+            data: { totalTokenLimit: 0, totalTokensLeft: 0 },
+          });
+        }
+
+        return { deleted: true, type: 'agent', id };
+      });
+    }
+
+    if (normalizedType === 'group') {
+      const existing = await this.prisma.assignedGroup.findUnique({
+        where: { id },
+      });
+      if (!existing) throw new NotFoundException('Team assignment not found');
+
+      await this.prisma.assignedGroup.delete({ where: { id } });
+
+      return { deleted: true, type: 'group', id };
+    }
+
+    if (normalizedType === 'membership') {
+      const existing = await this.prisma.assignedMembership.findUnique({
+        where: { id },
+      });
+      if (!existing) {
+        throw new NotFoundException('Membership assignment not found');
+      }
+
+      await this.prisma.assignedMembership.delete({ where: { id } });
+
+      return { deleted: true, type: 'membership', id };
+    }
+
+    throw new BadRequestException('Assignment type must be agent, group, team, or membership');
+  }
+
   // ======================== BULK ACTIONS ========================
   async resetAllUsage() {
     const [
