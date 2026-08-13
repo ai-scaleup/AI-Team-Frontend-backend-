@@ -12,6 +12,7 @@ import { JenniferModule } from './jennifer/jennifer.module';
 import { ChiaraModule } from './chiara/chiara.module';
 import { TagsModule } from './tags/tags.module';
 import { TokenUsageModule } from './token-usage/token-usage.module';
+import { TokenAlertsModule } from './token-alerts/token-alerts.module';
 import { MembershipModule } from './membership/membership.module';
 
 @Module({
@@ -27,6 +28,7 @@ import { MembershipModule } from './membership/membership.module';
     ChiaraModule,
     TagsModule,
     TokenUsageModule,
+    TokenAlertsModule,
     MembershipModule,
   ],
   controllers: [AppController],

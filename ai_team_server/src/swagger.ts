@@ -33,6 +33,10 @@ export function setupSwagger(app: INestApplication) {
     .addTag('chiara', 'Chiara chat logs and leads')
     .addTag('tags', 'Tag field management and tag generation')
     .addTag('token-usage', 'Per-user and per-agent token usage limits')
+    .addTag(
+      'token-alert-rules',
+      'Announcer-bar alert thresholds for conversation and monthly token usage',
+    )
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
