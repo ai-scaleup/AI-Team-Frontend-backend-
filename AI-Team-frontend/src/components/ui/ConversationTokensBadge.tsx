@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Coins } from "lucide-react";
-import { conversationService } from "@/services/conversationService";
+import { useConversationTokenGate } from "@/hooks/useConversationTokenGate";
 
 // Shows the token budget of the conversation currently open -- how much of the
 // limit has been spent and how much is left -- next to the conversation id in
@@ -15,22 +14,7 @@ import { conversationService } from "@/services/conversationService";
 // button for the id, this one is a read-only gauge, and a page may want either
 // on its own.
 
-// The workflow writes the new totals after its run has finished, which lands
-// somewhere after the reply has finished streaming into the chat. Re-reading
-// once on the way out would usually catch the old numbers, so the badge reads
-// a few times over the following seconds and keeps the last answer.
-const REFRESH_DELAYS_MS = [0, 3000, 8000];
-
 const formatTokens = (value: number) => new Intl.NumberFormat("it-IT").format(value);
-
-type TokenCounters = {
-  // The conversation the numbers were read from, so a badge left over from the
-  // previous chat is not shown against the new one while its read is in flight.
-  conversationId: string;
-  limit: number | null;
-  used: number;
-  left: number | null;
-};
 
 export default function ConversationTokensBadge({
   conversationId,
@@ -42,50 +26,14 @@ export default function ConversationTokensBadge({
   refreshKey?: number;
   className?: string;
 }) {
-  const [tokens, setTokens] = useState<TokenCounters | null>(null);
-
-  useEffect(() => {
-    if (!conversationId) return;
-
-    let cancelled = false;
-
-    const load = async () => {
-      try {
-        const conversation = await conversationService.getConversationById(conversationId);
-        if (cancelled) return;
-
-        const used = conversation.tokenUsed ?? 0;
-        const limit = conversation.tokenLimit ?? null;
-
-        setTokens({
-          conversationId,
-          limit,
-          used,
-          // tokenLeft is stored alongside the other two, but a conversation that
-          // has never been through the workflow only has a limit, so fall back
-          // to deriving it.
-          left: conversation.tokenLeft ?? (limit != null ? Math.max(limit - used, 0) : null),
-        });
-      } catch {
-        // A chat that exists only in local state has no row to read yet, and a
-        // backend hiccup is not worth a broken header. Whatever was on screen
-        // stays until the next successful read.
-      }
-    };
-
-    const timers = REFRESH_DELAYS_MS.map((delay) => setTimeout(load, delay));
-
-    return () => {
-      cancelled = true;
-      timers.forEach(clearTimeout);
-    };
-  }, [conversationId, refreshKey]);
+  // Same read the composer's token gate uses, so the header and the announcer
+  // bar can never disagree about how much budget is left.
+  const { limit, used, left, isLoaded } = useConversationTokenGate(conversationId, refreshKey);
 
   // Nothing is open yet, or the first read has not landed -- an empty gauge in
   // the header is just noise.
-  if (!conversationId || !tokens || tokens.conversationId !== conversationId) return null;
+  if (!conversationId || !isLoaded) return null;
 
-  const { limit, used, left } = tokens;
   const spentRatio = limit && limit > 0 ? Math.min(used / limit, 1) : 0;
 
   // Turns the gauge amber then red as the budget runs down, so a conversation

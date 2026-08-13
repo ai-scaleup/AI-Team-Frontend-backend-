@@ -36,6 +36,7 @@ import {
   Home,
   BookOpen,
   AlertTriangle,
+  Plus,
 } from "lucide-react"
 import PreferencesWizard from "@/components/preferences/PreferencesWizard"
 import PreferencesButton from "@/components/preferences/PreferencesButton"
@@ -45,6 +46,12 @@ import { userPreferenceService } from "@/services/preferenceService"
 import { conversationService } from "@/services/conversationService"
 import ConversationIdBadge from "@/components/ui/ConversationIdBadge"
 import ConversationTokensBadge from "@/components/ui/ConversationTokensBadge"
+import {
+  SUMMARY_MESSAGE_HEADING,
+  SUMMARY_PROMPT_LABEL,
+  conversationSummaryService,
+} from "@/services/conversationSummaryService"
+import { useConversationTokenGate } from "@/hooks/useConversationTokenGate"
 import { extractFileContent } from "@/utils/fileExtraction"
 
 // --- TYPES ---
@@ -85,28 +92,9 @@ interface ValentinaTokenAlert {
 const USER_AVATAR =
   "https://www.shutterstock.com/image-vector/vector-flat-illustration-grayscale-avatar-600nw-2264922221.jpg"
 
-const VALENTINA_TOKEN_ALERTS: ValentinaTokenAlert[] = [
-  {
-    threshold: 100,
-    level: "stop",
-    message: "100% reached. Valentina AI is stopped for this conversation.",
-  },
-  {
-    threshold: 90,
-    level: "critical",
-    message: "90% reached! Your conversation will end soon. Save important info now.",
-  },
-  {
-    threshold: 75,
-    level: "warning",
-    message: "75% of conversation tokens used. You're approaching the limit.",
-  },
-  {
-    threshold: 50,
-    level: "info",
-    message: "You've used 50% of your conversation tokens. Consider wrapping up soon.",
-  },
-]
+// The info/warning/critical thresholds come from the admin panel's Token Usage
+// Alerts table (read through useConversationTokenGate). "stop" has no rule
+// behind it -- it is the state the conversation enters once its budget is gone.
 
 const VALENTINA_TOKEN_ALERT_STYLES: Record<ValentinaTokenAlertLevel, string> = {
   info: "border-sky-500/30 bg-sky-500/15 text-sky-200 shadow-sky-500/10",
@@ -455,19 +443,30 @@ export default function App() {
   const hasNoValentinaTokensLeft = Boolean(
     tokenUsage && tokenUsage.totalTokenLimit > 0 && tokenUsage.totalTokensLeft <= 0,
   )
-  const tokenUsagePercent = tokenUsage?.totalTokenLimit
-    ? Math.min(
-        100,
-        Math.max(
-          0,
-          hasNoValentinaTokensLeft ? 100 : (tokenUsage.totalUsedTokens / tokenUsage.totalTokenLimit) * 100,
-        ),
-      )
-    : 0
-  const activeTokenAlert = tokenUsage
-    ? VALENTINA_TOKEN_ALERTS.find((alert) => tokenUsagePercent >= alert.threshold) ?? null
-    : null
-  const hasReachedTokenLimit = Boolean(activeTokenAlert?.level === "stop")
+  // Conversation budget: thresholds and messages come from the admin panel,
+  // the counters from the conversation row.
+  const tokenGate = useConversationTokenGate(currentChatId, tokenRefreshKey)
+  // This conversation is spent. A new one gets a fresh budget, so the banner
+  // offers that way out. The monthly quota is a separate ceiling that a new
+  // conversation does not refill.
+  const isConversationTokenLimitReached = tokenGate.isLimitReached
+  const hasReachedTokenLimit = isConversationTokenLimitReached || hasNoValentinaTokensLeft
+  const tokenUsagePercent = hasReachedTokenLimit ? 100 : tokenGate.percent
+  const activeTokenAlert: ValentinaTokenAlert | null = hasReachedTokenLimit
+    ? {
+        threshold: 100,
+        level: "stop",
+        message: isConversationTokenLimitReached
+          ? "Limite di token raggiunto. Questa conversazione è terminata: avvia una nuova chat per continuare."
+          : "Hai esaurito i token mensili. Contatta l'amministratore per continuare.",
+      }
+    : tokenGate.activeAlert
+      ? {
+          threshold: tokenGate.activeAlert.percentage,
+          level: tokenGate.activeAlert.level,
+          message: tokenGate.activeAlert.message,
+        }
+      : null
   const isPreferenceReady = Boolean(userPrefs?.onboardingCompleted)
   const isComposerDisabled = isLoading || hasReachedTokenLimit || isPreferenceLoading || !isPreferenceReady
   const isSendDisabled = isComposerDisabled || (!inputValue.trim() && selectedFiles.length === 0)
@@ -479,6 +478,21 @@ export default function App() {
         : "bg-violet-500"
 
   // --- REFS ---
+  // Summary of the conversation this chat replaced, waiting to be handed to the
+  // agent. n8n keeps its memory per session, so a fresh session starts blank --
+  // the summary rides along with the first prompt to restore the context.
+  const pendingSummaryRef = useRef<string>("")
+  const [isSummarizingChat, setIsSummarizingChat] = useState(false)
+
+  // Reads the summary once: it belongs on the first message of the new chat,
+  // and repeating it on every send would eat the budget it exists to save.
+  const takeCarriedSummaryPrefix = () => {
+    const summary = pendingSummaryRef.current
+    if (!summary) return ""
+    pendingSummaryRef.current = ""
+    return `${SUMMARY_PROMPT_LABEL}:\n${summary}\n\n---\n\n`
+  }
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const newFolderInputRef = useRef<HTMLInputElement>(null)
@@ -869,7 +883,7 @@ export default function App() {
     }
   }
 
-  const initNewChatForAgent = async (agent: any, specificAgentId?: string) => {
+  const initNewChatForAgent = async (agent: any, specificAgentId?: string, carriedSummary?: string) => {
     const targetAgentId = specificAgentId || activeAgentId
     const newChatId = "chat_" + Date.now()
     const newSessionId = "session_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9)
@@ -886,12 +900,26 @@ export default function App() {
       time: new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }),
     }
 
+    // The summary is shown in the chat as well as handed to the agent, so the
+    // user can see what was carried over from the conversation that ran out.
+    const initialMessages: Message[] = [welcomeMsg]
+
+    if (carriedSummary) {
+      initialMessages.push({
+        text: `${SUMMARY_MESSAGE_HEADING}\n\n${carriedSummary}`,
+        sender: "ai",
+        time: new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }),
+      })
+    }
+
+    pendingSummaryRef.current = carriedSummary || ""
+
     setCurrentChatId(newChatId)
-    setMessages([welcomeMsg])
+    setMessages(initialMessages)
 
     const newChat: ChatSession = {
       id: newChatId,
-      messages: [welcomeMsg],
+      messages: initialMessages,
       title: `Missione con ${agent.name}`,
       lastUpdated: new Date().toISOString(),
       folderId: null,
@@ -914,7 +942,7 @@ export default function App() {
           sessionId: newSessionId,
           folderId: null,
           archived: false,
-          messages: [welcomeMsg],
+          messages: initialMessages,
         })
         console.log("✅ Valentina AI: Conversation created in database:", newChatId)
       } catch (error) {
@@ -937,6 +965,26 @@ export default function App() {
     await initNewChatForAgent(currentAgent)
     setSidebarVisible(true)
     setSidebarMode("chats")
+  }
+
+  // Used by the "budget spent" banner: summarises the conversation that ran out
+  // and opens a fresh one carrying that summary. A failed summary still opens
+  // the new chat -- being stuck in a dead conversation is the worse outcome.
+  const startNewChatWithSummary = async () => {
+    if (isSummarizingChat) return
+    setIsSummarizingChat(true)
+
+    try {
+      const summary = currentChatId
+        ? await conversationSummaryService.summarizeConversation(user?.id, currentChatId, messages)
+        : null
+
+      await initNewChatForAgent(currentAgent, undefined, summary || undefined)
+      setSidebarVisible(true)
+      setSidebarMode("chats")
+    } finally {
+      setIsSummarizingChat(false)
+    }
   }
 
   const loadChat = async (chatId: string) => {
@@ -1270,6 +1318,7 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chatInput:
+            takeCarriedSummaryPrefix() +
             inputValue +
             (selectedFiles.length ? ` [Attached: ${selectedFiles.map((f) => f.name).join(", ")}]` : "") +
             fileContext +
@@ -2242,7 +2291,17 @@ export default function App() {
                 >
                   <AlertTriangle size={16} className="mt-0.5 shrink-0" />
                   <span className="min-w-0 flex-1 leading-snug">{activeTokenAlert.message}</span>
-                  {hasReachedTokenLimit && (
+                  {isConversationTokenLimitReached && (
+                    <button
+                      onClick={startNewChatWithSummary}
+                      disabled={isSummarizingChat}
+                      className={`shrink-0 inline-flex items-center gap-1.5 rounded-md border border-red-300/30 px-2.5 py-1 text-[11px] font-bold tracking-wide text-red-50 transition-colors ${isSummarizingChat ? "bg-red-500/10 cursor-wait" : "bg-red-500/20 hover:bg-red-500/35 cursor-pointer"}`}
+                    >
+                      <Plus size={13} strokeWidth={2.5} />
+                      {isSummarizingChat ? "Riepilogo in corso..." : "Nuova conversazione"}
+                    </button>
+                  )}
+                  {hasReachedTokenLimit && !isConversationTokenLimitReached && (
                     <span className="shrink-0 rounded-md border border-red-300/30 bg-red-500/20 px-2 py-0.5 text-[10px] font-black tracking-widest text-red-50">
                       STOP
                     </span>

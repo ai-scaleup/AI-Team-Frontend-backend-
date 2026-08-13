@@ -33,11 +33,19 @@ import {
   Menu,
   Home,
   BookOpen,
+  Plus,
 } from "lucide-react"
 import { useUser } from "@clerk/nextjs"
 import { conversationService } from "@/services/conversationService"
 import ConversationIdBadge from "@/components/ui/ConversationIdBadge"
 import ConversationTokensBadge from "@/components/ui/ConversationTokensBadge"
+import {
+  SUMMARY_MESSAGE_HEADING,
+  SUMMARY_PROMPT_LABEL,
+  conversationSummaryService,
+} from "@/services/conversationSummaryService"
+import { useConversationTokenGate } from "@/hooks/useConversationTokenGate"
+import type { TokenAlertLevel } from "@/services/tokenAlertService"
 
 import { extractFileContent } from "@/utils/fileExtraction"
 
@@ -352,13 +360,6 @@ const AI_TEAM_LIST = [
 
 // --- TOKEN USAGE ALERT RULES (conversation scope) ---
 // Mirrors the admin "Token Usage Alerts" defaults. Frontend-only for now.
-type TokenAlertLevel = "info" | "warning" | "critical"
-const TOKEN_ALERT_RULES: { percentage: number; level: TokenAlertLevel; message: string }[] = [
-  { percentage: 50, level: "info", message: "Hai usato il 50% dei token della conversazione. Valuta di concludere a breve." },
-  { percentage: 75, level: "warning", message: "75% dei token della conversazione utilizzati. Ti stai avvicinando al limite." },
-  { percentage: 90, level: "critical", message: "90% raggiunto! La conversazione terminerà presto. Salva subito le informazioni importanti." },
-]
-
 const TOKEN_ALERT_STYLES: Record<TokenAlertLevel, { wrap: string; icon: string }> = {
   info: { wrap: "bg-sky-500/10 border-sky-400/40 text-sky-700 dark:text-sky-300", icon: "ℹ️" },
   warning: { wrap: "bg-amber-500/10 border-amber-400/40 text-amber-700 dark:text-amber-300", icon: "⚠️" },
@@ -419,6 +420,21 @@ export default function App() {
         : "bg-sky-500"
 
   // --- REFS ---
+  // Summary of the conversation this chat replaced, waiting to be handed to the
+  // agent. n8n keeps its memory per session, so a fresh session starts blank --
+  // the summary rides along with the first prompt to restore the context.
+  const pendingSummaryRef = useRef<string>("")
+  const [isSummarizingChat, setIsSummarizingChat] = useState(false)
+
+  // Reads the summary once: it belongs on the first message of the new chat,
+  // and repeating it on every send would eat the budget it exists to save.
+  const takeCarriedSummaryPrefix = () => {
+    const summary = pendingSummaryRef.current
+    if (!summary) return ""
+    pendingSummaryRef.current = ""
+    return `${SUMMARY_PROMPT_LABEL}:\n${summary}\n\n---\n\n`
+  }
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const newFolderInputRef = useRef<HTMLInputElement>(null)
@@ -843,7 +859,7 @@ export default function App() {
     }
   }
 
-  const initNewChatForAgent = async (agent: any, specificAgentId?: string) => {
+  const initNewChatForAgent = async (agent: any, specificAgentId?: string, carriedSummary?: string) => {
     const targetAgentId = specificAgentId || activeAgentId
     const newChatId = "chat_" + Date.now()
     const newSessionId = "session_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9)
@@ -860,12 +876,26 @@ export default function App() {
       time: new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }),
     }
 
+    // The summary is shown in the chat as well as handed to the agent, so the
+    // user can see what was carried over from the conversation that ran out.
+    const initialMessages: Message[] = [welcomeMsg]
+
+    if (carriedSummary) {
+      initialMessages.push({
+        text: `${SUMMARY_MESSAGE_HEADING}\n\n${carriedSummary}`,
+        sender: "ai",
+        time: new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }),
+      })
+    }
+
+    pendingSummaryRef.current = carriedSummary || ""
+
     setCurrentChatId(newChatId)
-    setMessages([welcomeMsg])
+    setMessages(initialMessages)
 
     const newChat: ChatSession = {
       id: newChatId,
-      messages: [welcomeMsg],
+      messages: initialMessages,
       title: `Missione con ${agent.name}`,
       lastUpdated: new Date().toISOString(),
       folderId: null,
@@ -890,7 +920,7 @@ export default function App() {
           sessionId: newSessionId,
           folderId: null,
           archived: false,
-          messages: [welcomeMsg],
+          messages: initialMessages,
         })
         console.log("✅ Conversation created in database:", newChatId)
       } catch (error) {
@@ -915,6 +945,26 @@ export default function App() {
     await initNewChatForAgent(currentAgent)
     setSidebarVisible(true)
     setSidebarMode("chats")
+  }
+
+  // Used by the "budget spent" banner: summarises the conversation that ran out
+  // and opens a fresh one carrying that summary. A failed summary still opens
+  // the new chat -- being stuck in a dead conversation is the worse outcome.
+  const startNewChatWithSummary = async () => {
+    if (isSummarizingChat) return
+    setIsSummarizingChat(true)
+
+    try {
+      const summary = currentChatId
+        ? await conversationSummaryService.summarizeConversation(user?.id, currentChatId, messages)
+        : null
+
+      await initNewChatForAgent(currentAgent, undefined, summary || undefined)
+      setSidebarVisible(true)
+      setSidebarMode("chats")
+    } finally {
+      setIsSummarizingChat(false)
+    }
   }
 
   const loadChat = async (chatId: string) => {
@@ -1138,14 +1188,19 @@ export default function App() {
 
   // --- Message Sending Logic ---
   // Highest crossed threshold drives the announcer bar; hard stop when no tokens left
-  const activeTokenAlert = tokenUsage
-    ? [...TOKEN_ALERT_RULES]
-        .sort((a, b) => b.percentage - a.percentage)
-        .find((rule) => tokenUsagePercent >= rule.percentage) || null
-    : null
-  const isTokenLimitReached = Boolean(
+  // Conversation budget: thresholds and messages come from the admin panel,
+  // the counters from the conversation row. Drives the announcer bar.
+  const tokenGate = useConversationTokenGate(currentChatId, tokenRefreshKey)
+  const activeTokenAlert = tokenGate.activeAlert
+  // This conversation is spent. A new one gets a fresh budget, so the banner
+  // offers that way out.
+  const isConversationTokenLimitReached = tokenGate.isLimitReached
+  // The monthly quota is a separate ceiling; starting a new conversation does
+  // not refill it, so it blocks without offering one.
+  const isMonthlyTokenLimitReached = Boolean(
     tokenUsage && (tokenUsage.totalTokensLeft <= 0 || tokenUsagePercent >= 100),
   )
+  const isTokenLimitReached = isConversationTokenLimitReached || isMonthlyTokenLimitReached
 
   const sendMessage = async () => {
     if (!inputValue.trim() && selectedFiles.length === 0) return
@@ -1267,6 +1322,7 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chatInput:
+            takeCarriedSummaryPrefix() +
             inputValue + (selectedFiles.length ? ` [Attached: ${selectedFiles.map((f) => f.name).join(", ")}]` : "") +
             fileContext,
           sessionId: sessionId, // Use chat-specific sessionId for conversation continuity,
@@ -2238,11 +2294,25 @@ export default function App() {
             <div className="max-w-6xl mx-auto">
               {/* Token usage announcer bar */}
               {isTokenLimitReached ? (
-                <div className="mb-3 flex items-center gap-2.5 rounded-xl border px-4 py-3 text-sm font-medium bg-rose-500/15 border-rose-500/50 text-rose-700 dark:text-rose-300">
-                  <span aria-hidden>🛑</span>
-                  <span>
-                    Limite di token raggiunto. Questa conversazione è terminata: avvia una nuova chat per continuare.
-                  </span>
+                <div className="mb-3 flex flex-col gap-3 rounded-xl border px-4 py-3 text-sm font-medium bg-rose-500/15 border-rose-500/50 text-rose-700 dark:text-rose-300 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <span aria-hidden>🛑</span>
+                    <span>
+                      {isConversationTokenLimitReached
+                        ? "Limite di token raggiunto. Questa conversazione è terminata: avvia una nuova chat per continuare."
+                        : "Hai esaurito i token mensili. Contatta l'amministratore per continuare."}
+                    </span>
+                  </div>
+                  {isConversationTokenLimitReached && (
+                    <button
+                      onClick={startNewChatWithSummary}
+                      disabled={isSummarizingChat}
+                      className={`shrink-0 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors ${isSummarizingChat ? "bg-rose-600/60 cursor-wait" : "bg-rose-600 hover:bg-rose-500 cursor-pointer"}`}
+                    >
+                      <Plus size={16} strokeWidth={2.5} />
+                      {isSummarizingChat ? "Riepilogo in corso..." : "Nuova conversazione"}
+                    </button>
+                  )}
                 </div>
               ) : (
                 activeTokenAlert && (
