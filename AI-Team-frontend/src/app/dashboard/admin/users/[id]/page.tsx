@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   ArrowLeft, User as UserIcon, Calendar, Activity, CreditCard,
   Bot, Clock, ChevronDown, OctagonAlert, Shield, Mail, Hash,
-  DollarSign, Euro
+  DollarSign, Euro, Trash2, X
 } from "lucide-react";
 import {
   Area, Line, PieChart, Pie, Cell,
@@ -144,6 +144,7 @@ function CurrencyToggle({
 /* ─────────────────── MOCK DATA ─────────────────── */
 
 type ApiAssignment = {
+  id?: string;
   agentName?: string;
   startsAt?: string | null;
   expiresAt?: string | null;
@@ -160,8 +161,10 @@ type ApiGroupAssignment = Omit<ApiAssignment, "agentName"> & {
 };
 
 type ApiMembershipAssignment = {
+  id?: string;
   startsAt?: string | null;
   expiresAt?: string | null;
+  monthlyTokenLimit?: number | null;
   isActive?: boolean;
   template?: {
     name?: string | null;
@@ -245,6 +248,59 @@ const collectAssignedAgentNames = (details: ApiUserDetails | null): string[] => 
   });
 
   return Array.from(assignedAgents);
+};
+
+// The backend normalizes "team" to the underlying group assignment.
+type ActivePlanType = "membership" | "team" | "agent";
+
+type ActivePlan = {
+  id: string;
+  type: ActivePlanType;
+  typeLabel: string;
+  name: string;
+  startsAt: string;
+  expiration: string;
+  monthlyLimit: number;
+};
+
+const buildActivePlans = (details: ApiUserDetails | null): ActivePlan[] => {
+  const memberships: ActivePlan[] = (details?.user.memberships ?? [])
+    .filter(isActiveAssignment)
+    .map((item) => ({
+      id: item.id ?? "",
+      type: "membership" as const,
+      typeLabel: "Membership",
+      name: item.template?.name ?? "Membership",
+      startsAt: formatDate(item.startsAt),
+      expiration: formatDate(item.expiresAt),
+      monthlyLimit: item.monthlyTokenLimit ?? item.template?.monthlyTokenLimit ?? 0,
+    }));
+
+  const groups: ActivePlan[] = (details?.user.groups ?? [])
+    .filter(isActiveAssignment)
+    .map((item) => ({
+      id: item.id ?? "",
+      type: "team" as const,
+      typeLabel: "Team",
+      name: item.group?.name ?? "Team",
+      startsAt: formatDate(item.startsAt),
+      expiration: formatDate(item.expiresAt),
+      monthlyLimit: item.monthlyTokenLimit ?? 0,
+    }));
+
+  const agents: ActivePlan[] = (details?.user.agents ?? [])
+    .filter(isActiveAssignment)
+    .map((item) => ({
+      id: item.id ?? "",
+      type: "agent" as const,
+      typeLabel: "Agent",
+      name: item.agentName ?? "Agent",
+      startsAt: formatDate(item.startsAt),
+      expiration: formatDate(item.expiresAt),
+      monthlyLimit: item.monthlyTokenLimit ?? 0,
+    }));
+
+  return [...memberships, ...groups, ...agents].filter((plan) => plan.id);
 };
 
 const buildSubscription = (details: ApiUserDetails | null): DisplaySubscription => {
@@ -791,6 +847,11 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [userError, setUserError] = useState<string | null>(null);
   const [visibleAgents, setVisibleAgents] = useState<string[]>([]);
+  const [showPlanManager, setShowPlanManager] = useState(false);
+  const [confirmPlanId, setConfirmPlanId] = useState<string | null>(null);
+  const [deletingPlanId, setDeletingPlanId] = useState<string | null>(null);
+  const [planError, setPlanError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const pickerRef = useRef<HTMLDivElement>(null);
   const usageRange = useMemo(
     () => resolveUsageRange(selectedPreset, appliedCustomDays, appliedCustomFrom, appliedCustomTo),
@@ -841,7 +902,7 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
 
     loadUserDetails();
     return () => controller.abort();
-  }, [resolvedParams.id, usageRange]);
+  }, [resolvedParams.id, usageRange, refreshKey]);
 
   const activeLabel = usageRange.label;
 
@@ -881,6 +942,37 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
   };
 
   const subscription = useMemo(() => buildSubscription(details), [details]);
+  const activePlans = useMemo(() => buildActivePlans(details), [details]);
+
+  const openPlanManager = () => {
+    setConfirmPlanId(null);
+    setPlanError(null);
+    setShowPlanManager(true);
+  };
+
+  const deletePlan = async (plan: ActivePlan) => {
+    setDeletingPlanId(plan.id);
+    setPlanError(null);
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/admin/dashboard/assignments/${plan.type}/${plan.id}`,
+        { method: "DELETE" },
+      );
+
+      if (!response.ok) {
+        throw new Error(`Deleting the plan failed with ${response.status}`);
+      }
+
+      setConfirmPlanId(null);
+      setRefreshKey((key) => key + 1);
+    } catch (err) {
+      setPlanError((err as Error).message || "Failed to delete the plan");
+    } finally {
+      setDeletingPlanId(null);
+    }
+  };
+
   const agentTokenUsage = useMemo(() => buildAgentTokenUsage(details), [details]);
   const usageSeries = useMemo(
     () => buildUsedAgentSeries(details, agentTokenUsage),
@@ -1059,13 +1151,36 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         {/* Plan */}
         <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-          <p className="text-[10px] uppercase tracking-wider text-white/35 mb-1.5 flex items-center gap-1"><CreditCard size={11} /> Active Plan</p>
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-[10px] uppercase tracking-wider text-white/35 mb-1.5 flex items-center gap-1"><CreditCard size={11} /> Active Plan</p>
+            {activePlans.length > 0 && (
+              <button
+                type="button"
+                onClick={openPlanManager}
+                title="Manage active plans"
+                className="-mt-1 -mr-1 rounded-lg p-1.5 text-white/30 transition hover:bg-red-500/10 hover:text-red-400"
+              >
+                <Trash2 size={13} />
+              </button>
+            )}
+          </div>
           <p className="font-semibold text-sm leading-snug">{subscription.plan}</p>
-          <span className={`mt-2 inline-block rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
-            subscription.status === "Active" ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
-          }`}>
-            {subscription.status}
-          </span>
+          <div className="mt-2 flex items-center gap-2">
+            <span className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+              subscription.status === "Active" ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
+            }`}>
+              {subscription.status}
+            </span>
+            {activePlans.length > 1 && (
+              <button
+                type="button"
+                onClick={openPlanManager}
+                className="text-[10px] text-white/35 underline-offset-2 transition hover:text-white/70 hover:underline"
+              >
+                +{activePlans.length - 1} more active
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Duration */}
@@ -1109,6 +1224,86 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
           </p>
         </div>
       </div>
+
+      {/* ──────── ACTIVE PLANS MANAGER ──────── */}
+      {showPlanManager && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#0B1221] p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-lg font-semibold">Active Plans</h3>
+              <button onClick={() => setShowPlanManager(false)} className="text-white/40 hover:text-white"><X size={20} /></button>
+            </div>
+            <p className="mb-5 text-xs text-white/40">
+              Deleting a plan removes the assignment from {displayName} immediately.
+            </p>
+
+            {planError && (
+              <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs text-red-300">
+                {planError}
+              </div>
+            )}
+
+            <div className="space-y-3 max-h-[50vh] overflow-y-auto">
+              {activePlans.length === 0 && (
+                <p className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-6 text-center text-xs text-white/35">
+                  This user has no active plans.
+                </p>
+              )}
+
+              {activePlans.map((plan) => (
+                <div key={`${plan.type}-${plan.id}`} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-md bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-sky-400">
+                          {plan.typeLabel}
+                        </span>
+                        <span className="truncate text-sm font-semibold">{plan.name}</span>
+                      </div>
+                      <p className="mt-1.5 text-[11px] text-white/40">
+                        {plan.startsAt} → {plan.expiration} · {plan.monthlyLimit.toLocaleString()} tokens
+                      </p>
+                    </div>
+
+                    {confirmPlanId === plan.id ? (
+                      <div className="flex shrink-0 items-center gap-2">
+                        <button
+                          onClick={() => setConfirmPlanId(null)}
+                          disabled={deletingPlanId === plan.id}
+                          className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] text-white/60 transition hover:bg-white/5 disabled:opacity-50"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => deletePlan(plan)}
+                          disabled={deletingPlanId === plan.id}
+                          className="rounded-lg bg-red-600 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-red-500 disabled:opacity-50"
+                        >
+                          {deletingPlanId === plan.id ? "Deleting..." : "Confirm"}
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => { setPlanError(null); setConfirmPlanId(plan.id); }}
+                        className="flex shrink-0 items-center gap-1.5 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-1.5 text-[11px] font-semibold text-red-400 transition hover:bg-red-500/20"
+                      >
+                        <Trash2 size={12} /> Delete
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setShowPlanManager(false)}
+              className="mt-5 w-full rounded-xl border border-white/10 py-2.5 text-sm text-white/60 transition hover:bg-white/5"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ──────── ASSIGNED AGENTS CHIPS ──────── */}
       <div className="mb-8 rounded-xl border border-white/10 bg-white/[0.03] p-4">
