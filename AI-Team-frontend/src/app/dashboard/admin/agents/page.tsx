@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import {
   Bot, Users, Plus, ShieldCheck, MoreVertical, Search, CreditCard,
-  AlertTriangle, ToggleLeft, ToggleRight, Trash2, MessageSquare, Save, Zap,
+  AlertTriangle, Trash2, MessageSquare, Save, Zap,
   X, Loader2, Pencil
 } from "lucide-react";
 
@@ -15,25 +15,6 @@ const SINGLE_AGENTS = [
 ];
 
 const MOCK_MEMBERSHIPS: { id: number; name: string; durationDays: number; tokens: number; items: string[] }[] = [];
-
-// Default per-agent limits (mock)
-const DEFAULT_PER_AGENT_LIMITS: Record<string, number> = {
-  SARA_AI: 16000,
-  JENNIFER_AI: 16000,
-  CHIARA_AI: 12000,
-  JIM: 8000,
-  ALEX: 8000,
-  MIKE: 8000,
-  TONY: 8000,
-  LARA: 10000,
-  VALENTINA: 10000,
-  DANIELE: 10000,
-  SIMONE: 12000,
-  NIKO: 8000,
-  ALADINO: 8000,
-  LAURA: 12000,
-  DAN: 12000,
-};
 
 interface AlertThreshold {
   id: string;
@@ -119,11 +100,6 @@ export default function AgentsAndTeamsPage() {
   const [isCreatingMembership, setIsCreatingMembership] = useState(false);
   const [membershipMessage, setMembershipMessage] = useState<string | null>(null);
   const [membershipError, setMembershipError] = useState<string | null>(null);
-
-  // Conversation Limits state
-  const [globalMode, setGlobalMode] = useState(true);
-  const [globalLimit, setGlobalLimit] = useState(16000);
-  const [perAgentLimits, setPerAgentLimits] = useState<Record<string, number>>({ ...DEFAULT_PER_AGENT_LIMITS });
 
   // Alert Thresholds state
   const [alerts, setAlerts] = useState<AlertThreshold[]>([...DEFAULT_ALERTS]);
@@ -216,10 +192,6 @@ export default function AgentsAndTeamsPage() {
     void loadMemberships();
     void loadTeams();
   }, []);
-
-  const updateAgentLimit = (agent: string, value: number) => {
-    setPerAgentLimits(prev => ({ ...prev, [agent]: value }));
-  };
 
   const toggleTeamAgent = (agent: string) => {
     setSelectedTeamAgents(prev =>
@@ -993,100 +965,6 @@ export default function AgentsAndTeamsPage() {
                   </div>
                 </div>
               ))}
-            </div>
-          </section>
-
-          {/* ──────── CONVERSATION TOKEN LIMITS ──────── */}
-          <section className="rounded-2xl border border-white/10 bg-[#0F172A] p-6">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <Zap size={20} className="text-amber-400" /> Conversation Token Limits
-              </h2>
-            </div>
-            <p className="text-xs text-white/40 mb-6">
-              Set the maximum number of tokens a single conversation can reach before the user is forced to start a new one.
-            </p>
-
-            {/* Global / Per-Agent Toggle */}
-            <div className="flex items-center gap-4 mb-6 p-4 rounded-xl bg-white/[0.03] border border-white/5">
-              <button
-                onClick={() => setGlobalMode(!globalMode)}
-                className="flex items-center gap-2 text-sm font-medium transition"
-              >
-                {globalMode ? (
-                  <ToggleRight size={28} className="text-sky-400" />
-                ) : (
-                  <ToggleLeft size={28} className="text-white/30" />
-                )}
-              </button>
-              <div>
-                <p className="text-sm font-medium text-white/90">
-                  {globalMode ? "Same limit for all agents" : "Per-agent limits"}
-                </p>
-                <p className="text-[11px] text-white/40">
-                  {globalMode
-                    ? "A single token limit applies to every agent conversation."
-                    : "Each agent can have its own conversation token limit."}
-                </p>
-              </div>
-            </div>
-
-            {/* Global Limit Input */}
-            {globalMode ? (
-              <div className="space-y-4">
-                <div>
-                  <label className="text-xs text-white/50 mb-1.5 block">Max Tokens per Conversation (All Agents)</label>
-                  <div className="relative max-w-xs">
-                    <Zap size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400/60" />
-                    <input
-                      type="number"
-                      value={globalLimit}
-                      onChange={(e) => setGlobalLimit(Number(e.target.value))}
-                      className="w-full rounded-xl border border-white/10 bg-white/5 p-3 pl-9 text-sm text-white outline-none focus:border-amber-500/50 transition"
-                    />
-                  </div>
-                  <p className="text-[11px] text-white/30 mt-2">
-                    Equivalent to ~{(globalLimit / 750).toFixed(0)} pages of text or ~{(globalLimit / 4).toFixed(0)} words.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              /* Per-Agent Limits Table */
-              <div className="space-y-2 max-h-[420px] overflow-y-auto pr-2 custom-scrollbar">
-                <div className="grid grid-cols-[1fr_140px_100px] gap-3 px-3 py-2 text-[10px] uppercase tracking-wider text-white/30 sticky top-0 bg-[#0F172A] z-10">
-                  <span>Agent</span>
-                  <span>Max Tokens</span>
-                  <span className="text-right">~Words</span>
-                </div>
-                {SINGLE_AGENTS.map(agent => (
-                  <div
-                    key={agent}
-                    className="grid grid-cols-[1fr_140px_100px] gap-3 items-center rounded-lg bg-white/[0.03] px-3 py-2.5 border border-white/5 hover:border-white/10 transition"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-md bg-sky-500/15 text-sky-400">
-                        <Bot size={13} />
-                      </div>
-                      <span className="text-sm font-medium text-white/80">{agent}</span>
-                    </div>
-                    <input
-                      type="number"
-                      value={perAgentLimits[agent] || 8000}
-                      onChange={(e) => updateAgentLimit(agent, Number(e.target.value))}
-                      className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white outline-none focus:border-amber-500/50 transition text-center"
-                    />
-                    <span className="text-xs text-white/30 font-mono text-right">
-                      {((perAgentLimits[agent] || 8000) / 4).toLocaleString()}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="flex justify-end mt-6">
-              <button className="flex items-center gap-2 rounded-xl bg-amber-600/90 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-500 shadow-lg shadow-amber-500/15">
-                <Save size={14} /> Save Limits
-              </button>
             </div>
           </section>
 
