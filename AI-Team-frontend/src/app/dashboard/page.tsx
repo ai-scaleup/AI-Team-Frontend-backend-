@@ -199,6 +199,13 @@ const agents: UiAgent[] = [
     href: "/dashboard/freap-chiara",
   },
   {
+    key: "FREAP_JENNIFER",
+    name: "Freap Jennifer",
+    role: "AI Assistant",
+    image: "/assets/agents/chiara-ai-Whats-App-Image-2026-02-25-at-15-34-49-1.jpg",
+    href: "/dashboard/freap-jennifer",
+  },
+  {
     key: "TEST_MIKE",
     name: "Test Mike AI",
     role: "Test Direttore Marketing",

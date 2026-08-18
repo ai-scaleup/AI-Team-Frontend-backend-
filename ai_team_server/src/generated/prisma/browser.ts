@@ -78,6 +78,11 @@ export type ChiaraInboundChatLog = Prisma.ChiaraInboundChatLogModel
  */
 export type FreapChiaraInboundChatLog = Prisma.FreapChiaraInboundChatLogModel
 /**
+ * Model FreapJenniferChatLog
+ * 
+ */
+export type FreapJenniferChatLog = Prisma.FreapJenniferChatLogModel
+/**
  * Model ChiaraLead
  * 
  */

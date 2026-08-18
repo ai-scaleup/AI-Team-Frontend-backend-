@@ -11,6 +11,7 @@ import { SaraAiModule } from './sara-ai/sara-ai.module';
 import { JenniferModule } from './jennifer/jennifer.module';
 import { ChiaraModule } from './chiara/chiara.module';
 import { FreapChiaraModule } from './freap-chiara/freap-chiara.module';
+import { FreapJenniferModule } from './freap-jennifer/freap-jennifer.module';
 import { TagsModule } from './tags/tags.module';
 import { TokenUsageModule } from './token-usage/token-usage.module';
 import { TokenAlertsModule } from './token-alerts/token-alerts.module';
@@ -28,6 +29,7 @@ import { MembershipModule } from './membership/membership.module';
     JenniferModule,
     ChiaraModule,
     FreapChiaraModule,
+    FreapJenniferModule,
     TagsModule,
     TokenUsageModule,
     TokenAlertsModule,

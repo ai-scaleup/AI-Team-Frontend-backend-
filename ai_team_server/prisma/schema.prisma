@@ -30,6 +30,7 @@ enum AgentName {
   JENNIFER_AI
   CHIARA_AI
   FREAP_CHIARA
+  FREAP_JENNIFER
   // --- test agents ---
   TEST_JIM
   TEST_ALEX
@@ -372,6 +373,18 @@ model FreapChiaraInboundChatLog {
   @@index([sessionId])
   @@index([sender])
   @@map("freap_chiara_inbound_chat_logs")
+}
+
+model FreapJenniferChatLog {
+  id          Int      @id @default(autoincrement())
+  sessionId   String   @map("session_id") @db.VarChar(255)
+  sender      String   @db.VarChar(50)
+  messageText String   @map("message_text")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([sessionId])
+  @@index([sender])
+  @@map("freap_jennifer_chat_logs")
 }
 
 model ChiaraLead {

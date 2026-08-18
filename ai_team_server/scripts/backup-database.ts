@@ -48,6 +48,7 @@ const RESTORE_ORDER = [
   'chiara_leads',
   'chiara_inbound_chat_logs',
   'freap_chiara_inbound_chat_logs',
+  'freap_jennifer_chat_logs',
   'TagField',
   'Tag',
   'UserAgentTokenUsage',
