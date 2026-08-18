@@ -106,6 +106,33 @@ class GroupSelectorDto {
   groupName?: string;
 }
 
+class AssignAgentByEmailDto {
+  @IsEmail()
+  email!: string;
+
+  @IsEnum(AgentName)
+  agentName!: AgentName;
+
+  @IsOptional()
+  @Transform(toDate)
+  startsAt?: Date;
+
+  @IsOptional()
+  @ValidateIf((o) => o.expiresAt !== undefined)
+  @Transform(toDateOrNull)
+  expiresAt?: Date | null;
+
+  @IsOptional()
+  @Transform(toNumber)
+  @IsInt()
+  @Min(1)
+  durationDays?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+
 class AssignGroupByEmailDto {
   @IsEmail()
   email!: string;
@@ -503,6 +530,33 @@ export class AdminController {
       selector,
       q.activeOnly ?? true,
     );
+  }
+
+  /**
+   * Assign a SINGLE agent to a user by email.
+   * Upserts the active AssignedAgent record for (user, agent) — nothing is deleted.
+   */
+  @Post('assign/agent')
+  @ApiOperation({ summary: 'Assign a single agent to a user by email' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['email', 'agentName'],
+      properties: {
+        email: { type: 'string', format: 'email' },
+        agentName: { type: 'string', enum: Object.values(AgentName) },
+        ...assignmentOptionsSchema,
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Agent assigned' })
+  assignAgent(@Body() dto: AssignAgentByEmailDto) {
+    return this.admin.assignAgentByEmail(dto.email, dto.agentName, {
+      startsAt: dto.startsAt,
+      expiresAt: dto.expiresAt,
+      durationDays: dto.durationDays ?? undefined,
+      isActive: dto.isActive,
+    });
   }
 
   /**

@@ -10,6 +10,7 @@ import { UserPreferenceModule } from './user-preference/user-preference.module';
 import { SaraAiModule } from './sara-ai/sara-ai.module';
 import { JenniferModule } from './jennifer/jennifer.module';
 import { ChiaraModule } from './chiara/chiara.module';
+import { FreapChiaraModule } from './freap-chiara/freap-chiara.module';
 import { TagsModule } from './tags/tags.module';
 import { TokenUsageModule } from './token-usage/token-usage.module';
 import { TokenAlertsModule } from './token-alerts/token-alerts.module';
@@ -26,6 +27,7 @@ import { MembershipModule } from './membership/membership.module';
     SaraAiModule,
     JenniferModule,
     ChiaraModule,
+    FreapChiaraModule,
     TagsModule,
     TokenUsageModule,
     TokenAlertsModule,

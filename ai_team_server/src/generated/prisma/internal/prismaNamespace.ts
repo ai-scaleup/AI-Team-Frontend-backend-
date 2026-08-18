@@ -395,6 +395,7 @@ export const ModelName = {
   ChatLog: 'ChatLog',
   MetisChatLog: 'MetisChatLog',
   ChiaraInboundChatLog: 'ChiaraInboundChatLog',
+  FreapChiaraInboundChatLog: 'FreapChiaraInboundChatLog',
   ChiaraLead: 'ChiaraLead',
   TagField: 'TagField',
   Tag: 'Tag',
@@ -420,7 +421,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "userPreference" | "assignedAgent" | "agentGroup" | "agentGroupItem" | "assignedGroup" | "conversation" | "message" | "chatLog" | "metisChatLog" | "chiaraInboundChatLog" | "chiaraLead" | "tagField" | "tag" | "userAgentTokenUsage" | "tokenUsageAlertRule" | "membershipTemplate" | "assignedMembership" | "dailyTokenUsage" | "tokenLimitStopLog" | "userAlert"
+    modelProps: "user" | "userPreference" | "assignedAgent" | "agentGroup" | "agentGroupItem" | "assignedGroup" | "conversation" | "message" | "chatLog" | "metisChatLog" | "chiaraInboundChatLog" | "freapChiaraInboundChatLog" | "chiaraLead" | "tagField" | "tag" | "userAgentTokenUsage" | "tokenUsageAlertRule" | "membershipTemplate" | "assignedMembership" | "dailyTokenUsage" | "tokenLimitStopLog" | "userAlert"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1235,6 +1236,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.ChiaraInboundChatLogCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.ChiaraInboundChatLogCountAggregateOutputType> | number
+        }
+      }
+    }
+    FreapChiaraInboundChatLog: {
+      payload: Prisma.$FreapChiaraInboundChatLogPayload<ExtArgs>
+      fields: Prisma.FreapChiaraInboundChatLogFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.FreapChiaraInboundChatLogFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FreapChiaraInboundChatLogPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.FreapChiaraInboundChatLogFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FreapChiaraInboundChatLogPayload>
+        }
+        findFirst: {
+          args: Prisma.FreapChiaraInboundChatLogFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FreapChiaraInboundChatLogPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.FreapChiaraInboundChatLogFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FreapChiaraInboundChatLogPayload>
+        }
+        findMany: {
+          args: Prisma.FreapChiaraInboundChatLogFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FreapChiaraInboundChatLogPayload>[]
+        }
+        create: {
+          args: Prisma.FreapChiaraInboundChatLogCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FreapChiaraInboundChatLogPayload>
+        }
+        createMany: {
+          args: Prisma.FreapChiaraInboundChatLogCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.FreapChiaraInboundChatLogCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FreapChiaraInboundChatLogPayload>[]
+        }
+        delete: {
+          args: Prisma.FreapChiaraInboundChatLogDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FreapChiaraInboundChatLogPayload>
+        }
+        update: {
+          args: Prisma.FreapChiaraInboundChatLogUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FreapChiaraInboundChatLogPayload>
+        }
+        deleteMany: {
+          args: Prisma.FreapChiaraInboundChatLogDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.FreapChiaraInboundChatLogUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.FreapChiaraInboundChatLogUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FreapChiaraInboundChatLogPayload>[]
+        }
+        upsert: {
+          args: Prisma.FreapChiaraInboundChatLogUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FreapChiaraInboundChatLogPayload>
+        }
+        aggregate: {
+          args: Prisma.FreapChiaraInboundChatLogAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateFreapChiaraInboundChatLog>
+        }
+        groupBy: {
+          args: Prisma.FreapChiaraInboundChatLogGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.FreapChiaraInboundChatLogGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.FreapChiaraInboundChatLogCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.FreapChiaraInboundChatLogCountAggregateOutputType> | number
         }
       }
     }
@@ -2186,6 +2261,17 @@ export const ChiaraInboundChatLogScalarFieldEnum = {
 export type ChiaraInboundChatLogScalarFieldEnum = (typeof ChiaraInboundChatLogScalarFieldEnum)[keyof typeof ChiaraInboundChatLogScalarFieldEnum]
 
 
+export const FreapChiaraInboundChatLogScalarFieldEnum = {
+  id: 'id',
+  sessionId: 'sessionId',
+  sender: 'sender',
+  messageText: 'messageText',
+  createdAt: 'createdAt'
+} as const
+
+export type FreapChiaraInboundChatLogScalarFieldEnum = (typeof FreapChiaraInboundChatLogScalarFieldEnum)[keyof typeof FreapChiaraInboundChatLogScalarFieldEnum]
+
+
 export const ChiaraLeadScalarFieldEnum = {
   id: 'id',
   sessionId: 'sessionId',
@@ -2703,6 +2789,7 @@ export type GlobalOmitConfig = {
   chatLog?: Prisma.ChatLogOmit
   metisChatLog?: Prisma.MetisChatLogOmit
   chiaraInboundChatLog?: Prisma.ChiaraInboundChatLogOmit
+  freapChiaraInboundChatLog?: Prisma.FreapChiaraInboundChatLogOmit
   chiaraLead?: Prisma.ChiaraLeadOmit
   tagField?: Prisma.TagFieldOmit
   tag?: Prisma.TagOmit

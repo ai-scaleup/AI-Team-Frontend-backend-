@@ -15,7 +15,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE;
 /* ──────────────────────────── MOCK DATA ──────────────────────────── */
 
 const ALL_AGENTS = [
-  "SARA_AI", "JENNIFER_AI", "CHIARA_AI", "JIM", "ALEX", "MIKE", "TONY",
+  "SARA_AI", "JENNIFER_AI", "CHIARA_AI", "FREAP_CHIARA", "JIM", "ALEX", "MIKE", "TONY",
   "LARA", "VALENTINA", "DANIELE", "SIMONE", "NIKO", "ALADINO", "LAURA", "DAN",
   "MAX", "SOFIA", "ROBERTA", "TEST_JIM", "TEST_ALEX", "TEST_MIKE", "TEST_TONY",
   "TEST_LARA", "TEST_VALENTINA", "TEST_DANIELE", "TEST_SIMONE", "TEST_NIKO",
@@ -27,7 +27,7 @@ const DEFAULT_VISIBLE_AGENTS = ALL_AGENTS;
 
 // Keep agent colors stable even when the API returns agents in a different order.
 const AGENT_COLORS: Record<string, string> = {
-  SARA_AI: "#06b6d4", JENNIFER_AI: "#e879f9", CHIARA_AI: "#f472b6",
+  SARA_AI: "#06b6d4", JENNIFER_AI: "#e879f9", CHIARA_AI: "#f472b6", FREAP_CHIARA: "#10b981",
   JIM: "#f59e0b", ALEX: "#f87171", MIKE: "#8b5cf6", TONY: "#fb7185",
   LARA: "#fbbf24", VALENTINA: "#ec4899", DANIELE: "#4ade80",
   SIMONE: "#2dd4bf", NIKO: "#fb923c", ALADINO: "#38bdf8", LAURA: "#c084fc",
@@ -611,6 +611,23 @@ export default function AssignAndMetricsPage() {
       }
 
       if (assignType === "agent") {
+        // 1) Grant the user access to this single agent (upserts AssignedAgent).
+        const accessResponse = await fetch(`${API_BASE}/admin/assign/agent`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email,
+            agentName: selectedAssignment,
+            durationDays,
+            isActive: true,
+          }),
+        });
+
+        if (!accessResponse.ok) {
+          throw new Error(await parseApiError(accessResponse));
+        }
+
+        // 2) Apply the token allowance for that agent.
         const response = await fetch(
           `${API_BASE}/token-usage/${encodeURIComponent(email)}/${encodeURIComponent(selectedAssignment)}/limit`,
           {
@@ -626,7 +643,7 @@ export default function AssignAndMetricsPage() {
 
         setAssignmentMessage({
           type: "success",
-          text: `${monthlyTokenLimit.toLocaleString()} tokens assigned to ${selectedAssignment} for ${email}.`,
+          text: `${selectedAssignment} assigned to ${email} for ${durationDays} days with ${monthlyTokenLimit.toLocaleString()} tokens.`,
         });
         await loadRecentAssignments();
         await loadAgentMetrics();

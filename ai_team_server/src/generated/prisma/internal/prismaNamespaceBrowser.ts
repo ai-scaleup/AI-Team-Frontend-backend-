@@ -62,6 +62,7 @@ export const ModelName = {
   ChatLog: 'ChatLog',
   MetisChatLog: 'MetisChatLog',
   ChiaraInboundChatLog: 'ChiaraInboundChatLog',
+  FreapChiaraInboundChatLog: 'FreapChiaraInboundChatLog',
   ChiaraLead: 'ChiaraLead',
   TagField: 'TagField',
   Tag: 'Tag',
@@ -257,6 +258,17 @@ export const ChiaraInboundChatLogScalarFieldEnum = {
 } as const
 
 export type ChiaraInboundChatLogScalarFieldEnum = (typeof ChiaraInboundChatLogScalarFieldEnum)[keyof typeof ChiaraInboundChatLogScalarFieldEnum]
+
+
+export const FreapChiaraInboundChatLogScalarFieldEnum = {
+  id: 'id',
+  sessionId: 'sessionId',
+  sender: 'sender',
+  messageText: 'messageText',
+  createdAt: 'createdAt'
+} as const
+
+export type FreapChiaraInboundChatLogScalarFieldEnum = (typeof FreapChiaraInboundChatLogScalarFieldEnum)[keyof typeof FreapChiaraInboundChatLogScalarFieldEnum]
 
 
 export const ChiaraLeadScalarFieldEnum = {

@@ -39,6 +39,12 @@ interface GroupAssignment {
   }
 }
 
+interface AgentsByEmailResponse {
+  email: string
+  agents: string[]
+  group?: { id: string; name: string; description: string | null }
+}
+
 interface GroupAgentsResponse {
   group: {
     id: string
@@ -186,6 +192,13 @@ const agents: UiAgent[] = [
     href: "/dashboard/chiara-ai",
   },
   {
+    key: "FREAP_CHIARA",
+    name: "Freap Chiara",
+    role: "AI Receptionist",
+    image: "/assets/agents/Lara-AI-1.png",
+    href: "/dashboard/freap-chiara",
+  },
+  {
     key: "TEST_MIKE",
     name: "Test Mike AI",
     role: "Test Direttore Marketing",
@@ -301,6 +314,10 @@ export default function HomePage() {
 
         console.log("[v0] Fetching data for user:", userEmail)
 
+        // Agents a user can see come from two independent sources:
+        // group assignments, and per-agent assignments made in the admin panel.
+        const allAgents = new Set<string>()
+
         // Fetch group assignments which include agents
         const groupsRes = await fetch(
           `${API_BASE}/admin/group-assignments?email=${encodeURIComponent(userEmail)}&activeOnly=true`,
@@ -312,16 +329,29 @@ export default function HomePage() {
           setAssignedGroups(groupsData)
 
           // Extract unique agents from all assigned groups
-          const allAgents = new Set<string>()
           groupsData.forEach((assignment) => {
             if (assignment.group?.agents) {
               assignment.group.agents.forEach((agent) => allAgents.add(agent))
             }
           })
-          const agentNames = Array.from(allAgents)
-          console.log("[v0] Extracted agents from groups:", agentNames)
-          setAssignedAgentNames(agentNames)
+          console.log("[v0] Extracted agents from groups:", Array.from(allAgents))
         }
+
+        // Fetch agents assigned individually (admin panel -> Agent assignment).
+        // This endpoint responds with { email, agents: string[] }, not an array.
+        const agentsRes = await fetch(
+          `${API_BASE}/admin/agents-by-email?email=${encodeURIComponent(userEmail)}&activeOnly=true`,
+          { cache: "no-store" },
+        )
+        if (agentsRes.ok) {
+          const agentsData: AgentsByEmailResponse = await agentsRes.json()
+          console.log("[v0] Individually assigned agents:", agentsData)
+          if (Array.isArray(agentsData?.agents)) {
+            agentsData.agents.forEach((agent) => allAgents.add(agent))
+          }
+        }
+
+        setAssignedAgentNames(Array.from(allAgents))
       } catch (error) {
         console.error("Error fetching data:", error)
       } finally {

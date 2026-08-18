@@ -47,6 +47,7 @@ const RESTORE_ORDER = [
   'metis_chat_logs',
   'chiara_leads',
   'chiara_inbound_chat_logs',
+  'freap_chiara_inbound_chat_logs',
   'TagField',
   'Tag',
   'UserAgentTokenUsage',
