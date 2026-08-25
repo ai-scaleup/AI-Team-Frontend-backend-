@@ -16,6 +16,7 @@ import { TagsModule } from './tags/tags.module';
 import { TokenUsageModule } from './token-usage/token-usage.module';
 import { TokenAlertsModule } from './token-alerts/token-alerts.module';
 import { MembershipModule } from './membership/membership.module';
+import { PearlAdminModule } from './pearl-admin/pearl-admin.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { MembershipModule } from './membership/membership.module';
     TokenUsageModule,
     TokenAlertsModule,
     MembershipModule,
+    PearlAdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

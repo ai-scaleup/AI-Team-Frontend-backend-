@@ -21,6 +21,9 @@ export const AgentNameEnum = z.enum([
   'SARA_AI',
   'JENNIFER_AI',
   'CHIARA_AI',
+  'FREAP_CHIARA',
+  'FREAP_JENNIFER',
+  'PEARL_ADMIN',
 
   // --- test agents ---
   'TEST_JIM',

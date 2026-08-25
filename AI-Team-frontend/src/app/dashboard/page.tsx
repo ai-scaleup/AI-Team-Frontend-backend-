@@ -206,6 +206,13 @@ const agents: UiAgent[] = [
     href: "/dashboard/freap-jennifer",
   },
   {
+    key: "PEARL_ADMIN",
+    name: "Pearl Admin",
+    role: "User Data Control Center",
+    image: "/assets/agents/pearl-admin.svg",
+    href: "/dashboard/pearl-admin",
+  },
+  {
     key: "TEST_MIKE",
     name: "Test Mike AI",
     role: "Test Direttore Marketing",

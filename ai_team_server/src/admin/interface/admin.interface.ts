@@ -20,6 +20,9 @@ export enum AgentName {
   SARA_AI = 'SARA_AI',
   JENNIFER_AI = 'JENNIFER_AI',
   CHIARA_AI = 'CHIARA_AI',
+  FREAP_CHIARA = 'FREAP_CHIARA',
+  FREAP_JENNIFER = 'FREAP_JENNIFER',
+  PEARL_ADMIN = 'PEARL_ADMIN',
 
   // --- test agents ---
   TEST_JIM = 'TEST_JIM',

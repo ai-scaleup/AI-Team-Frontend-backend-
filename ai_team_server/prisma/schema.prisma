@@ -31,6 +31,7 @@ enum AgentName {
   CHIARA_AI
   FREAP_CHIARA
   FREAP_JENNIFER
+  PEARL_ADMIN
   // --- test agents ---
   TEST_JIM
   TEST_ALEX

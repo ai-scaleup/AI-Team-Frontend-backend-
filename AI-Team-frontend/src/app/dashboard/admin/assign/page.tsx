@@ -15,7 +15,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE;
 /* ──────────────────────────── MOCK DATA ──────────────────────────── */
 
 const ALL_AGENTS = [
-  "SARA_AI", "JENNIFER_AI", "CHIARA_AI", "FREAP_CHIARA", "FREAP_JENNIFER", "JIM", "ALEX", "MIKE", "TONY",
+  "SARA_AI", "JENNIFER_AI", "CHIARA_AI", "FREAP_CHIARA", "FREAP_JENNIFER", "PEARL_ADMIN", "JIM", "ALEX", "MIKE", "TONY",
   "LARA", "VALENTINA", "DANIELE", "SIMONE", "NIKO", "ALADINO", "LAURA", "DAN",
   "MAX", "SOFIA", "ROBERTA", "TEST_JIM", "TEST_ALEX", "TEST_MIKE", "TEST_TONY",
   "TEST_LARA", "TEST_VALENTINA", "TEST_DANIELE", "TEST_SIMONE", "TEST_NIKO",
@@ -27,7 +27,7 @@ const DEFAULT_VISIBLE_AGENTS = ALL_AGENTS;
 
 // Keep agent colors stable even when the API returns agents in a different order.
 const AGENT_COLORS: Record<string, string> = {
-  SARA_AI: "#06b6d4", JENNIFER_AI: "#e879f9", CHIARA_AI: "#f472b6", FREAP_CHIARA: "#10b981", FREAP_JENNIFER: "#818cf8",
+  SARA_AI: "#06b6d4", JENNIFER_AI: "#e879f9", CHIARA_AI: "#f472b6", FREAP_CHIARA: "#10b981", FREAP_JENNIFER: "#818cf8", PEARL_ADMIN: "#22d3ee",
   JIM: "#f59e0b", ALEX: "#f87171", MIKE: "#8b5cf6", TONY: "#fb7185",
   LARA: "#fbbf24", VALENTINA: "#ec4899", DANIELE: "#4ade80",
   SIMONE: "#2dd4bf", NIKO: "#fb923c", ALADINO: "#38bdf8", LAURA: "#c084fc",

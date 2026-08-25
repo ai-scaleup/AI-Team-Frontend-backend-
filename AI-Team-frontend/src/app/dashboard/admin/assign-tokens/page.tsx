@@ -31,6 +31,7 @@ const AGENT_OPTIONS = [
   "SARA_AI",
   "JENNIFER_AI",
   "CHIARA_AI",
+  "PEARL_ADMIN",
   "TEST_JIM",
   "TEST_ALEX",
   "TEST_MIKE",
