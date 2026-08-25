@@ -4,7 +4,6 @@ import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import {
-  Activity,
   AlertTriangle,
   ArrowLeft,
   CheckCircle2,
@@ -33,24 +32,35 @@ const PAGE_SIZE = 10;
 type PearlRecord = {
   id: string;
   userId?: string;
-  email?: string;
   campaignName?: string;
   outboundId?: string;
-  bearerToken?: string;
   createdAt?: string;
   updatedAt?: string;
-  user?: { email?: string; username?: string };
 };
 
-type RecordsResult = {
-  records: PearlRecord[];
+type PearlUser = {
+  id: string;
+  email?: string;
+  username?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  campaignCount: number;
+  campaigns: PearlRecord[];
+};
+
+type UsersResult = {
+  users: PearlUser[];
   total: number;
   totalPages: number;
+  usersTotal: number;
+  recordsTotal: number;
 };
 
 type EditorState =
-  | { mode: "create"; record?: undefined }
-  | { mode: "edit"; record: PearlRecord };
+  | { mode: "create"; user?: PearlUser; record?: undefined }
+  | { mode: "edit"; user: PearlUser; record: PearlRecord };
+
+type DeleteTarget = { user: PearlUser; record: PearlRecord };
 
 type FormState = {
   email: string;
@@ -89,40 +99,24 @@ function readMessage(payload: unknown, fallback: string) {
   return fallback;
 }
 
-function normalizeRecords(payload: unknown, fallbackPage: number): RecordsResult {
-  if (Array.isArray(payload)) {
-    return {
-      records: payload as PearlRecord[],
-      total: payload.length,
-      totalPages: Math.max(1, Math.ceil(payload.length / PAGE_SIZE)),
-    };
-  }
-
+function normalizeUsers(payload: unknown, fallbackPage: number): UsersResult {
   const root = (payload ?? {}) as Record<string, unknown>;
-  const meta = (root.meta ?? root.pagination ?? {}) as Record<string, unknown>;
-  const candidate = [root.data, root.items, root.records, root.results].find(Array.isArray);
-  const records = (candidate ?? []) as PearlRecord[];
-  const total = Number(root.total ?? root.count ?? meta.total ?? records.length);
-  const totalPages = Number(
-    root.totalPages ?? meta.totalPages ?? Math.max(1, Math.ceil(total / PAGE_SIZE)),
-  );
+  const meta = (root.meta ?? {}) as Record<string, unknown>;
+  const users = (Array.isArray(root.data) ? root.data : []) as PearlUser[];
+  const total = Number(meta.total ?? users.length);
+  const totalPages = Number(meta.totalPages ?? Math.max(1, Math.ceil(total / PAGE_SIZE)));
 
   return {
-    records,
-    total: Number.isFinite(total) ? total : records.length,
+    users: users.map((user) => ({
+      ...user,
+      campaigns: Array.isArray(user.campaigns) ? user.campaigns : [],
+      campaignCount: Number(user.campaignCount ?? user.campaigns?.length ?? 0),
+    })),
+    total: Number.isFinite(total) ? total : users.length,
     totalPages: Number.isFinite(totalPages) ? Math.max(1, totalPages) : Math.max(1, fallbackPage),
+    usersTotal: Number(root.usersTotal ?? total) || 0,
+    recordsTotal: Number(root.recordsTotal ?? 0) || 0,
   };
-}
-
-function normalizeCount(payload: unknown) {
-  if (typeof payload === "number") return payload;
-  if (payload && typeof payload === "object") {
-    const root = payload as Record<string, unknown>;
-    const value = root.usersTotal ?? root.count ?? root.total ?? root.usersCount ?? root.totalUsers;
-    const count = Number(value);
-    if (Number.isFinite(count)) return count;
-  }
-  return 0;
 }
 
 function formatDate(value?: string) {
@@ -136,30 +130,36 @@ function formatDate(value?: string) {
   }).format(date);
 }
 
-function recordEmail(record: PearlRecord) {
-  return record.email ?? record.user?.email ?? "No email available";
+function userLabel(user?: PearlUser) {
+  return user?.email ?? user?.username ?? "Unknown user";
+}
+
+function userInitials(user: PearlUser) {
+  return userLabel(user).slice(0, 2).toUpperCase();
 }
 
 export default function PearlAdminPage() {
   const { user, isLoaded: authLoaded, isSignedIn } = useUser();
-  const [records, setRecords] = useState<PearlRecord[]>([]);
-  const [totalRecords, setTotalRecords] = useState(0);
+  const [users, setUsers] = useState<PearlUser[]>([]);
+  const [matchingUsers, setMatchingUsers] = useState(0);
   const [totalUsers, setTotalUsers] = useState(0);
+  const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
-  const [campaignFilter, setCampaignFilter] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [accessDenied, setAccessDenied] = useState(false);
   const [authenticationError, setAuthenticationError] = useState("");
   const [loadError, setLoadError] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [showToken, setShowToken] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<PearlRecord | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [toast, setToast] = useState<ToastState>(null);
 
@@ -193,7 +193,7 @@ export default function PearlAdminPage() {
     [],
   );
 
-  const loadRecords = useCallback(
+  const loadUsers = useCallback(
     async (quiet = false) => {
       if (!quiet) setIsLoading(true);
       setLoadError("");
@@ -201,18 +201,18 @@ export default function PearlAdminPage() {
       const params = new URLSearchParams({
         page: String(page),
         limit: String(PAGE_SIZE),
-        sortBy: "createdAt",
         sortOrder,
       });
-      if (campaignFilter) params.set("search", campaignFilter);
+      if (searchTerm) params.set("search", searchTerm);
 
       try {
-        const payload = await request(`/records?${params.toString()}`);
-        const result = normalizeRecords(payload, page);
-        setRecords(result.records);
-        setTotalRecords(result.total);
+        const payload = await request(`/users?${params.toString()}`);
+        const result = normalizeUsers(payload, page);
+        setUsers(result.users);
+        setMatchingUsers(result.total);
         setTotalPages(result.totalPages);
-        setTotalUsers(normalizeCount(payload));
+        setTotalUsers(result.usersTotal);
+        setTotalRecords(result.recordsTotal);
         setAccessDenied(false);
         setAuthenticationError("");
       } catch (error) {
@@ -223,20 +223,20 @@ export default function PearlAdminPage() {
           setAccessDenied(false);
           setAuthenticationError(error.message);
         } else {
-          setLoadError(error instanceof Error ? error.message : "Unable to load Pearl records.");
+          setLoadError(error instanceof Error ? error.message : "Unable to load Pearl users.");
         }
-        setRecords([]);
+        setUsers([]);
       } finally {
         setIsLoading(false);
       }
     },
-    [campaignFilter, page, request, sortOrder],
+    [page, request, searchTerm, sortOrder],
   );
 
   useEffect(() => {
     if (!authLoaded || !isSignedIn) return;
-    void loadRecords();
-  }, [authLoaded, isSignedIn, loadRecords]);
+    void loadUsers();
+  }, [authLoaded, isSignedIn, loadUsers]);
 
   useEffect(() => {
     if (!toast) return;
@@ -244,38 +244,56 @@ export default function PearlAdminPage() {
     return () => window.clearTimeout(timeout);
   }, [toast]);
 
-  const uniqueCampaigns = useMemo(
-    () => new Set(records.map((record) => record.campaignName).filter(Boolean)).size,
-    [records],
+  const selectedUser = useMemo(
+    () => users.find((candidate) => candidate.id === selectedUserId) ?? null,
+    [selectedUserId, users],
   );
 
-  const openCreate = () => {
-    setForm(emptyForm);
+  const recordsOnPage = useMemo(
+    () => users.reduce((sum, candidate) => sum + candidate.campaignCount, 0),
+    [users],
+  );
+
+  // Escape closes the topmost layer: dialogs first, then the side panel.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (deleteTarget) setDeleteTarget(null);
+      else if (editor) setEditor(null);
+      else if (selectedUserId) setSelectedUserId(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [deleteTarget, editor, selectedUserId]);
+
+  const openCreate = (target?: PearlUser) => {
+    setForm({ ...emptyForm, email: target?.email ?? "" });
     setShowToken(false);
-    setEditor({ mode: "create" });
+    setEditor({ mode: "create", user: target });
   };
 
-  const openEdit = (record: PearlRecord) => {
+  const openEdit = (target: PearlUser, record: PearlRecord) => {
     setForm({
-      email: recordEmail(record),
+      email: userLabel(target),
       campaignName: record.campaignName ?? "",
       outboundId: record.outboundId ?? "",
       bearerToken: "",
     });
     setShowToken(false);
-    setEditor({ mode: "edit", record });
+    setEditor({ mode: "edit", user: target, record });
   };
 
   const refreshAll = async () => {
     setIsRefreshing(true);
-    await loadRecords(true);
+    await loadUsers(true);
     setIsRefreshing(false);
   };
 
   const applySearch = (event: FormEvent) => {
     event.preventDefault();
     setPage(1);
-    setCampaignFilter(searchInput.trim());
+    setSelectedUserId(null);
+    setSearchTerm(searchInput.trim());
   };
 
   const submitEditor = async (event: FormEvent) => {
@@ -324,7 +342,9 @@ export default function PearlAdminPage() {
     if (!deleteTarget) return;
     setIsDeleting(true);
     try {
-      await request(`/admin/user-data/${encodeURIComponent(deleteTarget.id)}`, { method: "DELETE" });
+      await request(`/admin/user-data/${encodeURIComponent(deleteTarget.record.id)}`, {
+        method: "DELETE",
+      });
       setDeleteTarget(null);
       setToast({ tone: "success", message: "Pearl user data deleted." });
       await refreshAll();
@@ -409,7 +429,7 @@ export default function PearlAdminPage() {
             <a href="https://pearl-whitelabel-monorepo.onrender.com/docs#/Admin%20-%20User%20Data%20Management" target="_blank" rel="noreferrer" className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-slate-300 transition hover:border-white/20 hover:bg-white/10 hover:text-white">
               API docs <ExternalLink className="h-4 w-4" />
             </a>
-            <button onClick={openCreate} className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 px-4 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:brightness-110">
+            <button onClick={() => openCreate()} className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 px-4 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:brightness-110">
               <Plus className="h-4 w-4" /> New record
             </button>
           </div>
@@ -419,7 +439,7 @@ export default function PearlAdminPage() {
           {[
             { label: "Total users", value: totalUsers.toLocaleString(), icon: Users, color: "text-cyan-300", bg: "bg-cyan-400/10" },
             { label: "Credential records", value: totalRecords.toLocaleString(), icon: Database, color: "text-indigo-300", bg: "bg-indigo-400/10" },
-            { label: "Campaigns on page", value: uniqueCampaigns.toLocaleString(), icon: Activity, color: "text-violet-300", bg: "bg-violet-400/10" },
+            { label: "Records on page", value: recordsOnPage.toLocaleString(), icon: KeyRound, color: "text-violet-300", bg: "bg-violet-400/10" },
             { label: "Connection", value: loadError ? "Attention" : "Protected", icon: ShieldCheck, color: loadError ? "text-amber-300" : "text-emerald-300", bg: loadError ? "bg-amber-400/10" : "bg-emerald-400/10" },
           ].map((stat) => {
             const Icon = stat.icon;
@@ -444,14 +464,14 @@ export default function PearlAdminPage() {
             <div>
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-cyan-300" />
-                <h2 className="font-semibold">User data records</h2>
+                <h2 className="font-semibold">Pearl users</h2>
               </div>
-              <p className="mt-1 text-xs text-slate-500">Manage Pearl campaign IDs and credentials without exposing the admin API key.</p>
+              <p className="mt-1 text-xs text-slate-500">Select a user to review and manage their campaign credentials.</p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
               <form onSubmit={applySearch} className="relative min-w-0 sm:w-80">
                 <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                <input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search campaign name…" className="h-10 w-full rounded-xl border border-white/10 bg-white/5 pl-10 pr-20 text-sm text-white outline-none placeholder:text-slate-600 focus:border-cyan-300/40" />
+                <input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search email or campaign…" className="h-10 w-full rounded-xl border border-white/10 bg-white/5 pl-10 pr-20 text-sm text-white outline-none placeholder:text-slate-600 focus:border-cyan-300/40" />
                 <button type="submit" className="absolute right-1.5 top-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-white/15">Search</button>
               </form>
               <select value={sortOrder} onChange={(event) => { setPage(1); setSortOrder(event.target.value as "asc" | "desc"); }} className="h-10 rounded-xl border border-white/10 bg-[#0b1528] px-3 text-sm text-slate-300 outline-none focus:border-cyan-300/40">
@@ -470,59 +490,137 @@ export default function PearlAdminPage() {
               <div className="flex-1"><p className="font-medium">Pearl data could not be loaded</p><p className="mt-1 text-amber-100/70">{loadError}</p></div>
               <button onClick={() => void refreshAll()} className="rounded-lg border border-amber-200/20 px-3 py-1.5 text-xs font-semibold hover:bg-amber-200/10">Retry</button>
             </div>
-          ) : records.length === 0 ? (
+          ) : users.length === 0 ? (
             <div className="flex flex-col items-center px-5 py-20 text-center">
-              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-cyan-300/15 bg-cyan-300/5"><Database className="h-7 w-7 text-cyan-300/70" /></div>
-              <h3 className="font-semibold">No matching records</h3>
-              <p className="mt-2 max-w-sm text-sm text-slate-500">{campaignFilter ? "Try a different campaign name or clear your search." : "Create the first Pearl campaign credential record by email."}</p>
-              <button onClick={openCreate} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-cyan-100"><Plus className="h-4 w-4" /> Add record</button>
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-cyan-300/15 bg-cyan-300/5"><Users className="h-7 w-7 text-cyan-300/70" /></div>
+              <h3 className="font-semibold">No matching users</h3>
+              <p className="mt-2 max-w-sm text-sm text-slate-500">{searchTerm ? "Try a different email or campaign name, or clear your search." : "Pearl has not registered any users yet."}</p>
             </div>
           ) : (
             <>
               <div className="hidden overflow-x-auto md:block">
                 <table className="w-full text-left">
                   <thead className="border-b border-white/10 bg-white/[0.025] text-[11px] uppercase tracking-[0.14em] text-slate-500">
-                    <tr><th className="px-6 py-4 font-medium">User</th><th className="px-6 py-4 font-medium">Campaign</th><th className="px-6 py-4 font-medium">Outbound ID</th><th className="px-6 py-4 font-medium">Bearer token</th><th className="px-6 py-4 font-medium">Updated</th><th className="px-6 py-4 text-right font-medium">Actions</th></tr>
+                    <tr><th className="px-6 py-4 font-medium">User</th><th className="px-6 py-4 font-medium">Campaigns</th><th className="px-6 py-4 font-medium">Latest campaign</th><th className="px-6 py-4 font-medium">Joined</th><th className="px-6 py-4 text-right font-medium">Actions</th></tr>
                   </thead>
                   <tbody className="divide-y divide-white/[0.07]">
-                    {records.map((record) => (
-                      <tr key={record.id} className="group transition hover:bg-white/[0.025]">
-                        <td className="px-6 py-4"><div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400/20 to-indigo-400/20 text-xs font-bold text-cyan-200">{recordEmail(record).slice(0, 2).toUpperCase()}</div><div><p className="max-w-56 truncate text-sm font-medium text-slate-200">{recordEmail(record)}</p><p className="mt-0.5 max-w-40 truncate font-mono text-[10px] text-slate-600">{record.userId ?? record.id}</p></div></div></td>
-                        <td className="px-6 py-4"><span className="inline-flex rounded-lg border border-indigo-300/15 bg-indigo-300/10 px-2.5 py-1 text-xs font-medium text-indigo-200">{record.campaignName ?? "Untitled"}</span></td>
-                        <td className="px-6 py-4 font-mono text-xs text-slate-400">{record.outboundId ?? "—"}</td>
-                        <td className="px-6 py-4"><div className="inline-flex items-center gap-2 rounded-lg border border-white/5 bg-black/20 px-2.5 py-1.5 font-mono text-xs text-slate-500"><KeyRound className="h-3 w-3" /> ••••••••••••</div></td>
-                        <td className="px-6 py-4 text-xs text-slate-500">{formatDate(record.updatedAt ?? record.createdAt)}</td>
-                        <td className="px-6 py-4"><div className="flex justify-end gap-2"><button onClick={() => openEdit(record)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition hover:border-cyan-300/30 hover:bg-cyan-300/10 hover:text-cyan-200" aria-label={`Edit ${record.campaignName ?? "record"}`}><Pencil className="h-4 w-4" /></button><button onClick={() => setDeleteTarget(record)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition hover:border-rose-300/30 hover:bg-rose-300/10 hover:text-rose-300" aria-label={`Delete ${record.campaignName ?? "record"}`}><Trash2 className="h-4 w-4" /></button></div></td>
-                      </tr>
-                    ))}
+                    {users.map((candidate) => {
+                      const latest = candidate.campaigns[0];
+                      const isSelected = candidate.id === selectedUserId;
+                      return (
+                        <tr
+                          key={candidate.id}
+                          onClick={() => setSelectedUserId(candidate.id)}
+                          className={`group cursor-pointer transition ${isSelected ? "bg-cyan-400/[0.06]" : "hover:bg-white/[0.025]"}`}
+                        >
+                          <td className="px-6 py-4"><div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400/20 to-indigo-400/20 text-xs font-bold text-cyan-200">{userInitials(candidate)}</div><div><p className="max-w-64 truncate text-sm font-medium text-slate-200">{userLabel(candidate)}</p><p className="mt-0.5 max-w-40 truncate font-mono text-[10px] text-slate-600">{candidate.id}</p></div></div></td>
+                          <td className="px-6 py-4">
+                            {candidate.campaignCount > 0 ? (
+                              <span className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-300/15 bg-indigo-300/10 px-2.5 py-1 text-xs font-medium text-indigo-200"><KeyRound className="h-3 w-3" />{candidate.campaignCount} {candidate.campaignCount === 1 ? "record" : "records"}</span>
+                            ) : (
+                              <span className="inline-flex rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1 text-xs text-slate-500">No records</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4"><p className="max-w-64 truncate text-xs text-slate-400">{latest?.campaignName ?? "—"}</p>{latest?.outboundId && <p className="mt-0.5 max-w-64 truncate font-mono text-[10px] text-slate-600">{latest.outboundId}</p>}</td>
+                          <td className="px-6 py-4 text-xs text-slate-500">{formatDate(candidate.createdAt)}</td>
+                          <td className="px-6 py-4"><div className="flex items-center justify-end gap-2"><span className="text-xs font-medium text-slate-500 transition group-hover:text-cyan-200">View campaigns</span><ChevronRight className="h-4 w-4 text-slate-600 transition group-hover:text-cyan-200" /></div></td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
 
               <div className="divide-y divide-white/[0.07] md:hidden">
-                {records.map((record) => (
-                  <article key={record.id} className="p-5">
-                    <div className="flex items-start justify-between gap-3"><div><span className="inline-flex rounded-lg border border-indigo-300/15 bg-indigo-300/10 px-2.5 py-1 text-xs font-medium text-indigo-200">{record.campaignName ?? "Untitled"}</span><p className="mt-3 text-sm font-medium text-slate-200">{recordEmail(record)}</p><p className="mt-1 font-mono text-xs text-slate-500">{record.outboundId ?? "No outbound ID"}</p></div><div className="flex gap-2"><button onClick={() => openEdit(record)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-slate-400"><Pencil className="h-4 w-4" /></button><button onClick={() => setDeleteTarget(record)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-rose-300"><Trash2 className="h-4 w-4" /></button></div></div>
-                    <p className="mt-4 text-[11px] text-slate-600">Updated {formatDate(record.updatedAt ?? record.createdAt)}</p>
-                  </article>
+                {users.map((candidate) => (
+                  <button key={candidate.id} onClick={() => setSelectedUserId(candidate.id)} className="flex w-full items-center gap-3 p-5 text-left transition hover:bg-white/[0.025]">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400/20 to-indigo-400/20 text-xs font-bold text-cyan-200">{userInitials(candidate)}</div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-slate-200">{userLabel(candidate)}</p>
+                      <p className="mt-1 text-xs text-slate-500">{candidate.campaignCount} {candidate.campaignCount === 1 ? "record" : "records"} · joined {formatDate(candidate.createdAt)}</p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-slate-600" />
+                  </button>
                 ))}
               </div>
             </>
           )}
 
           <div className="flex flex-col gap-3 border-t border-white/10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-slate-500">Showing {records.length} of {totalRecords.toLocaleString()} records</p>
-            <div className="flex items-center gap-2"><button onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page <= 1} className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-30"><ChevronLeft className="h-4 w-4" /></button><span className="min-w-24 text-center text-xs text-slate-400">Page <span className="font-semibold text-white">{page}</span> of {totalPages}</span><button onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page >= totalPages} className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-30"><ChevronRight className="h-4 w-4" /></button></div>
+            <p className="text-xs text-slate-500">Showing {users.length} of {matchingUsers.toLocaleString()} users</p>
+            <div className="flex items-center gap-2"><button onClick={() => { setSelectedUserId(null); setPage((current) => Math.max(1, current - 1)); }} disabled={page <= 1} className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-30"><ChevronLeft className="h-4 w-4" /></button><span className="min-w-24 text-center text-xs text-slate-400">Page <span className="font-semibold text-white">{page}</span> of {totalPages}</span><button onClick={() => { setSelectedUserId(null); setPage((current) => Math.min(totalPages, current + 1)); }} disabled={page >= totalPages} className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-30"><ChevronRight className="h-4 w-4" /></button></div>
           </div>
         </section>
       </div>
 
+      {selectedUser && (
+        <div className="fixed inset-0 z-[90] flex justify-end" role="dialog" aria-modal="true" aria-label={`Campaigns for ${userLabel(selectedUser)}`}>
+          <button aria-label="Close panel" onClick={() => setSelectedUserId(null)} className="absolute inset-0 cursor-default bg-slate-950/70 backdrop-blur-sm" />
+          <aside className="relative flex h-full w-full max-w-xl flex-col border-l border-white/10 bg-[#07101f] shadow-2xl shadow-black/60">
+            <div className="flex items-start justify-between gap-4 border-b border-white/10 p-6">
+              <div className="flex min-w-0 items-center gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400/20 to-indigo-400/20 text-sm font-bold text-cyan-200">{userInitials(selectedUser)}</div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">Pearl user</p>
+                  <h2 className="mt-1 truncate text-lg font-semibold">{userLabel(selectedUser)}</h2>
+                  <p className="mt-1 truncate font-mono text-[10px] text-slate-600">{selectedUser.id}</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedUserId(null)} aria-label="Close panel" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-white/5 hover:text-white"><X className="h-5 w-5" /></button>
+            </div>
+
+            <div className="flex items-center justify-between gap-4 border-b border-white/10 px-6 py-4">
+              <div>
+                <p className="text-sm font-medium text-slate-200">{selectedUser.campaignCount} {selectedUser.campaignCount === 1 ? "campaign record" : "campaign records"}</p>
+                <p className="mt-0.5 text-xs text-slate-500">Joined {formatDate(selectedUser.createdAt)}</p>
+              </div>
+              <button onClick={() => openCreate(selectedUser)} className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 px-4 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:brightness-110">
+                <Plus className="h-4 w-4" /> Add record
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              {selectedUser.campaigns.length === 0 ? (
+                <div className="flex flex-col items-center rounded-2xl border border-dashed border-white/10 px-5 py-14 text-center">
+                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-300/15 bg-cyan-300/5"><Database className="h-6 w-6 text-cyan-300/70" /></div>
+                  <h3 className="font-semibold">No campaign records yet</h3>
+                  <p className="mt-2 max-w-xs text-sm text-slate-500">Add the first Pearl campaign credential for this user.</p>
+                  <button onClick={() => openCreate(selectedUser)} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-cyan-100"><Plus className="h-4 w-4" /> Add record</button>
+                </div>
+              ) : (
+                <ul className="space-y-3">
+                  {selectedUser.campaigns.map((record) => (
+                    <li key={record.id} className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <span className="inline-flex max-w-full rounded-lg border border-indigo-300/15 bg-indigo-300/10 px-2.5 py-1 text-xs font-medium text-indigo-200"><span className="truncate">{record.campaignName ?? "Untitled"}</span></span>
+                          <p className="mt-3 font-mono text-xs text-slate-400">{record.outboundId ?? "No outbound ID"}</p>
+                        </div>
+                        <div className="flex shrink-0 gap-2">
+                          <button onClick={() => openEdit(selectedUser, record)} aria-label={`Edit ${record.campaignName ?? "record"}`} className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition hover:border-cyan-300/30 hover:bg-cyan-300/10 hover:text-cyan-200"><Pencil className="h-4 w-4" /></button>
+                          <button onClick={() => setDeleteTarget({ user: selectedUser, record })} aria-label={`Delete ${record.campaignName ?? "record"}`} className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition hover:border-rose-300/30 hover:bg-rose-300/10 hover:text-rose-300"><Trash2 className="h-4 w-4" /></button>
+                        </div>
+                      </div>
+                      <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-white/[0.07] pt-3 text-[11px] text-slate-600">
+                        <span className="inline-flex items-center gap-1.5 rounded-lg border border-white/5 bg-black/20 px-2 py-1 font-mono text-slate-500"><KeyRound className="h-3 w-3" /> ••••••••••••</span>
+                        <span>Created {formatDate(record.createdAt)}</span>
+                        <span>Updated {formatDate(record.updatedAt ?? record.createdAt)}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </aside>
+        </div>
+      )}
+
       {editor && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
           <div className="w-full max-w-xl overflow-hidden rounded-3xl border border-white/10 bg-[#091225] shadow-2xl shadow-black/60">
-            <div className="flex items-start justify-between border-b border-white/10 p-6"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">{editor.mode === "create" ? "New credential" : "Edit credential"}</p><h2 className="mt-1 text-xl font-semibold">{editor.mode === "create" ? "Create Pearl user data" : form.campaignName || "Update record"}</h2><p className="mt-2 text-sm text-slate-500">{editor.mode === "create" ? "The email must already exist in Pearl." : "Leave the token blank to keep the current value."}</p></div><button onClick={() => setEditor(null)} className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-white/5 hover:text-white"><X className="h-5 w-5" /></button></div>
+            <div className="flex items-start justify-between border-b border-white/10 p-6"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">{editor.mode === "create" ? "New credential" : "Edit credential"}</p><h2 className="mt-1 text-xl font-semibold">{editor.mode === "create" ? "Create Pearl user data" : form.campaignName || "Update record"}</h2><p className="mt-2 text-sm text-slate-500">{editor.mode === "create" ? (editor.user ? `The record is added to ${userLabel(editor.user)}.` : "The email must already exist in Pearl.") : "Leave the token blank to keep the current value."}</p></div><button onClick={() => setEditor(null)} className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-white/5 hover:text-white"><X className="h-5 w-5" /></button></div>
             <form onSubmit={submitEditor} className="space-y-5 p-6">
-              <div><label className="mb-2 block text-xs font-medium text-slate-400">User email</label><input type="email" required disabled={editor.mode === "edit"} value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} placeholder="user@example.com" className={`${inputClass} disabled:cursor-not-allowed disabled:opacity-50`} /></div>
+              <div><label className="mb-2 block text-xs font-medium text-slate-400">User email</label><input type="email" required disabled={editor.mode === "edit" || Boolean(editor.user)} value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} placeholder="user@example.com" className={`${inputClass} disabled:cursor-not-allowed disabled:opacity-50`} /></div>
               <div className="grid gap-5 sm:grid-cols-2"><div><label className="mb-2 block text-xs font-medium text-slate-400">Campaign name</label><input required value={form.campaignName} onChange={(event) => setForm((current) => ({ ...current, campaignName: event.target.value }))} placeholder="Sales campaign" className={inputClass} /></div><div><label className="mb-2 block text-xs font-medium text-slate-400">Outbound ID</label><input required value={form.outboundId} onChange={(event) => setForm((current) => ({ ...current, outboundId: event.target.value }))} placeholder="outbound_12345" className={inputClass} /></div></div>
               <div><label className="mb-2 block text-xs font-medium text-slate-400">Bearer token {editor.mode === "edit" && <span className="text-slate-600">(optional)</span>}</label><div className="relative"><input type={showToken ? "text" : "password"} required={editor.mode === "create"} autoComplete="off" value={form.bearerToken} onChange={(event) => setForm((current) => ({ ...current, bearerToken: event.target.value }))} placeholder={editor.mode === "create" ? "Paste campaign bearer token" : "Enter only to replace the token"} className={`${inputClass} pr-12`} /><button type="button" onClick={() => setShowToken((current) => !current)} aria-label={showToken ? "Hide token" : "Show token"} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white">{showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></div></div>
               <div className="flex flex-col-reverse gap-3 border-t border-white/10 pt-5 sm:flex-row sm:justify-end"><button type="button" onClick={() => setEditor(null)} className="rounded-xl border border-white/10 px-5 py-3 text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-white">Cancel</button><button type="submit" disabled={isSaving} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:brightness-110 disabled:opacity-60">{isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}{editor.mode === "create" ? "Create record" : "Save changes"}</button></div>
@@ -533,7 +631,7 @@ export default function PearlAdminPage() {
 
       {deleteTarget && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-sm" role="alertdialog" aria-modal="true">
-          <div className="w-full max-w-md rounded-3xl border border-rose-300/15 bg-[#091225] p-6 shadow-2xl shadow-black/60"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-400/10"><AlertTriangle className="h-6 w-6 text-rose-300" /></div><h2 className="mt-5 text-xl font-semibold">Delete this credential?</h2><p className="mt-2 text-sm leading-6 text-slate-400">This permanently removes <span className="font-medium text-white">{deleteTarget.campaignName ?? "this record"}</span> from Pearl. This action only runs after you confirm.</p><div className="mt-6 flex justify-end gap-3"><button onClick={() => setDeleteTarget(null)} className="rounded-xl border border-white/10 px-4 py-2.5 text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-white">Cancel</button><button onClick={() => void confirmDelete()} disabled={isDeleting} className="inline-flex items-center gap-2 rounded-xl bg-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-400 disabled:opacity-60">{isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Delete record</button></div></div>
+          <div className="w-full max-w-md rounded-3xl border border-rose-300/15 bg-[#091225] p-6 shadow-2xl shadow-black/60"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-400/10"><AlertTriangle className="h-6 w-6 text-rose-300" /></div><h2 className="mt-5 text-xl font-semibold">Delete this credential?</h2><p className="mt-2 text-sm leading-6 text-slate-400">This permanently removes <span className="font-medium text-white">{deleteTarget.record.campaignName ?? "this record"}</span> from <span className="font-medium text-white">{userLabel(deleteTarget.user)}</span> in Pearl. This action only runs after you confirm.</p><div className="mt-6 flex justify-end gap-3"><button onClick={() => setDeleteTarget(null)} className="rounded-xl border border-white/10 px-4 py-2.5 text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-white">Cancel</button><button onClick={() => void confirmDelete()} disabled={isDeleting} className="inline-flex items-center gap-2 rounded-xl bg-rose-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-400 disabled:opacity-60">{isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Delete record</button></div></div>
         </div>
       )}
 

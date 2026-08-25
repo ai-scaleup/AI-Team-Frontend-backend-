@@ -20,6 +20,8 @@ type PearlUser = {
   id: string;
   email?: string;
   username?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
   campaignCount?: number;
   campaigns?: PearlCampaign[];
 };
@@ -142,16 +144,17 @@ class UpstreamError extends Error {
 }
 
 /**
- * Upstream `GET /admin/user-data` currently answers 500 for every query, so the
- * record list is assembled from `GET /admin/users?includeCampaigns=true`, which
- * returns the same rows nested under their owner. Filtering, sorting and
- * record-level pagination happen here.
+ * Users with their campaign records nested underneath, which is what the
+ * dashboard lists. Sourced from `GET /admin/users?includeCampaigns=true`
+ * because upstream `GET /admin/user-data` currently answers 500 for every
+ * query. Searching matches the user *and* their campaigns, so filtering,
+ * sorting and pagination happen here rather than upstream.
  */
-async function listRecords(request: NextRequest, baseUrl: string, adminKey: string) {
+async function listUsers(request: NextRequest, baseUrl: string, adminKey: string) {
   const query = request.nextUrl.searchParams;
   const page = Math.max(1, Number(query.get("page")) || 1);
   const limit = Math.min(100, Math.max(1, Number(query.get("limit")) || 10));
-  const search = (query.get("search") ?? query.get("campaignName") ?? "").trim().toLowerCase();
+  const search = (query.get("search") ?? "").trim().toLowerCase();
   const sortOrder = query.get("sortOrder") === "asc" ? "asc" : "desc";
 
   const users: PearlUser[] = [];
@@ -167,26 +170,41 @@ async function listRecords(request: NextRequest, baseUrl: string, adminKey: stri
     if (!batch.length || upstreamPage >= totalPages) break;
   }
 
-  const records = users.flatMap((user) =>
-    (user.campaigns ?? []).map((campaign) => ({
+  const normalized = users.map((user) => {
+    const campaigns = (user.campaigns ?? []).map((campaign) => ({
       id: campaign.id,
       userId: campaign.userId ?? user.id,
-      email: user.email,
       campaignName: campaign.campaignName,
       outboundId: campaign.outboundId,
       createdAt: campaign.createdAt,
       updatedAt: campaign.updatedAt,
-      user: { email: user.email, username: user.username ?? undefined },
-    })),
-  );
+    }));
+    campaigns.sort(
+      (a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime(),
+    );
+
+    return {
+      id: user.id,
+      email: user.email,
+      username: user.username ?? undefined,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      campaignCount: campaigns.length,
+      campaigns,
+    };
+  });
+
+  const recordsTotal = normalized.reduce((sum, user) => sum + user.campaignCount, 0);
 
   const filtered = search
-    ? records.filter((record) =>
-        [record.campaignName, record.outboundId, record.email].some((value) =>
-          value?.toLowerCase().includes(search),
-        ),
+    ? normalized.filter((user) =>
+        [
+          user.email,
+          user.username,
+          ...user.campaigns.flatMap((campaign) => [campaign.campaignName, campaign.outboundId]),
+        ].some((value) => value?.toLowerCase().includes(search)),
       )
-    : records;
+    : normalized;
 
   filtered.sort((a, b) => {
     const left = new Date(a.createdAt ?? 0).getTime();
@@ -204,6 +222,7 @@ async function listRecords(request: NextRequest, baseUrl: string, adminKey: stri
       data: filtered.slice(start, start + limit),
       meta: { total, page: safePage, limit, totalPages },
       usersTotal: Number.isFinite(usersTotal) ? usersTotal : 0,
+      recordsTotal,
     },
     { headers: { "Cache-Control": "no-store" } },
   );
@@ -217,12 +236,12 @@ async function proxyPearlRequest(request: NextRequest, context: RouteContext) {
   const { pearlPath } = await context.params;
   const path = pearlPath.join("/");
 
-  if (path === "records") {
+  if (path === "users") {
     if (request.method !== "GET") {
       return NextResponse.json({ message: "Method not allowed." }, { status: 405 });
     }
     try {
-      return await listRecords(request, baseUrl, adminKey);
+      return await listUsers(request, baseUrl, adminKey);
     } catch (error) {
       if (error instanceof UpstreamError) {
         return NextResponse.json({ message: error.message }, { status: error.status });

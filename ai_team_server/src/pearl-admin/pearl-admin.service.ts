@@ -11,13 +11,10 @@ type PearlRequestOptions = {
   body?: unknown;
 };
 
-type ListRecordsQuery = {
+type ListUsersQuery = {
   page?: string | number;
   limit?: string | number;
   search?: string;
-  campaignName?: string;
-  userId?: string;
-  sortBy?: string;
   sortOrder?: 'asc' | 'desc';
 };
 
@@ -34,6 +31,8 @@ type PearlUser = {
   id: string;
   email?: string;
   username?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
   campaigns?: PearlCampaign[];
 };
 
@@ -108,17 +107,16 @@ export class PearlAdminService {
   }
 
   /**
-   * Upstream `GET /admin/user-data` answers 500 for every query, so the record
-   * list is assembled from `GET /admin/users?includeCampaigns=true`, which
-   * returns the same rows nested under their owner. Filtering, sorting and
-   * record-level pagination are applied here.
+   * Users with their campaign records nested underneath. Sourced from
+   * `GET /admin/users?includeCampaigns=true` because upstream
+   * `GET /admin/user-data` answers 500 for every query. Searching matches the
+   * user *and* their campaigns, so filtering, sorting and pagination are
+   * applied here rather than upstream.
    */
-  async listRecords(query: ListRecordsQuery = {}) {
+  async listUsers(query: ListUsersQuery = {}) {
     const page = Math.max(1, Number(query.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(query.limit) || 10));
-    const search = (query.search ?? query.campaignName ?? '')
-      .trim()
-      .toLowerCase();
+    const search = (query.search ?? '').trim().toLowerCase();
     const sortOrder = query.sortOrder === 'asc' ? 'asc' : 'desc';
 
     const users: PearlUser[] = [];
@@ -145,28 +143,49 @@ export class PearlAdminService {
       if (!batch.length || upstreamPage >= totalPages) break;
     }
 
-    const records = users.flatMap((user) =>
-      (user.campaigns ?? [])
-        .filter((campaign) => !query.userId || campaign.userId === query.userId)
-        .map((campaign) => ({
-          id: campaign.id,
-          userId: campaign.userId ?? user.id,
-          email: user.email,
-          campaignName: campaign.campaignName,
-          outboundId: campaign.outboundId,
-          createdAt: campaign.createdAt,
-          updatedAt: campaign.updatedAt,
-          user: { email: user.email, username: user.username ?? undefined },
-        })),
+    const normalized = users.map((user) => {
+      const campaigns = (user.campaigns ?? []).map((campaign) => ({
+        id: campaign.id,
+        userId: campaign.userId ?? user.id,
+        campaignName: campaign.campaignName,
+        outboundId: campaign.outboundId,
+        createdAt: campaign.createdAt,
+        updatedAt: campaign.updatedAt,
+      }));
+      campaigns.sort(
+        (a, b) =>
+          new Date(b.createdAt ?? 0).getTime() -
+          new Date(a.createdAt ?? 0).getTime(),
+      );
+
+      return {
+        id: user.id,
+        email: user.email,
+        username: user.username ?? undefined,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        campaignCount: campaigns.length,
+        campaigns,
+      };
+    });
+
+    const recordsTotal = normalized.reduce(
+      (sum, user) => sum + user.campaignCount,
+      0,
     );
 
     const filtered = search
-      ? records.filter((record) =>
-          [record.campaignName, record.outboundId, record.email].some((value) =>
-            value?.toLowerCase().includes(search),
-          ),
+      ? normalized.filter((user) =>
+          [
+            user.email,
+            user.username,
+            ...user.campaigns.flatMap((campaign) => [
+              campaign.campaignName,
+              campaign.outboundId,
+            ]),
+          ].some((value) => value?.toLowerCase().includes(search)),
         )
-      : records;
+      : normalized;
 
     filtered.sort((a, b) => {
       const left = new Date(a.createdAt ?? 0).getTime();
@@ -183,6 +202,7 @@ export class PearlAdminService {
       data: filtered.slice(start, start + limit),
       meta: { total, page: safePage, limit, totalPages },
       usersTotal: Number.isFinite(usersTotal) ? usersTotal : 0,
+      recordsTotal,
     };
   }
 }

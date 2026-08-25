@@ -30,25 +30,29 @@ type UpdateUserDataBody = Partial<
 export class PearlAdminController {
   constructor(private readonly pearlAdmin: PearlAdminService) {}
 
-  @Get('user-data')
-  listUserData(
+  @Get('users')
+  listUsers(
     @Query()
     query: {
       page?: string;
       limit?: string;
       search?: string;
-      campaignName?: string;
-      userId?: string;
-      sortBy?: string;
       sortOrder?: 'asc' | 'desc';
     },
   ) {
-    return this.pearlAdmin.listRecords(query);
+    return this.pearlAdmin.listUsers(query);
   }
 
   @Get('users/count')
   countUsers() {
     return this.pearlAdmin.request('/admin/users/count');
+  }
+
+  @Get('users/:userId/user-data')
+  listUserRecords(@Param('userId') userId: string) {
+    return this.pearlAdmin.request(
+      `/admin/users/${encodeURIComponent(userId)}/user-data`,
+    );
   }
 
   @Get('user-data/:id')
