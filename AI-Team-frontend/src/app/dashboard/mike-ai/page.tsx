@@ -1,5 +1,7 @@
 "use client"
 
+import { authenticatedFetch } from "@/lib/authenticatedFetch";
+
 export const dynamic = "force-dynamic"
 
 import type React from "react"
@@ -96,7 +98,7 @@ async function getEmbedding(text: string): Promise<number[]> {
     throw new Error("OpenAI API key not configured")
   }
 
-  const response = await fetch("https://api.openai.com/v1/embeddings", {
+  const response = await authenticatedFetch("https://api.openai.com/v1/embeddings", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -127,7 +129,7 @@ async function upsertToPinecone(vectors: PineconeVector[], namespace: string): P
 
   const url = `${pineconeHost}/vectors/upsert`
 
-  const response = await fetch(url, {
+  const response = await authenticatedFetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -618,7 +620,7 @@ export default function App() {
 
     const userIdentifier = encodeURIComponent(userEmail)
     const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""
-    fetch(`${API_BASE}/token-usage/${userIdentifier}/MIKE`)
+    authenticatedFetch(`${API_BASE}/token-usage/${userIdentifier}/MIKE`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data) { /* token usage UI disabled */ }
@@ -908,7 +910,7 @@ export default function App() {
         const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ''
         const email = user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress
         if (email) {
-          await fetch(`${API_BASE}/users/sync`, {
+          await authenticatedFetch(`${API_BASE}/users/sync`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ oauthId: user.id, email, username: user.username ?? undefined }),
@@ -1408,7 +1410,7 @@ export default function App() {
       const sessionId = chats[currentChatIdForSend!]?.sessionId || "session_" + Date.now()
       if (!currentChatIdForSend) throw new Error("currentChatIdForSend is null")
 
-      const response = await fetch(N8N_ENDPOINT, {
+      const response = await authenticatedFetch(N8N_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1555,12 +1557,12 @@ export default function App() {
       try {
         if (userIdentifier) {
           const [inputCount, outputCount] = await Promise.all([
-            fetch(`${API_BASE}/token-usage/count`, {
+            authenticatedFetch(`${API_BASE}/token-usage/count`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ text: userMessage.text }),
             }).then((r) => (r.ok ? r.json() : null)),
-            fetch(`${API_BASE}/token-usage/count`, {
+            authenticatedFetch(`${API_BASE}/token-usage/count`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ text: finalAiMessage.text }),
@@ -1570,13 +1572,13 @@ export default function App() {
           const totalUsedInputTokens = inputCount?.totalUsedInputTokens ?? 0
           const totalUsedOutputTokens = outputCount?.totalUsedInputTokens ?? 0
 
-          await fetch(`${API_BASE}/token-usage/${userIdentifier}/MIKE/usage`, {
+          await authenticatedFetch(`${API_BASE}/token-usage/${userIdentifier}/MIKE/usage`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ totalUsedInputTokens, totalUsedOutputTokens }),
           })
 
-          const updated = await fetch(`${API_BASE}/token-usage/${userIdentifier}/MIKE`).then((r) =>
+          const updated = await authenticatedFetch(`${API_BASE}/token-usage/${userIdentifier}/MIKE`).then((r) =>
             r.ok ? r.json() : null,
           )
           if (updated) { /* token usage UI disabled */ }

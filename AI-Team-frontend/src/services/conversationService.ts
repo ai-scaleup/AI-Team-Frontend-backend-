@@ -1,3 +1,4 @@
+import { authenticatedFetch } from "@/lib/authenticatedFetch";
 import { Conversation, Message, CreateConversationDto, UpdateConversationDto, AddMessageDto } from '@/types/conversation';
 import { waitForUserSync } from '@/lib/userSyncGate';
 
@@ -7,7 +8,7 @@ export const conversationService = {
     // Create or Upsert a conversation
     async createConversation(oauthId: string, data: CreateConversationDto): Promise<Conversation> {
         await waitForUserSync();
-        const response = await fetch(`${API_BASE}/conversations/${oauthId}`, {
+        const response = await authenticatedFetch(`${API_BASE}/conversations/${oauthId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data),
@@ -25,7 +26,7 @@ export const conversationService = {
         const url = agentId
             ? `${API_BASE}/conversations/${oauthId}?agentId=${agentId}`
             : `${API_BASE}/conversations/${oauthId}`;
-        const response = await fetch(url);
+        const response = await authenticatedFetch(url);
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.message || 'Failed to fetch conversations');
@@ -35,7 +36,7 @@ export const conversationService = {
 
     // Get a single conversation
     async getConversation(oauthId: string, conversationId: string): Promise<Conversation> {
-        const response = await fetch(`${API_BASE}/conversations/${oauthId}/${conversationId}`);
+        const response = await authenticatedFetch(`${API_BASE}/conversations/${oauthId}/${conversationId}`);
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.message || 'Failed to fetch conversation');
@@ -45,7 +46,7 @@ export const conversationService = {
 
     // Update a conversation
     async updateConversation(oauthId: string, conversationId: string, data: UpdateConversationDto): Promise<Conversation> {
-        const response = await fetch(`${API_BASE}/conversations/${oauthId}/${conversationId}`, {
+        const response = await authenticatedFetch(`${API_BASE}/conversations/${oauthId}/${conversationId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data),
@@ -59,7 +60,7 @@ export const conversationService = {
 
     // Delete a conversation
     async deleteConversation(oauthId: string, conversationId: string): Promise<void> {
-        const response = await fetch(`${API_BASE}/conversations/${oauthId}/${conversationId}`, {
+        const response = await authenticatedFetch(`${API_BASE}/conversations/${oauthId}/${conversationId}`, {
             method: 'DELETE',
         });
         if (!response.ok && response.status !== 204) {
@@ -70,7 +71,7 @@ export const conversationService = {
 
     // Add a message to a conversation
     async addMessage(oauthId: string, conversationId: string, data: AddMessageDto): Promise<Message> {
-        const response = await fetch(`${API_BASE}/conversations/${oauthId}/${conversationId}/messages`, {
+        const response = await authenticatedFetch(`${API_BASE}/conversations/${oauthId}/${conversationId}/messages`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data),
@@ -84,7 +85,7 @@ export const conversationService = {
 
     // Get messages for a conversation
     async getMessages(oauthId: string, conversationId: string): Promise<Message[]> {
-        const response = await fetch(`${API_BASE}/conversations/${oauthId}/${conversationId}/messages`);
+        const response = await authenticatedFetch(`${API_BASE}/conversations/${oauthId}/${conversationId}/messages`);
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.message || 'Failed to fetch messages');
@@ -94,7 +95,7 @@ export const conversationService = {
 
     // Toggle archive status
     async toggleArchive(oauthId: string, conversationId: string, archived: boolean): Promise<Conversation> {
-        const response = await fetch(`${API_BASE}/conversations/${oauthId}/${conversationId}/archive`, {
+        const response = await authenticatedFetch(`${API_BASE}/conversations/${oauthId}/${conversationId}/archive`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ archived }),
@@ -108,7 +109,7 @@ export const conversationService = {
 
     // Delete a message
     async deleteMessage(oauthId: string, conversationId: string, messageId: string): Promise<void> {
-        const response = await fetch(`${API_BASE}/conversations/${oauthId}/${conversationId}/messages/${messageId}`, {
+        const response = await authenticatedFetch(`${API_BASE}/conversations/${oauthId}/${conversationId}/messages/${messageId}`, {
             method: 'DELETE',
         });
         if (!response.ok && response.status !== 204) {

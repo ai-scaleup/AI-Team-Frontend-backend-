@@ -1,5 +1,7 @@
 "use client"
 
+import { authenticatedFetch } from "@/lib/authenticatedFetch";
+
 import { Fragment, useState, useEffect, useMemo, useRef } from "react"
 import {
     MessageSquare, User, Loader2, ChevronRight, ChevronLeft, Search, RefreshCw, Sun, Moon
@@ -224,7 +226,7 @@ export default function FreapJenniferPage() {
     const fetchSessions = async (isManual = false) => {
         if (isManual) setLoadingSessions(true)
         try {
-            const res = await fetch(`${API_BASE}/freap-jennifer/chat-logs/sessions`)
+            const res = await authenticatedFetch(`${API_BASE}/freap-jennifer/chat-logs/sessions`)
             if (res.ok) {
                 const data = await res.json()
                 // Tolerate the legacy string[] shape as well as the current object shape
@@ -262,7 +264,7 @@ export default function FreapJenniferPage() {
                 const logsBySession = await Promise.all(
                     sessionIds.map(async sessionId => {
                         try {
-                            const res = await fetch(`${API_BASE}/freap-jennifer/chat-logs/${encodeURIComponent(sessionId)}`)
+                            const res = await authenticatedFetch(`${API_BASE}/freap-jennifer/chat-logs/${encodeURIComponent(sessionId)}`)
                             if (!res.ok) return []
 
                             const data = await res.json()

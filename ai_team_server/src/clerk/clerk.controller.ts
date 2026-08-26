@@ -1,8 +1,10 @@
 import {
+  BadRequestException,
   Controller,
   Post,
-  Body,
   Headers,
+  RawBodyRequest,
+  Req,
   Res,
   HttpStatus,
 } from '@nestjs/common';
@@ -13,7 +15,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { ClerkService } from './clerk.service';
 
 @ApiTags('webhooks')
@@ -22,7 +24,12 @@ export class ClerkController {
   constructor(private readonly clerkService: ClerkService) {}
 
   @Post('clerk')
-  @ApiOperation({ summary: 'Receive Clerk webhook events' })
+  @ApiOperation({
+    summary: 'Receive Clerk webhook events',
+    description:
+      'Public webhook endpoint authenticated using the Clerk Svix signature headers.',
+    security: [],
+  })
   @ApiHeader({ name: 'svix-id', required: true })
   @ApiHeader({ name: 'svix-timestamp', required: true })
   @ApiHeader({ name: 'svix-signature', required: true })
@@ -38,7 +45,7 @@ export class ClerkController {
     @Headers('svix-id') svixId: string,
     @Headers('svix-timestamp') svixTimestamp: string,
     @Headers('svix-signature') svixSignature: string,
-    @Body() payload: any, // We receive the raw body
+    @Req() req: RawBodyRequest<Request>,
     @Res() res: Response,
   ) {
     const headers = {
@@ -48,8 +55,11 @@ export class ClerkController {
     };
 
     try {
-      // The service will handle verification and processing
-      await this.clerkService.handleWebhook(headers, payload);
+      if (!req.rawBody) {
+        throw new BadRequestException('Raw webhook body is unavailable.');
+      }
+
+      await this.clerkService.handleWebhook(headers, req.rawBody);
       // Respond with 200 OK to acknowledge receipt of the webhook
       res.status(HttpStatus.OK).send('Webhook processed successfully.');
     } catch (err) {

@@ -1,5 +1,7 @@
 "use client";
 
+import { authenticatedFetch } from "@/lib/authenticatedFetch";
+
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
@@ -375,7 +377,7 @@ export default function AllUsersPage() {
           page, limit, searchTerm, membershipFilter, statusFilter,
           timeframe, customDays, customFrom, customTo, sortField, sortDir,
         });
-        const response = await fetch(`${API_BASE}/users?${params.toString()}`, {
+        const response = await authenticatedFetch(`${API_BASE}/users?${params.toString()}`, {
           signal: controller.signal,
         });
 
@@ -417,7 +419,7 @@ export default function AllUsersPage() {
     const controller = new AbortController();
     (async () => {
       try {
-        const response = await fetch(`${API_BASE}/admin/memberships`, { signal: controller.signal });
+        const response = await authenticatedFetch(`${API_BASE}/admin/memberships`, { signal: controller.signal });
         if (!response.ok) return;
         const data = (await response.json()) as { name?: string }[];
         const names = (Array.isArray(data) ? data : [])
@@ -521,7 +523,7 @@ export default function AllUsersPage() {
           page: exportPage, limit: 100, searchTerm, membershipFilter, statusFilter,
           timeframe, customDays, customFrom, customTo, sortField, sortDir,
         });
-        const response = await fetch(`${API_BASE}/users?${params.toString()}`);
+        const response = await authenticatedFetch(`${API_BASE}/users?${params.toString()}`);
         if (!response.ok) throw new Error(`Export failed with ${response.status}`);
         const data = (await response.json()) as UsersResponse;
         rows.push(...(Array.isArray(data.data) ? data.data.map(mapUser) : []));

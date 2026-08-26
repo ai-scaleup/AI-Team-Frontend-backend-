@@ -1,5 +1,7 @@
 "use client"
 
+import { authenticatedFetch } from "@/lib/authenticatedFetch";
+
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import { UserButton } from "@clerk/nextjs"
@@ -1191,7 +1193,7 @@ export default function App() {
 
             if (!currentChatIdForSend) throw new Error("currentChatIdForSend is null")
 
-            const response = await fetch(N8N_ENDPOINT, {
+            const response = await authenticatedFetch(N8N_ENDPOINT, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

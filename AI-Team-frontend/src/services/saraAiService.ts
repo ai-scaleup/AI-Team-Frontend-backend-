@@ -1,3 +1,4 @@
+import { authenticatedFetch } from "@/lib/authenticatedFetch";
 import {
     StatsResponse,
     SessionsResponse,
@@ -13,7 +14,7 @@ export const saraAiService = {
      * Fetches overall statistics for Sara AI system
      */
     async getStats(): Promise<StatsResponse> {
-        const response = await fetch(`${API_BASE}/sara-ai/stats`, {
+        const response = await authenticatedFetch(`${API_BASE}/sara-ai/stats`, {
             headers: { 'Accept': 'application/json' },
             cache: 'no-store'
         });
@@ -29,7 +30,7 @@ export const saraAiService = {
      * Fetches all chat sessions (phone numbers with message counts)
      */
     async getSessions(): Promise<SessionsResponse> {
-        const response = await fetch(`${API_BASE}/sara-ai/chats`, {
+        const response = await authenticatedFetch(`${API_BASE}/sara-ai/chats`, {
             headers: { 'Accept': 'application/json' },
             cache: 'no-store'
         });
@@ -45,7 +46,7 @@ export const saraAiService = {
      * Fetches per-day message and conversation counts directly from the DB
      */
     async getAnalytics(days: number = 30): Promise<AnalyticsResponse> {
-        const response = await fetch(`${API_BASE}/sara-ai/analytics?days=${days}`, {
+        const response = await authenticatedFetch(`${API_BASE}/sara-ai/analytics?days=${days}`, {
             headers: { 'Accept': 'application/json' },
             cache: 'no-store'
         });
@@ -61,7 +62,7 @@ export const saraAiService = {
      * Fetches full conversation history for a specific phone number
      */
     async getConversation(phoneNumber: string): Promise<ConversationResponse> {
-        const response = await fetch(`${API_BASE}/sara-ai/chats/${encodeURIComponent(phoneNumber)}`, {
+        const response = await authenticatedFetch(`${API_BASE}/sara-ai/chats/${encodeURIComponent(phoneNumber)}`, {
             headers: { 'Accept': 'application/json' },
             cache: 'no-store'
         });

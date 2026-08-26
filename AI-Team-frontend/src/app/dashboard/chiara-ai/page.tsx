@@ -1,5 +1,7 @@
 "use client"
 
+import { authenticatedFetch } from "@/lib/authenticatedFetch";
+
 import { Fragment, useState, useEffect, useMemo, useRef } from "react"
 import {
     MessageSquare, Loader2, ChevronRight, Search, RefreshCw, Sun, Moon,
@@ -187,7 +189,7 @@ export default function ChiaraAiPage() {
     const fetchSessions = async (isManual = false) => {
         if (isManual) setLoadingSessions(true)
         try {
-            const res = await fetch(`${API_BASE}/chiara/chat-logs/sessions`)
+            const res = await authenticatedFetch(`${API_BASE}/chiara/chat-logs/sessions`)
             if (res.ok) {
                 const data = await res.json()
                 setSessions(data)
@@ -219,7 +221,7 @@ export default function ChiaraAiPage() {
                 const logsBySession = await Promise.all(
                     sessionIds.map(async sessionId => {
                         try {
-                            const res = await fetch(`${API_BASE}/chiara/chat-logs/${encodeURIComponent(sessionId)}`)
+                            const res = await authenticatedFetch(`${API_BASE}/chiara/chat-logs/${encodeURIComponent(sessionId)}`)
                             if (!res.ok) return []
 
                             const data = await res.json()

@@ -1,4 +1,4 @@
-import { currentUser } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 
 type RouteContext = {
@@ -48,7 +48,7 @@ function pearlBaseUrl() {
   return process.env.PEARL_ADMIN_API_URL?.replace(/\/$/, "");
 }
 
-async function hasPearlAdminAssignment(email: string) {
+async function hasPearlAdminAssignment(email: string, token: string) {
   const aiTeamApiUrl = process.env.NEXT_PUBLIC_API_BASE?.replace(/\/$/, "");
   if (!aiTeamApiUrl) return false;
 
@@ -57,7 +57,10 @@ async function hasPearlAdminAssignment(email: string) {
   url.searchParams.set("activeOnly", "true");
 
   try {
-    const response = await fetch(url, { cache: "no-store" });
+    const response = await fetch(url, {
+      cache: "no-store",
+      headers: { Authorization: `Bearer ${token}` },
+    });
     if (!response.ok) return false;
 
     const payload = (await response.json()) as { agents?: unknown };
@@ -74,13 +77,15 @@ type AuthResult =
 /** Resolves the caller, their Pearl Admin assignment and the upstream credentials. */
 async function authorize(): Promise<AuthResult> {
   const user = await currentUser();
+  const { getToken } = await auth();
+  const token = await getToken();
   const email = user?.primaryEmailAddress?.emailAddress;
 
-  if (!email) {
+  if (!email || !token) {
     return { error: NextResponse.json({ message: "Unauthorized" }, { status: 401 }) };
   }
 
-  if (!(await hasPearlAdminAssignment(email))) {
+  if (!(await hasPearlAdminAssignment(email, token))) {
     return {
       error: NextResponse.json(
         { message: "Pearl Admin is not assigned to this user." },

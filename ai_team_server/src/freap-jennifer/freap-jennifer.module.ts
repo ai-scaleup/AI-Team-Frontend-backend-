@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { AuthMiddleware } from '../auth/auth.middleware';
 import { FreapJenniferService } from './freap-jennifer.service';
 import { FreapJenniferController } from './freap-jennifer.controller';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -8,4 +9,8 @@ import { PrismaModule } from '../prisma/prisma.module';
   controllers: [FreapJenniferController],
   providers: [FreapJenniferService],
 })
-export class FreapJenniferModule {}
+export class FreapJenniferModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(AuthMiddleware).forRoutes(FreapJenniferController);
+  }
+}

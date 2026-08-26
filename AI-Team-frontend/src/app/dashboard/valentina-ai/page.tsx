@@ -1,4 +1,6 @@
 "use client"
+
+import { authenticatedFetch } from "@/lib/authenticatedFetch";
 // Valentina AI chat page
 
 import type React from "react"
@@ -418,7 +420,7 @@ export default function App() {
 
     const userIdentifier = encodeURIComponent(userEmail)
     const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""
-    fetch(`${API_BASE}/token-usage/${userIdentifier}/VALENTINA`)
+    authenticatedFetch(`${API_BASE}/token-usage/${userIdentifier}/VALENTINA`)
       .then((r) => r.ok ? r.json() : null)
       .then((data) => { if (data) { /* token usage UI disabled */ } })
       .catch(() => {})
@@ -1260,7 +1262,7 @@ export default function App() {
 
       if (!currentChatIdForSend) throw new Error("currentChatIdForSend is null")
 
-      const response = await fetch(N8N_ENDPOINT, {
+      const response = await authenticatedFetch(N8N_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1432,12 +1434,12 @@ export default function App() {
         if (!userIdentifier) return
 
         const [inputCount, outputCount] = await Promise.all([
-          fetch(`${API_BASE}/token-usage/count`, {
+          authenticatedFetch(`${API_BASE}/token-usage/count`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ text: userMessage.text }),
           }).then((r) => r.ok ? r.json() : null),
-          fetch(`${API_BASE}/token-usage/count`, {
+          authenticatedFetch(`${API_BASE}/token-usage/count`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ text: finalAiMessage.text }),
@@ -1447,14 +1449,14 @@ export default function App() {
         const totalUsedInputTokens = inputCount?.totalUsedInputTokens ?? 0
         const totalUsedOutputTokens = outputCount?.totalUsedInputTokens ?? 0
 
-        await fetch(`${API_BASE}/token-usage/${userIdentifier}/VALENTINA/usage`, {
+        await authenticatedFetch(`${API_BASE}/token-usage/${userIdentifier}/VALENTINA/usage`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ totalUsedInputTokens, totalUsedOutputTokens }),
         })
 
         // Refresh token usage display
-        const updated = await fetch(`${API_BASE}/token-usage/${userIdentifier}/VALENTINA`).then((r) => r.ok ? r.json() : null)
+        const updated = await authenticatedFetch(`${API_BASE}/token-usage/${userIdentifier}/VALENTINA`).then((r) => r.ok ? r.json() : null)
         if (updated) { /* token usage UI disabled */ }
         console.log("✅ Valentina AI: Token usage updated", { totalUsedInputTokens, totalUsedOutputTokens })
       } catch (err) {

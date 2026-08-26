@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { AuthMiddleware } from '../auth/auth.middleware';
 import { SaraAiController } from './controllers/sara-ai.controller';
 import { SaraAiService } from './services/sara-ai.service';
 
@@ -8,4 +9,8 @@ import { SaraAiService } from './services/sara-ai.service';
   providers: [SaraAiService],
   exports: [SaraAiService],
 })
-export class SaraAiModule {}
+export class SaraAiModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(AuthMiddleware).forRoutes(SaraAiController);
+  }
+}

@@ -1,4 +1,6 @@
 "use client"
+
+import { authenticatedFetch } from "@/lib/authenticatedFetch";
 export const dynamic = "force-dynamic"
 
 import type React from "react"
@@ -418,7 +420,7 @@ export default function App() {
     const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ''
 
     try {
-      const response = await fetch(`${API_BASE}/users/sync`, {
+      const response = await authenticatedFetch(`${API_BASE}/users/sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -489,7 +491,7 @@ export default function App() {
 
     const userIdentifier = encodeURIComponent(userEmail)
     const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""
-    fetch(`${API_BASE}/token-usage/${userIdentifier}/ALEX`)
+    authenticatedFetch(`${API_BASE}/token-usage/${userIdentifier}/ALEX`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data) { /* token usage UI disabled */ }
@@ -1358,7 +1360,7 @@ export default function App() {
         chatId: currentChatIdForSend,
       })
 
-      const response = await fetch(N8N_ENDPOINT, {
+      const response = await authenticatedFetch(N8N_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: requestBody,
@@ -1500,12 +1502,12 @@ export default function App() {
       try {
         if (userIdentifier) {
           const [inputCount, outputCount] = await Promise.all([
-            fetch(`${API_BASE}/token-usage/count`, {
+            authenticatedFetch(`${API_BASE}/token-usage/count`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ text: userMessage.text }),
             }).then((r) => (r.ok ? r.json() : null)),
-            fetch(`${API_BASE}/token-usage/count`, {
+            authenticatedFetch(`${API_BASE}/token-usage/count`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ text: finalAiMessage.text }),
@@ -1515,13 +1517,13 @@ export default function App() {
           const totalUsedInputTokens = inputCount?.totalUsedInputTokens ?? 0
           const totalUsedOutputTokens = outputCount?.totalUsedInputTokens ?? 0
 
-          await fetch(`${API_BASE}/token-usage/${userIdentifier}/ALEX/usage`, {
+          await authenticatedFetch(`${API_BASE}/token-usage/${userIdentifier}/ALEX/usage`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ totalUsedInputTokens, totalUsedOutputTokens }),
           })
 
-          const updated = await fetch(`${API_BASE}/token-usage/${userIdentifier}/ALEX`).then((r) =>
+          const updated = await authenticatedFetch(`${API_BASE}/token-usage/${userIdentifier}/ALEX`).then((r) =>
             r.ok ? r.json() : null,
           )
           if (updated) { /* token usage UI disabled */ }
@@ -1535,7 +1537,7 @@ export default function App() {
       //   try {
       //     console.log("Attempting to upsert file contents to Pinecone...")
       //     const upsertPromises = pendingFileContents.map(async (fileData) => {
-      //       const response = await fetch("/api/pinecone/upsert", {
+      //       const response = await authenticatedFetch("/api/pinecone/upsert", {
       //         method: "POST",
       //         headers: { "Content-Type": "application/json" },
       //         body: JSON.stringify({

@@ -7,7 +7,7 @@ export function setupSwagger(app: INestApplication) {
     .setDescription(
       [
         'Interactive API documentation for the AI Team backend.',
-        'Use the Authorize button for endpoints that are protected by Clerk bearer tokens.',
+        'Application endpoints require a Clerk JWT; signed external webhooks are the exception. Use the Authorize button and enter the bearer token before sending requests.',
       ].join(' '),
     )
     .setVersion('1.0.0')
@@ -16,10 +16,12 @@ export function setupSwagger(app: INestApplication) {
         type: 'http',
         scheme: 'bearer',
         bearerFormat: 'JWT',
-        description: 'Clerk JWT access token',
+        description:
+          'Paste the Clerk JWT only. Swagger adds the Bearer prefix automatically.',
       },
       'clerk-bearer',
     )
+    .addSecurityRequirements('clerk-bearer')
     .addTag('health', 'Application health and root endpoints')
     .addTag('users', 'User management, sync, and alerts')
     .addTag('conversations', 'Conversation and message history')

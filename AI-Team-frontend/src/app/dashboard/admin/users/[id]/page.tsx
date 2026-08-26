@@ -1,5 +1,7 @@
 "use client";
 
+import { authenticatedFetch } from "@/lib/authenticatedFetch";
+
 import { use, useState, useRef, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
@@ -820,7 +822,7 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
           usageTo: formatDateParam(usageRange.to),
         });
 
-        const response = await fetch(`${API_BASE}/admin/dashboard/users/${resolvedParams.id}?${query.toString()}`, {
+        const response = await authenticatedFetch(`${API_BASE}/admin/dashboard/users/${resolvedParams.id}?${query.toString()}`, {
           signal: controller.signal,
         });
 

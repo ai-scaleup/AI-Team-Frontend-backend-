@@ -1,5 +1,7 @@
 "use client";
 
+import { authenticatedFetch } from "@/lib/authenticatedFetch";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
@@ -101,7 +103,7 @@ export default function AdminKnowledgebasePage() {
       setError(null);
 
       try {
-        const firstResponse = await fetch(
+        const firstResponse = await authenticatedFetch(
           `${API_BASE}/users?page=1&limit=100&sortBy=createdAt&sortDir=desc`,
           { signal: controller.signal },
         );
@@ -112,7 +114,7 @@ export default function AdminKnowledgebasePage() {
         const firstPage = (await firstResponse.json()) as UsersResponse;
         const totalPages = Math.max(firstPage.meta?.totalPages ?? 1, 1);
         const remainingRequests = Array.from({ length: totalPages - 1 }, (_, index) =>
-          fetch(
+          authenticatedFetch(
             `${API_BASE}/users?page=${index + 2}&limit=100&sortBy=createdAt&sortDir=desc`,
             { signal: controller.signal },
           ).then(async (response) => {

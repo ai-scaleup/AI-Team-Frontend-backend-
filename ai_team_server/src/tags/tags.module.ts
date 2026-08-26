@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { AuthMiddleware } from '../auth/auth.middleware';
 import { TagsService } from './tags.service';
 import { TagsController } from './tags.controller';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -8,4 +9,8 @@ import { PrismaModule } from '../prisma/prisma.module';
   controllers: [TagsController],
   providers: [TagsService],
 })
-export class TagsModule {}
+export class TagsModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(AuthMiddleware).forRoutes(TagsController);
+  }
+}

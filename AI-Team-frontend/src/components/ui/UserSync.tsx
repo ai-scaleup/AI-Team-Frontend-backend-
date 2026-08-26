@@ -1,5 +1,7 @@
 "use client"
 
+import { authenticatedFetch } from "@/lib/authenticatedFetch";
+
 import { useEffect, useRef } from "react"
 import { useUser } from "@clerk/nextjs"
 import { markUserSynced } from "@/lib/userSyncGate"
@@ -20,7 +22,7 @@ export default function UserSync() {
 
     const username = user.fullName?.trim() || user.username?.trim() || undefined
 
-    fetch(`${API_BASE}/users/sync`, {
+    authenticatedFetch(`${API_BASE}/users/sync`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ oauthId: user.id, email, username }),

@@ -3,11 +3,19 @@ import 'dotenv/config';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3000/api'; // Adjust default if needed
 const USER_ID = process.argv[2];
+const CLERK_TEST_JWT = process.env.CLERK_TEST_JWT || process.argv[3];
 
-if (!USER_ID) {
+if (!USER_ID || !CLERK_TEST_JWT) {
     console.error('❌ Please provide a User ID (oauthId) as an argument.');
-    console.error('Usage: npx tsx scripts/verify-system.ts <USER_ID>');
+    console.error('Usage: npx tsx scripts/verify-system.ts <USER_ID> <CLERK_JWT>');
+    console.error('Alternatively, set CLERK_TEST_JWT in the environment.');
     process.exit(1);
+}
+
+function authenticatedBackendFetch(input: RequestInfo | URL, init: RequestInit = {}) {
+    const headers = new Headers(init.headers);
+    headers.set('Authorization', `Bearer ${CLERK_TEST_JWT}`);
+    return fetch(input, { ...init, headers });
 }
 
 console.log(`🔍 Starting Verification for User ID: ${USER_ID}`);
@@ -19,7 +27,7 @@ async function verifyPreferences() {
     const url = `${API_BASE}/user-preferences/${encodeURIComponent(USER_ID)}/${encodeURIComponent(agentName)}/or-create`;
 
     try {
-        const res = await fetch(url);
+        const res = await authenticatedBackendFetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
 
         const data = await res.json();
@@ -46,7 +54,7 @@ async function verifyConversations() {
     let chatId = '';
 
     try {
-        const createRes = await fetch(createUrl, {
+        const createRes = await authenticatedBackendFetch(createUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -65,7 +73,7 @@ async function verifyConversations() {
         // 2. Fetch Conversations
         console.log('🔹 Fetching conversations list...');
         const listUrl = `${API_BASE}/conversations/${encodeURIComponent(USER_ID)}?agentId=${agentId}`;
-        const listRes = await fetch(listUrl);
+        const listRes = await authenticatedBackendFetch(listUrl);
         const listData = await listRes.json();
 
         const found = listData.find((c: any) => c.id === chatId);

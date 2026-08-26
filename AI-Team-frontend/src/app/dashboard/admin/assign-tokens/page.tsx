@@ -1,5 +1,7 @@
 "use client";
 
+import { authenticatedFetch } from "@/lib/authenticatedFetch";
+
 import { FormEvent, useState } from "react";
 import {
   Bot,
@@ -107,7 +109,7 @@ export default function AssignTokensPage() {
     setMessage(null);
 
     try {
-      const response = await fetch(
+      const response = await authenticatedFetch(
         `${API_BASE}/token-usage/${encodeURIComponent(normalizedEmail)}/${encodeURIComponent(agentName)}/limit`,
         {
           method: "PATCH",

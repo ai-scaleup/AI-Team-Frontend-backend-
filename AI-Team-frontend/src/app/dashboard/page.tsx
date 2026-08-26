@@ -1,5 +1,7 @@
 "use client"
 
+import { authenticatedFetch } from "@/lib/authenticatedFetch";
+
 import { useState, useEffect } from "react"
 // Force rebuild
 import Image from "next/image"
@@ -333,7 +335,7 @@ export default function HomePage() {
         const allAgents = new Set<string>()
 
         // Fetch group assignments which include agents
-        const groupsRes = await fetch(
+        const groupsRes = await authenticatedFetch(
           `${API_BASE}/admin/group-assignments?email=${encodeURIComponent(userEmail)}&activeOnly=true`,
           { cache: "no-store" },
         )
@@ -353,7 +355,7 @@ export default function HomePage() {
 
         // Fetch agents assigned individually (admin panel -> Agent assignment).
         // This endpoint responds with { email, agents: string[] }, not an array.
-        const agentsRes = await fetch(
+        const agentsRes = await authenticatedFetch(
           `${API_BASE}/admin/agents-by-email?email=${encodeURIComponent(userEmail)}&activeOnly=true`,
           { cache: "no-store" },
         )
@@ -381,7 +383,7 @@ export default function HomePage() {
     setIsModalLoading(true)
 
     try {
-      const response = await fetch(`${API_BASE}/admin/groups/${group.id}/agents`)
+      const response = await authenticatedFetch(`${API_BASE}/admin/groups/${group.id}/agents`)
 
       if (response.ok) {
         const groupData: GroupAgentsResponse = await response.json()

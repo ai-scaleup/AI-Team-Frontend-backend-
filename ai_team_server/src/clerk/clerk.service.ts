@@ -13,12 +13,12 @@ export class ClerkService {
     }
   }
 
-  async handleWebhook(headers: any, payload: any) {
+  async handleWebhook(headers: Record<string, string>, payload: Buffer) {
     const wh = new Webhook(this.webhookSecret as string);
     let evt: WebhookEvent;
 
     try {
-      evt = wh.verify(JSON.stringify(payload), headers) as WebhookEvent;
+      evt = wh.verify(payload, headers) as WebhookEvent;
     } catch (err) {
       throw new BadRequestException('Webhook signature verification failed.');
     }

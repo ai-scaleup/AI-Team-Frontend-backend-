@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { AuthMiddleware } from '../auth/auth.middleware';
 import { ConversationController } from './controllers/conversation.controller';
 import { ConversationService } from './services/conversation.service';
 
@@ -8,4 +9,8 @@ import { ConversationService } from './services/conversation.service';
   providers: [ConversationService],
   exports: [ConversationService],
 })
-export class ConversationModule {}
+export class ConversationModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(AuthMiddleware).forRoutes(ConversationController);
+  }
+}

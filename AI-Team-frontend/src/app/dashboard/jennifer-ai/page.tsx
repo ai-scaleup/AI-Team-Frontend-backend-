@@ -1,5 +1,7 @@
 "use client"
 
+import { authenticatedFetch } from "@/lib/authenticatedFetch";
+
 
 import { useState, useEffect, useRef } from "react"
 import {
@@ -182,7 +184,7 @@ export default function JenniferPage() {
     const fetchSessions = async (isManual = false) => {
         if (isManual) setLoadingSessions(true)
         try {
-            const res = await fetch(`${API_BASE}/jennifer/sessions`)
+            const res = await authenticatedFetch(`${API_BASE}/jennifer/sessions`)
             if (res.ok) {
                 const data = await res.json()
                 // Tolerate the legacy string[] shape as well as the current object shape
@@ -217,7 +219,7 @@ export default function JenniferPage() {
     const fetchAllLeads = async () => {
         setLoadingAllLeads(true)
         try {
-            const res = await fetch(`${API_BASE}/chiara/leads`)
+            const res = await authenticatedFetch(`${API_BASE}/chiara/leads`)
             if (res.ok) {
                 const data = await res.json()
                 setAllLeads(data)
@@ -248,7 +250,7 @@ export default function JenniferPage() {
                 allLeads.map(async (lead) => {
                     try {
                         // First try to get existing tags
-                        const res = await fetch(`${API_BASE}/tags/session/${lead.sessionId}`)
+                        const res = await authenticatedFetch(`${API_BASE}/tags/session/${lead.sessionId}`)
                         if (res.ok) {
                             const data = await res.json()
                             if (data && data.tags && data.tags.length > 0) {
@@ -257,7 +259,7 @@ export default function JenniferPage() {
                             }
                         }
                         // If no existing tags, generate them
-                        const genRes = await fetch(`${API_BASE}/tags/generate`, {
+                        const genRes = await authenticatedFetch(`${API_BASE}/tags/generate`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ sessionId: lead.sessionId }),
@@ -283,7 +285,7 @@ export default function JenniferPage() {
     const fetchTagFields = async () => {
         setLoadingTagFields(true)
         try {
-            const res = await fetch(`${API_BASE}/tags/fields`)
+            const res = await authenticatedFetch(`${API_BASE}/tags/fields`)
             if (res.ok) {
                 const data = await res.json()
                 setTagFields(data)
@@ -299,7 +301,7 @@ export default function JenniferPage() {
         if (!tagForm.tagName.trim()) return
         setSavingTag(true)
         try {
-            const res = await fetch(`${API_BASE}/tags/fields`, {
+            const res = await authenticatedFetch(`${API_BASE}/tags/fields`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(tagForm),
@@ -319,7 +321,7 @@ export default function JenniferPage() {
         if (!editForm.tagName.trim()) return
         setSavingTag(true)
         try {
-            const res = await fetch(`${API_BASE}/tags/fields/${id}`, {
+            const res = await authenticatedFetch(`${API_BASE}/tags/fields/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(editForm),
@@ -338,7 +340,7 @@ export default function JenniferPage() {
     const deleteTagField = async (id: string) => {
         setDeletingTagId(id)
         try {
-            const res = await fetch(`${API_BASE}/tags/fields/${id}`, { method: 'DELETE' })
+            const res = await authenticatedFetch(`${API_BASE}/tags/fields/${id}`, { method: 'DELETE' })
             if (res.ok) {
                 fetchTagFields()
             }
@@ -359,7 +361,7 @@ export default function JenniferPage() {
 
             try {
                 // Fetch Logs
-                const resLogs = await fetch(`${API_BASE}/jennifer/chat-logs/${selectedSession}`)
+                const resLogs = await authenticatedFetch(`${API_BASE}/jennifer/chat-logs/${selectedSession}`)
                 if (resLogs.ok) {
                     const data = await resLogs.json()
                     setChatLogs(data)
@@ -372,7 +374,7 @@ export default function JenniferPage() {
 
             try {
                 // Fetch Tags automatically
-                const resTags = await fetch(`${API_BASE}/tags/session/${selectedSession}`)
+                const resTags = await authenticatedFetch(`${API_BASE}/tags/session/${selectedSession}`)
                 if (resTags.ok) {
                     const data = await resTags.json()
                     if (data && data.tags && data.tags.length > 0) {
@@ -400,7 +402,7 @@ export default function JenniferPage() {
         setIsDetailsPanelOpen(true)
         setShowTagsPanel(false)
         try {
-            const res = await fetch(`${API_BASE}/chiara/leads/${selectedSession}`)
+            const res = await authenticatedFetch(`${API_BASE}/chiara/leads/${selectedSession}`)
             if (res.ok) {
                 const data = await res.json()
                 if (data) {
@@ -437,7 +439,7 @@ export default function JenniferPage() {
         try {
             const url = `${API_BASE}/tags/generate`
             console.log('[GenerateTags] Calling:', url, 'with sessionId:', selectedSession)
-            const res = await fetch(url, {
+            const res = await authenticatedFetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ sessionId: selectedSession }),
@@ -916,7 +918,7 @@ export default function JenniferPage() {
                                                 onClick={() => {
                                                     setSelectedLeadForChat(lead)
                                                     setLoadingLeadChat(true)
-                                                    fetch(`${API_BASE}/jennifer/chat-logs/${lead.sessionId}`)
+                                                    authenticatedFetch(`${API_BASE}/jennifer/chat-logs/${lead.sessionId}`)
                                                         .then(res => res.ok ? res.json() : [])
                                                         .then(data => setLeadChatLogs(data))
                                                         .catch(() => setLeadChatLogs([]))

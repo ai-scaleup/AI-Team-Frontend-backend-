@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { AuthMiddleware } from '../auth/auth.middleware';
 import { PrismaModule } from 'src/prisma/prisma.module';
 import { MembershipController } from './membership.controller';
 import { MembershipService } from './membership.service';
@@ -9,4 +10,8 @@ import { MembershipService } from './membership.service';
   providers: [MembershipService],
   exports: [MembershipService],
 })
-export class MembershipModule {}
+export class MembershipModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(AuthMiddleware).forRoutes(MembershipController);
+  }
+}

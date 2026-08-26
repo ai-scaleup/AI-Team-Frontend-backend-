@@ -1,3 +1,4 @@
+import { authenticatedFetch } from "@/lib/authenticatedFetch";
 import {
     AgentName,
     UserPreference,
@@ -36,7 +37,7 @@ export const userPreferenceService = {
 
         try {
             console.log('📡 [PreferenceService] Making API request...');
-            const response = await fetch(url, { cache: 'no-store' });
+            const response = await authenticatedFetch(url, { cache: 'no-store' });
 
             console.log('📡 [PreferenceService] Response received');
             console.log('📡 [PreferenceService] Response status:', response.status);
@@ -70,7 +71,7 @@ export const userPreferenceService = {
         console.log('💾 [PreferenceService] Data to save:', JSON.stringify(data, null, 2));
 
         try {
-            const response = await fetch(url, {
+            const response = await authenticatedFetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data),
@@ -106,7 +107,7 @@ export const userPreferenceService = {
             const url = `${API_BASE}/user-preferences/${encodeURIComponent(oauthId)}`;
             console.log('📡 [PreferenceService] Fetching all preferences from:', url);
 
-            const response = await fetch(url, { cache: 'no-store' });
+            const response = await authenticatedFetch(url, { cache: 'no-store' });
 
             console.log('📡 [PreferenceService] Response status:', response.status);
 
@@ -137,7 +138,7 @@ export const userPreferenceService = {
             const url = `${API_BASE}/user-preferences/${encodeURIComponent(oauthId)}/${encodeURIComponent(agentName)}`;
             console.log('📡 [PreferenceService] Fetching from:', url);
 
-            const response = await fetch(url, { cache: 'no-store' });
+            const response = await authenticatedFetch(url, { cache: 'no-store' });
 
             console.log('📡 [PreferenceService] Response status:', response.status);
 
@@ -182,7 +183,7 @@ export const userPreferenceService = {
 
         try {
             console.log('📡 [PreferenceService] Making PUT request...');
-            const response = await fetch(url, {
+            const response = await authenticatedFetch(url, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data),
@@ -225,7 +226,7 @@ export const userPreferenceService = {
             const url = `${API_BASE}/user-preferences/${encodeURIComponent(oauthId)}/${encodeURIComponent(agentName)}`;
             console.log('📡 [PreferenceService] Making PUT request to:', url);
 
-            const response = await fetch(url, {
+            const response = await authenticatedFetch(url, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data),
@@ -259,7 +260,7 @@ export const userPreferenceService = {
             const url = `${API_BASE}/user-preferences/${encodeURIComponent(oauthId)}/${encodeURIComponent(agentName)}`;
             console.log('📡 [PreferenceService] Making DELETE request to:', url);
 
-            const response = await fetch(url, { method: 'DELETE' });
+            const response = await authenticatedFetch(url, { method: 'DELETE' });
 
             console.log('📡 [PreferenceService] Response status:', response.status);
 
@@ -288,7 +289,7 @@ export const userPreferenceService = {
             const url = `${API_BASE}/user-preferences/${encodeURIComponent(oauthId)}`;
             console.log('📡 [PreferenceService] Making DELETE request to:', url);
 
-            const response = await fetch(url, { method: 'DELETE' });
+            const response = await authenticatedFetch(url, { method: 'DELETE' });
 
             console.log('📡 [PreferenceService] Response status:', response.status);
 

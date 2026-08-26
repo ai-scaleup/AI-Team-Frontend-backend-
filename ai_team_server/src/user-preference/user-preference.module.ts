@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { AuthMiddleware } from '../auth/auth.middleware';
 import { UserPreferenceController } from './controllers/user-preference.controller';
 import { UserPreferenceService } from './services/user-preference.service';
 
@@ -8,4 +9,8 @@ import { UserPreferenceService } from './services/user-preference.service';
   providers: [UserPreferenceService],
   exports: [UserPreferenceService],
 })
-export class UserPreferenceModule {}
+export class UserPreferenceModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(AuthMiddleware).forRoutes(UserPreferenceController);
+  }
+}

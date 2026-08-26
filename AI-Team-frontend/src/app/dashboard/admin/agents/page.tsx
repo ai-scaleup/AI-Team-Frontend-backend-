@@ -1,5 +1,7 @@
 "use client";
 
+import { authenticatedFetch } from "@/lib/authenticatedFetch";
+
 import { FormEvent, useEffect, useState } from "react";
 import {
   Bot, Users, Plus, ShieldCheck, MoreVertical, Search, CreditCard,
@@ -142,7 +144,7 @@ export default function AgentsAndTeamsPage() {
     setMembershipError(null);
 
     try {
-      const response = await fetch(`${API_BASE}/admin/memberships`, {
+      const response = await authenticatedFetch(`${API_BASE}/admin/memberships`, {
         cache: "no-store",
       });
 
@@ -164,7 +166,7 @@ export default function AgentsAndTeamsPage() {
     setTeamError(null);
 
     try {
-      const response = await fetch(`${API_BASE}/admin/groups?limit=100&sortBy=createdAt&sortOrder=desc`, {
+      const response = await authenticatedFetch(`${API_BASE}/admin/groups?limit=100&sortBy=createdAt&sortOrder=desc`, {
         cache: "no-store",
       });
 
@@ -177,7 +179,7 @@ export default function AgentsAndTeamsPage() {
 
       const details = await Promise.all(
         groups.map(async (group) => {
-          const detailResponse = await fetch(`${API_BASE}/admin/groups/${group.id}`, {
+          const detailResponse = await authenticatedFetch(`${API_BASE}/admin/groups/${group.id}`, {
             cache: "no-store",
           });
 
@@ -286,7 +288,7 @@ export default function AgentsAndTeamsPage() {
     setIsCreatingTeam(true);
 
     try {
-      const response = await fetch(`${API_BASE}/admin/groups-with-agents`, {
+      const response = await authenticatedFetch(`${API_BASE}/admin/groups-with-agents`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -352,7 +354,7 @@ export default function AgentsAndTeamsPage() {
     setIsCreatingMembership(true);
 
     try {
-      const response = await fetch(`${API_BASE}/admin/memberships`, {
+      const response = await authenticatedFetch(`${API_BASE}/admin/memberships`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -390,7 +392,7 @@ export default function AgentsAndTeamsPage() {
     setDeletingTeamId(team.id);
 
     try {
-      const response = await fetch(`${API_BASE}/admin/groups/${team.id}`, {
+      const response = await authenticatedFetch(`${API_BASE}/admin/groups/${team.id}`, {
         method: "DELETE",
       });
 
@@ -425,7 +427,7 @@ export default function AgentsAndTeamsPage() {
     setIsUpdatingTeam(true);
 
     try {
-      const groupResponse = await fetch(`${API_BASE}/admin/groups/${team.id}`, {
+      const groupResponse = await authenticatedFetch(`${API_BASE}/admin/groups/${team.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -440,7 +442,7 @@ export default function AgentsAndTeamsPage() {
         throw new Error(detail || "Unable to update team.");
       }
 
-      const agentsResponse = await fetch(`${API_BASE}/admin/groups/${team.id}/agents`, {
+      const agentsResponse = await authenticatedFetch(`${API_BASE}/admin/groups/${team.id}/agents`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ agentNames: editTeamAgents }),

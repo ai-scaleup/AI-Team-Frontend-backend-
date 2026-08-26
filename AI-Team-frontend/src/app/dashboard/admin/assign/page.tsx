@@ -1,5 +1,7 @@
 "use client";
 
+import { authenticatedFetch } from "@/lib/authenticatedFetch";
+
 import { useEffect, useMemo, useState } from "react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -346,7 +348,7 @@ export default function AssignAndMetricsPage() {
     setIsLoadingMemberships(true);
 
     try {
-      const response = await fetch(`${API_BASE}/admin/memberships`, {
+      const response = await authenticatedFetch(`${API_BASE}/admin/memberships`, {
         cache: "no-store",
       });
 
@@ -374,7 +376,7 @@ export default function AssignAndMetricsPage() {
     setIsLoadingTeams(true);
 
     try {
-      const response = await fetch(`${API_BASE}/admin/groups?limit=100&sortBy=createdAt&sortOrder=desc`, {
+      const response = await authenticatedFetch(`${API_BASE}/admin/groups?limit=100&sortBy=createdAt&sortOrder=desc`, {
         cache: "no-store",
       });
 
@@ -386,7 +388,7 @@ export default function AssignAndMetricsPage() {
       const groups = Array.isArray(payload) ? payload : payload.data ?? [];
       const details = await Promise.all(
         groups.map(async (group) => {
-          const detailResponse = await fetch(`${API_BASE}/admin/groups/${group.id}`, {
+          const detailResponse = await authenticatedFetch(`${API_BASE}/admin/groups/${group.id}`, {
             cache: "no-store",
           });
 
@@ -424,7 +426,7 @@ export default function AssignAndMetricsPage() {
     setRecentAssignmentsError(null);
 
     try {
-      const response = await fetch(`${API_BASE}/admin/dashboard/recent-assignments?limit=6`, {
+      const response = await authenticatedFetch(`${API_BASE}/admin/dashboard/recent-assignments?limit=6`, {
         cache: "no-store",
       });
 
@@ -446,7 +448,7 @@ export default function AssignAndMetricsPage() {
     setAgentMetricsError(null);
 
     try {
-      const response = await fetch(`${API_BASE}/admin/dashboard/usage/agent-metrics?days=30&topLimit=5`, {
+      const response = await authenticatedFetch(`${API_BASE}/admin/dashboard/usage/agent-metrics?days=30&topLimit=5`, {
         cache: "no-store",
       });
 
@@ -520,7 +522,7 @@ export default function AssignAndMetricsPage() {
   };
 
   const findUserIdByEmail = async (email: string) => {
-    const response = await fetch(`${API_BASE}/admin/dashboard/users?search=${encodeURIComponent(email)}`, {
+    const response = await authenticatedFetch(`${API_BASE}/admin/dashboard/users?search=${encodeURIComponent(email)}`, {
       cache: "no-store",
     });
 
@@ -585,7 +587,7 @@ export default function AssignAndMetricsPage() {
     try {
       if (assignType === "team") {
         const selectedTeam = teams.find((team) => team.id === selectedAssignment);
-        const response = await fetch(`${API_BASE}/admin/group-assignments`, {
+        const response = await authenticatedFetch(`${API_BASE}/admin/group-assignments`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -612,7 +614,7 @@ export default function AssignAndMetricsPage() {
 
       if (assignType === "agent") {
         // 1) Grant the user access to this single agent (upserts AssignedAgent).
-        const accessResponse = await fetch(`${API_BASE}/admin/assign/agent`, {
+        const accessResponse = await authenticatedFetch(`${API_BASE}/admin/assign/agent`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -628,7 +630,7 @@ export default function AssignAndMetricsPage() {
         }
 
         // 2) Apply the token allowance for that agent.
-        const response = await fetch(
+        const response = await authenticatedFetch(
           `${API_BASE}/token-usage/${encodeURIComponent(email)}/${encodeURIComponent(selectedAssignment)}/limit`,
           {
             method: "PATCH",
@@ -652,7 +654,7 @@ export default function AssignAndMetricsPage() {
 
       const selectedMembership = memberships.find((membership) => membership.id === selectedAssignment);
       const userId = await findUserIdByEmail(email);
-      const response = await fetch(`${API_BASE}/admin/memberships/assign`, {
+      const response = await authenticatedFetch(`${API_BASE}/admin/memberships/assign`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

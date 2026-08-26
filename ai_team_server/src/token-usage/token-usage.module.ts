@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { AuthMiddleware } from '../auth/auth.middleware';
 import { TokenUsageController } from './controllers/token-usage.controller';
 import { TokenUsageService } from './services/token-usage.service';
 import { PrismaModule } from 'src/prisma/prisma.module';
@@ -9,4 +10,8 @@ import { PrismaModule } from 'src/prisma/prisma.module';
   providers: [TokenUsageService],
   exports: [TokenUsageService],
 })
-export class TokenUsageModule {}
+export class TokenUsageModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(AuthMiddleware).forRoutes(TokenUsageController);
+  }
+}

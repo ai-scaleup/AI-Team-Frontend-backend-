@@ -1,5 +1,6 @@
 // src/admin/admin.module.ts
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { AuthMiddleware } from '../auth/auth.middleware';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 import { AdminService } from './admin.service';
@@ -14,4 +15,10 @@ import { MembershipModule } from 'src/membership/membership.module';
   providers: [PrismaService, AdminService, AdminDashboardService],
   exports: [AdminService, AdminDashboardService],
 })
-export class AdminModule {}
+export class AdminModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(AuthMiddleware)
+      .forRoutes(AdminController, AdminDashboardController);
+  }
+}
