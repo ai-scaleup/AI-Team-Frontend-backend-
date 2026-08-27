@@ -29,6 +29,7 @@ export class MembershipController {
         durationDays: 30,
         monthlyTokenLimit: 100000,
         includedAgents: ['JIM'],
+        includedGroupIds: ['1f0a6d4c-1c3e-4d1a-9b52-1a2b3c4d5e6f'],
       },
     },
   })
@@ -64,6 +65,9 @@ export class MembershipController {
         durationDays: 60,
         monthlyTokenLimit: 150000,
         includedAgents: ['JIM', 'SARA_AI'],
+        // Replaces the template's teams. Omit to leave them as they are; an
+        // empty array unlinks them all (soft — no row is deleted).
+        includedGroupIds: ['1f0a6d4c-1c3e-4d1a-9b52-1a2b3c4d5e6f'],
       },
     },
   })

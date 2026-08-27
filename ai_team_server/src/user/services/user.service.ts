@@ -36,6 +36,9 @@ type AssignedLimitSnapshot = {
     template?: {
       monthlyTokenLimit?: number | null;
       includedAgents?: string[] | null;
+      includedGroups?: {
+        group?: { items?: { agentName?: string }[] } | null;
+      }[] | null;
     } | null;
   }[];
   tokenUsage?: {
@@ -90,6 +93,13 @@ const getAssignedLimitTokens = (user: AssignedLimitSnapshot) => {
       0;
     assignment.template?.includedAgents?.forEach((agentName) => {
       coveredAgentNames.add(String(agentName));
+    });
+    // Agents reached through a team the membership bundles are covered too,
+    // so their standalone token-usage limit is not added on top.
+    assignment.template?.includedGroups?.forEach((link) => {
+      link.group?.items?.forEach((item) => {
+        if (item.agentName) coveredAgentNames.add(String(item.agentName));
+      });
     });
   });
 
@@ -185,7 +195,23 @@ export class UserService {
                     memberships: {
                       some: {
                         template: {
-                          includedAgents: { hasSome: matchingAgents },
+                          OR: [
+                            { includedAgents: { hasSome: matchingAgents } },
+                            {
+                              includedGroups: {
+                                some: {
+                                  isActive: true,
+                                  group: {
+                                    items: {
+                                      some: {
+                                        agentName: { in: matchingAgents },
+                                      },
+                                    },
+                                  },
+                                },
+                              },
+                            },
+                          ],
                         },
                       },
                     },
@@ -269,6 +295,12 @@ export class UserService {
                 durationDays: true,
                 monthlyTokenLimit: true,
                 includedAgents: true,
+                includedGroups: {
+                  where: { isActive: true },
+                  select: {
+                    group: { select: { items: { select: { agentName: true } } } },
+                  },
+                },
               },
             },
           },

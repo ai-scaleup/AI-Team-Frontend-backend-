@@ -115,6 +115,13 @@ export default function AgentsAndTeamsPage() {
   const [isCreatingMembership, setIsCreatingMembership] = useState(false);
   const [membershipMessage, setMembershipMessage] = useState<string | null>(null);
   const [membershipError, setMembershipError] = useState<string | null>(null);
+  const [editingMembershipId, setEditingMembershipId] = useState<string | null>(null);
+  const [editMembershipName, setEditMembershipName] = useState("");
+  const [editMembershipDurationDays, setEditMembershipDurationDays] = useState(30);
+  const [editMembershipTokenLimit, setEditMembershipTokenLimit] = useState(100000);
+  const [editMembershipAgents, setEditMembershipAgents] = useState<string[]>([]);
+  const [editMembershipGroupIds, setEditMembershipGroupIds] = useState<string[]>([]);
+  const [isUpdatingMembership, setIsUpdatingMembership] = useState(false);
 
   // Conversation Limits state
   const [globalMode, setGlobalMode] = useState(true);
@@ -236,6 +243,18 @@ export default function AgentsAndTeamsPage() {
 
   const toggleMembershipGroup = (groupId: string) => {
     setMembershipGroupIds(prev =>
+      prev.includes(groupId) ? prev.filter(item => item !== groupId) : [...prev, groupId],
+    );
+  };
+
+  const toggleEditMembershipAgent = (agent: string) => {
+    setEditMembershipAgents(prev =>
+      prev.includes(agent) ? prev.filter(item => item !== agent) : [...prev, agent],
+    );
+  };
+
+  const toggleEditMembershipGroup = (groupId: string) => {
+    setEditMembershipGroupIds(prev =>
       prev.includes(groupId) ? prev.filter(item => item !== groupId) : [...prev, groupId],
     );
   };
@@ -379,6 +398,79 @@ export default function AgentsAndTeamsPage() {
       setMembershipError(error instanceof Error ? error.message : "Unable to create membership.");
     } finally {
       setIsCreatingMembership(false);
+    }
+  };
+
+  const startEditingMembership = (membership: MembershipTemplate) => {
+    setMembershipError(null);
+    setMembershipMessage(null);
+    setEditingMembershipId(membership.id);
+    setEditMembershipName(membership.name);
+    setEditMembershipDurationDays(membership.durationDays);
+    setEditMembershipTokenLimit(membership.monthlyTokenLimit);
+    setEditMembershipAgents(membership.includedAgents ?? []);
+    setEditMembershipGroupIds(membership.includedGroupIds ?? []);
+  };
+
+  const cancelEditingMembership = () => {
+    setEditingMembershipId(null);
+    setEditMembershipAgents([]);
+    setEditMembershipGroupIds([]);
+  };
+
+  const updateMembership = async (membership: MembershipTemplate) => {
+    setMembershipError(null);
+    setMembershipMessage(null);
+
+    if (!editMembershipName.trim()) {
+      setMembershipError("Membership name is required.");
+      return;
+    }
+
+    if (!Number.isInteger(editMembershipDurationDays) || editMembershipDurationDays < 1) {
+      setMembershipError("Duration must be at least 1 day.");
+      return;
+    }
+
+    if (!Number.isInteger(editMembershipTokenLimit) || editMembershipTokenLimit < 0) {
+      setMembershipError("Monthly token limit must be a non-negative integer.");
+      return;
+    }
+
+    if (editMembershipAgents.length === 0 && editMembershipGroupIds.length === 0) {
+      setMembershipError("Select at least one agent or team.");
+      return;
+    }
+
+    setIsUpdatingMembership(true);
+
+    try {
+      // includedGroupIds replaces the template's team list. Dropping a team
+      // only deactivates its link on the server, so no row is ever removed.
+      const response = await authenticatedFetch(`${API_BASE}/admin/memberships/${membership.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editMembershipName.trim(),
+          durationDays: editMembershipDurationDays,
+          monthlyTokenLimit: editMembershipTokenLimit,
+          includedAgents: editMembershipAgents,
+          includedGroupIds: editMembershipGroupIds,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(await parseApiError(response));
+      }
+
+      const updated = (await response.json()) as MembershipTemplate;
+      setMemberships(prev => prev.map(item => (item.id === updated.id ? updated : item)));
+      setMembershipMessage(`Updated "${updated.name}".`);
+      cancelEditingMembership();
+    } catch (error) {
+      setMembershipError(error instanceof Error ? error.message : "Unable to update membership.");
+    } finally {
+      setIsUpdatingMembership(false);
     }
   };
 
@@ -876,6 +968,115 @@ export default function AgentsAndTeamsPage() {
                   ...(membership.includedGroupIds ?? []).map(groupId => teams.find(team => team.id === groupId)?.name ?? groupId),
                 ];
 
+                if (editingMembershipId === membership.id) {
+                  return (
+                    <div
+                      key={membership.id}
+                      className="rounded-xl border border-emerald-400/20 bg-emerald-500/[0.04] p-4"
+                    >
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                        <div>
+                          <label className="mb-1.5 block text-xs text-white/50">Membership name</label>
+                          <input
+                            value={editMembershipName}
+                            onChange={(event) => setEditMembershipName(event.target.value)}
+                            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-emerald-400/60"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs text-white/50">Duration days</label>
+                          <input
+                            type="number"
+                            min={1}
+                            value={editMembershipDurationDays}
+                            onChange={(event) => setEditMembershipDurationDays(Number(event.target.value))}
+                            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-emerald-400/60"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs text-white/50">Tokens per month</label>
+                          <input
+                            type="number"
+                            min={0}
+                            value={editMembershipTokenLimit}
+                            onChange={(event) => setEditMembershipTokenLimit(Number(event.target.value))}
+                            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-emerald-400/60"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mt-4">
+                        <label className="mb-2 block text-xs text-white/50">Included agents</label>
+                        <div className="flex flex-wrap gap-2">
+                          {SINGLE_AGENTS.map(agent => {
+                            const isSelected = editMembershipAgents.includes(agent);
+                            return (
+                              <button
+                                key={agent}
+                                type="button"
+                                onClick={() => toggleEditMembershipAgent(agent)}
+                                className={`rounded-lg border px-2.5 py-1.5 text-xs transition ${
+                                  isSelected
+                                    ? "border-emerald-400/60 bg-emerald-500/20 text-emerald-200"
+                                    : "border-white/10 bg-white/5 text-white/55 hover:border-white/20 hover:text-white/80"
+                                }`}
+                              >
+                                {agent}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="mt-4">
+                        <label className="mb-2 block text-xs text-white/50">Included teams</label>
+                        <div className="flex flex-wrap gap-2">
+                          {teams.length === 0 && (
+                            <span className="text-xs text-white/35">No teams available.</span>
+                          )}
+                          {teams.map(team => {
+                            const isSelected = editMembershipGroupIds.includes(team.id);
+                            return (
+                              <button
+                                key={team.id}
+                                type="button"
+                                onClick={() => toggleEditMembershipGroup(team.id)}
+                                className={`rounded-lg border px-2.5 py-1.5 text-xs transition ${
+                                  isSelected
+                                    ? "border-sky-400/60 bg-sky-500/20 text-sky-200"
+                                    : "border-white/10 bg-white/5 text-white/55 hover:border-white/20 hover:text-white/80"
+                                }`}
+                              >
+                                {team.name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={cancelEditingMembership}
+                          disabled={isUpdatingMembership}
+                          className="rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-white/60 transition hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateMembership(membership)}
+                          disabled={isUpdatingMembership}
+                          className="flex items-center gap-2 rounded-lg bg-emerald-600/90 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {isUpdatingMembership ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                          Save
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+
                 return (
                   <div key={membership.id} className="flex items-center justify-between rounded-xl border border-white/5 bg-white/5 p-4">
                     <div>
@@ -887,7 +1088,13 @@ export default function AgentsAndTeamsPage() {
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-2">
-                      <button className="text-white/40 hover:text-white"><MoreVertical size={16} /></button>
+                      <button
+                        onClick={() => startEditingMembership(membership)}
+                        title="Edit membership"
+                        className="rounded-lg p-1.5 text-white/35 transition hover:bg-emerald-500/10 hover:text-emerald-300"
+                      >
+                        <Pencil size={15} />
+                      </button>
                       <div className="flex flex-wrap justify-end gap-1">
                         {chips.map(item => (
                           <span key={item} className="rounded bg-sky-500/20 px-2 py-0.5 text-[10px] text-sky-300">

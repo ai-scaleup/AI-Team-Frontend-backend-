@@ -274,6 +274,8 @@ model AgentGroup {
 
   items       AgentGroupItem[]
   assignments AssignedGroup[]
+  // Membership templates that bundle this team
+  membershipLinks MembershipTemplateGroup[]
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
@@ -503,7 +505,11 @@ model MembershipTemplate {
   monthlyTokenLimit Int
   
   includedAgents    AgentName[]
-  
+
+  // Teams bundled into this membership. Links are soft-toggled through
+  // isActive rather than removed, so unlinking a team never drops a row.
+  includedGroups    MembershipTemplateGroup[]
+
   assignments       AssignedMembership[]
 
   createdAt         DateTime  @default(now())
@@ -531,6 +537,28 @@ model AssignedMembership {
   template             MembershipTemplate @relation(fields: [membershipTemplateId], references: [id], onDelete: Cascade)
 
   @@index([userId, isActive])
+}
+
+// A team bundled into a membership template. Assigning the membership then
+// grants the user every agent on these teams, the same way a direct team
+// assignment does.
+//
+// Unlinking flips isActive instead of removing the row, so a template's team
+// history is never destroyed and re-adding the same team reuses its row.
+model MembershipTemplateGroup {
+  id                   String   @id @default(uuid())
+  membershipTemplateId String
+  groupId              String
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  template MembershipTemplate @relation(fields: [membershipTemplateId], references: [id], onDelete: Cascade)
+  group    AgentGroup         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([membershipTemplateId, groupId], map: "uniq_group_per_membership_template")
+  @@index([membershipTemplateId, isActive])
+  @@index([groupId])
 }
 
 model DailyTokenUsage {

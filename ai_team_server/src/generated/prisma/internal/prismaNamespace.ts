@@ -406,6 +406,7 @@ export const ModelName = {
   TokenUsageAlertRule: 'TokenUsageAlertRule',
   MembershipTemplate: 'MembershipTemplate',
   AssignedMembership: 'AssignedMembership',
+  MembershipTemplateGroup: 'MembershipTemplateGroup',
   DailyTokenUsage: 'DailyTokenUsage',
   TokenLimitStopLog: 'TokenLimitStopLog',
   UserAlert: 'UserAlert'
@@ -424,7 +425,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "pearlWhitelabelUser" | "pearlWhitelabelUserData" | "userPreference" | "assignedAgent" | "agentGroup" | "agentGroupItem" | "assignedGroup" | "conversation" | "message" | "chatLog" | "metisChatLog" | "chiaraInboundChatLog" | "freapChiaraInboundChatLog" | "freapJenniferChatLog" | "chiaraLead" | "tagField" | "tag" | "userAgentTokenUsage" | "tokenUsageAlertRule" | "membershipTemplate" | "assignedMembership" | "dailyTokenUsage" | "tokenLimitStopLog" | "userAlert"
+    modelProps: "user" | "pearlWhitelabelUser" | "pearlWhitelabelUserData" | "userPreference" | "assignedAgent" | "agentGroup" | "agentGroupItem" | "assignedGroup" | "conversation" | "message" | "chatLog" | "metisChatLog" | "chiaraInboundChatLog" | "freapChiaraInboundChatLog" | "freapJenniferChatLog" | "chiaraLead" | "tagField" | "tag" | "userAgentTokenUsage" | "tokenUsageAlertRule" | "membershipTemplate" | "assignedMembership" | "membershipTemplateGroup" | "dailyTokenUsage" | "tokenLimitStopLog" | "userAlert"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2056,6 +2057,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    MembershipTemplateGroup: {
+      payload: Prisma.$MembershipTemplateGroupPayload<ExtArgs>
+      fields: Prisma.MembershipTemplateGroupFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.MembershipTemplateGroupFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipTemplateGroupPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.MembershipTemplateGroupFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipTemplateGroupPayload>
+        }
+        findFirst: {
+          args: Prisma.MembershipTemplateGroupFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipTemplateGroupPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.MembershipTemplateGroupFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipTemplateGroupPayload>
+        }
+        findMany: {
+          args: Prisma.MembershipTemplateGroupFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipTemplateGroupPayload>[]
+        }
+        create: {
+          args: Prisma.MembershipTemplateGroupCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipTemplateGroupPayload>
+        }
+        createMany: {
+          args: Prisma.MembershipTemplateGroupCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.MembershipTemplateGroupCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipTemplateGroupPayload>[]
+        }
+        delete: {
+          args: Prisma.MembershipTemplateGroupDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipTemplateGroupPayload>
+        }
+        update: {
+          args: Prisma.MembershipTemplateGroupUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipTemplateGroupPayload>
+        }
+        deleteMany: {
+          args: Prisma.MembershipTemplateGroupDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.MembershipTemplateGroupUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.MembershipTemplateGroupUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipTemplateGroupPayload>[]
+        }
+        upsert: {
+          args: Prisma.MembershipTemplateGroupUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipTemplateGroupPayload>
+        }
+        aggregate: {
+          args: Prisma.MembershipTemplateGroupAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateMembershipTemplateGroup>
+        }
+        groupBy: {
+          args: Prisma.MembershipTemplateGroupGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MembershipTemplateGroupGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.MembershipTemplateGroupCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MembershipTemplateGroupCountAggregateOutputType> | number
+        }
+      }
+    }
     DailyTokenUsage: {
       payload: Prisma.$DailyTokenUsagePayload<ExtArgs>
       fields: Prisma.DailyTokenUsageFieldRefs
@@ -2631,6 +2706,18 @@ export const AssignedMembershipScalarFieldEnum = {
 export type AssignedMembershipScalarFieldEnum = (typeof AssignedMembershipScalarFieldEnum)[keyof typeof AssignedMembershipScalarFieldEnum]
 
 
+export const MembershipTemplateGroupScalarFieldEnum = {
+  id: 'id',
+  membershipTemplateId: 'membershipTemplateId',
+  groupId: 'groupId',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type MembershipTemplateGroupScalarFieldEnum = (typeof MembershipTemplateGroupScalarFieldEnum)[keyof typeof MembershipTemplateGroupScalarFieldEnum]
+
+
 export const DailyTokenUsageScalarFieldEnum = {
   id: 'id',
   oauthId: 'oauthId',
@@ -3061,6 +3148,7 @@ export type GlobalOmitConfig = {
   tokenUsageAlertRule?: Prisma.TokenUsageAlertRuleOmit
   membershipTemplate?: Prisma.MembershipTemplateOmit
   assignedMembership?: Prisma.AssignedMembershipOmit
+  membershipTemplateGroup?: Prisma.MembershipTemplateGroupOmit
   dailyTokenUsage?: Prisma.DailyTokenUsageOmit
   tokenLimitStopLog?: Prisma.TokenLimitStopLogOmit
   userAlert?: Prisma.UserAlertOmit

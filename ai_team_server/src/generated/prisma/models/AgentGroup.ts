@@ -234,6 +234,7 @@ export type AgentGroupWhereInput = {
   updatedAt?: Prisma.DateTimeFilter<"AgentGroup"> | Date | string
   items?: Prisma.AgentGroupItemListRelationFilter
   assignments?: Prisma.AssignedGroupListRelationFilter
+  membershipLinks?: Prisma.MembershipTemplateGroupListRelationFilter
 }
 
 export type AgentGroupOrderByWithRelationInput = {
@@ -246,6 +247,7 @@ export type AgentGroupOrderByWithRelationInput = {
   updatedAt?: Prisma.SortOrder
   items?: Prisma.AgentGroupItemOrderByRelationAggregateInput
   assignments?: Prisma.AssignedGroupOrderByRelationAggregateInput
+  membershipLinks?: Prisma.MembershipTemplateGroupOrderByRelationAggregateInput
 }
 
 export type AgentGroupWhereUniqueInput = Prisma.AtLeast<{
@@ -261,6 +263,7 @@ export type AgentGroupWhereUniqueInput = Prisma.AtLeast<{
   updatedAt?: Prisma.DateTimeFilter<"AgentGroup"> | Date | string
   items?: Prisma.AgentGroupItemListRelationFilter
   assignments?: Prisma.AssignedGroupListRelationFilter
+  membershipLinks?: Prisma.MembershipTemplateGroupListRelationFilter
 }, "id" | "name">
 
 export type AgentGroupOrderByWithAggregationInput = {
@@ -301,6 +304,7 @@ export type AgentGroupCreateInput = {
   updatedAt?: Date | string
   items?: Prisma.AgentGroupItemCreateNestedManyWithoutGroupInput
   assignments?: Prisma.AssignedGroupCreateNestedManyWithoutGroupInput
+  membershipLinks?: Prisma.MembershipTemplateGroupCreateNestedManyWithoutGroupInput
 }
 
 export type AgentGroupUncheckedCreateInput = {
@@ -313,6 +317,7 @@ export type AgentGroupUncheckedCreateInput = {
   updatedAt?: Date | string
   items?: Prisma.AgentGroupItemUncheckedCreateNestedManyWithoutGroupInput
   assignments?: Prisma.AssignedGroupUncheckedCreateNestedManyWithoutGroupInput
+  membershipLinks?: Prisma.MembershipTemplateGroupUncheckedCreateNestedManyWithoutGroupInput
 }
 
 export type AgentGroupUpdateInput = {
@@ -325,6 +330,7 @@ export type AgentGroupUpdateInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   items?: Prisma.AgentGroupItemUpdateManyWithoutGroupNestedInput
   assignments?: Prisma.AssignedGroupUpdateManyWithoutGroupNestedInput
+  membershipLinks?: Prisma.MembershipTemplateGroupUpdateManyWithoutGroupNestedInput
 }
 
 export type AgentGroupUncheckedUpdateInput = {
@@ -337,6 +343,7 @@ export type AgentGroupUncheckedUpdateInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   items?: Prisma.AgentGroupItemUncheckedUpdateManyWithoutGroupNestedInput
   assignments?: Prisma.AssignedGroupUncheckedUpdateManyWithoutGroupNestedInput
+  membershipLinks?: Prisma.MembershipTemplateGroupUncheckedUpdateManyWithoutGroupNestedInput
 }
 
 export type AgentGroupCreateManyInput = {
@@ -440,6 +447,20 @@ export type AgentGroupUpdateOneRequiredWithoutAssignmentsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.AgentGroupUpdateToOneWithWhereWithoutAssignmentsInput, Prisma.AgentGroupUpdateWithoutAssignmentsInput>, Prisma.AgentGroupUncheckedUpdateWithoutAssignmentsInput>
 }
 
+export type AgentGroupCreateNestedOneWithoutMembershipLinksInput = {
+  create?: Prisma.XOR<Prisma.AgentGroupCreateWithoutMembershipLinksInput, Prisma.AgentGroupUncheckedCreateWithoutMembershipLinksInput>
+  connectOrCreate?: Prisma.AgentGroupCreateOrConnectWithoutMembershipLinksInput
+  connect?: Prisma.AgentGroupWhereUniqueInput
+}
+
+export type AgentGroupUpdateOneRequiredWithoutMembershipLinksNestedInput = {
+  create?: Prisma.XOR<Prisma.AgentGroupCreateWithoutMembershipLinksInput, Prisma.AgentGroupUncheckedCreateWithoutMembershipLinksInput>
+  connectOrCreate?: Prisma.AgentGroupCreateOrConnectWithoutMembershipLinksInput
+  upsert?: Prisma.AgentGroupUpsertWithoutMembershipLinksInput
+  connect?: Prisma.AgentGroupWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.AgentGroupUpdateToOneWithWhereWithoutMembershipLinksInput, Prisma.AgentGroupUpdateWithoutMembershipLinksInput>, Prisma.AgentGroupUncheckedUpdateWithoutMembershipLinksInput>
+}
+
 export type AgentGroupCreateWithoutItemsInput = {
   id?: string
   name: string
@@ -449,6 +470,7 @@ export type AgentGroupCreateWithoutItemsInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   assignments?: Prisma.AssignedGroupCreateNestedManyWithoutGroupInput
+  membershipLinks?: Prisma.MembershipTemplateGroupCreateNestedManyWithoutGroupInput
 }
 
 export type AgentGroupUncheckedCreateWithoutItemsInput = {
@@ -460,6 +482,7 @@ export type AgentGroupUncheckedCreateWithoutItemsInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   assignments?: Prisma.AssignedGroupUncheckedCreateNestedManyWithoutGroupInput
+  membershipLinks?: Prisma.MembershipTemplateGroupUncheckedCreateNestedManyWithoutGroupInput
 }
 
 export type AgentGroupCreateOrConnectWithoutItemsInput = {
@@ -487,6 +510,7 @@ export type AgentGroupUpdateWithoutItemsInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assignments?: Prisma.AssignedGroupUpdateManyWithoutGroupNestedInput
+  membershipLinks?: Prisma.MembershipTemplateGroupUpdateManyWithoutGroupNestedInput
 }
 
 export type AgentGroupUncheckedUpdateWithoutItemsInput = {
@@ -498,6 +522,7 @@ export type AgentGroupUncheckedUpdateWithoutItemsInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assignments?: Prisma.AssignedGroupUncheckedUpdateManyWithoutGroupNestedInput
+  membershipLinks?: Prisma.MembershipTemplateGroupUncheckedUpdateManyWithoutGroupNestedInput
 }
 
 export type AgentGroupCreateWithoutAssignmentsInput = {
@@ -509,6 +534,7 @@ export type AgentGroupCreateWithoutAssignmentsInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   items?: Prisma.AgentGroupItemCreateNestedManyWithoutGroupInput
+  membershipLinks?: Prisma.MembershipTemplateGroupCreateNestedManyWithoutGroupInput
 }
 
 export type AgentGroupUncheckedCreateWithoutAssignmentsInput = {
@@ -520,6 +546,7 @@ export type AgentGroupUncheckedCreateWithoutAssignmentsInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   items?: Prisma.AgentGroupItemUncheckedCreateNestedManyWithoutGroupInput
+  membershipLinks?: Prisma.MembershipTemplateGroupUncheckedCreateNestedManyWithoutGroupInput
 }
 
 export type AgentGroupCreateOrConnectWithoutAssignmentsInput = {
@@ -547,6 +574,7 @@ export type AgentGroupUpdateWithoutAssignmentsInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   items?: Prisma.AgentGroupItemUpdateManyWithoutGroupNestedInput
+  membershipLinks?: Prisma.MembershipTemplateGroupUpdateManyWithoutGroupNestedInput
 }
 
 export type AgentGroupUncheckedUpdateWithoutAssignmentsInput = {
@@ -558,6 +586,71 @@ export type AgentGroupUncheckedUpdateWithoutAssignmentsInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   items?: Prisma.AgentGroupItemUncheckedUpdateManyWithoutGroupNestedInput
+  membershipLinks?: Prisma.MembershipTemplateGroupUncheckedUpdateManyWithoutGroupNestedInput
+}
+
+export type AgentGroupCreateWithoutMembershipLinksInput = {
+  id?: string
+  name: string
+  description?: string | null
+  isActive?: boolean
+  singleConversationTokenLimit?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  items?: Prisma.AgentGroupItemCreateNestedManyWithoutGroupInput
+  assignments?: Prisma.AssignedGroupCreateNestedManyWithoutGroupInput
+}
+
+export type AgentGroupUncheckedCreateWithoutMembershipLinksInput = {
+  id?: string
+  name: string
+  description?: string | null
+  isActive?: boolean
+  singleConversationTokenLimit?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  items?: Prisma.AgentGroupItemUncheckedCreateNestedManyWithoutGroupInput
+  assignments?: Prisma.AssignedGroupUncheckedCreateNestedManyWithoutGroupInput
+}
+
+export type AgentGroupCreateOrConnectWithoutMembershipLinksInput = {
+  where: Prisma.AgentGroupWhereUniqueInput
+  create: Prisma.XOR<Prisma.AgentGroupCreateWithoutMembershipLinksInput, Prisma.AgentGroupUncheckedCreateWithoutMembershipLinksInput>
+}
+
+export type AgentGroupUpsertWithoutMembershipLinksInput = {
+  update: Prisma.XOR<Prisma.AgentGroupUpdateWithoutMembershipLinksInput, Prisma.AgentGroupUncheckedUpdateWithoutMembershipLinksInput>
+  create: Prisma.XOR<Prisma.AgentGroupCreateWithoutMembershipLinksInput, Prisma.AgentGroupUncheckedCreateWithoutMembershipLinksInput>
+  where?: Prisma.AgentGroupWhereInput
+}
+
+export type AgentGroupUpdateToOneWithWhereWithoutMembershipLinksInput = {
+  where?: Prisma.AgentGroupWhereInput
+  data: Prisma.XOR<Prisma.AgentGroupUpdateWithoutMembershipLinksInput, Prisma.AgentGroupUncheckedUpdateWithoutMembershipLinksInput>
+}
+
+export type AgentGroupUpdateWithoutMembershipLinksInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  singleConversationTokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  items?: Prisma.AgentGroupItemUpdateManyWithoutGroupNestedInput
+  assignments?: Prisma.AssignedGroupUpdateManyWithoutGroupNestedInput
+}
+
+export type AgentGroupUncheckedUpdateWithoutMembershipLinksInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  singleConversationTokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  items?: Prisma.AgentGroupItemUncheckedUpdateManyWithoutGroupNestedInput
+  assignments?: Prisma.AssignedGroupUncheckedUpdateManyWithoutGroupNestedInput
 }
 
 
@@ -568,11 +661,13 @@ export type AgentGroupUncheckedUpdateWithoutAssignmentsInput = {
 export type AgentGroupCountOutputType = {
   items: number
   assignments: number
+  membershipLinks: number
 }
 
 export type AgentGroupCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   items?: boolean | AgentGroupCountOutputTypeCountItemsArgs
   assignments?: boolean | AgentGroupCountOutputTypeCountAssignmentsArgs
+  membershipLinks?: boolean | AgentGroupCountOutputTypeCountMembershipLinksArgs
 }
 
 /**
@@ -599,6 +694,13 @@ export type AgentGroupCountOutputTypeCountAssignmentsArgs<ExtArgs extends runtim
   where?: Prisma.AssignedGroupWhereInput
 }
 
+/**
+ * AgentGroupCountOutputType without action
+ */
+export type AgentGroupCountOutputTypeCountMembershipLinksArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.MembershipTemplateGroupWhereInput
+}
+
 
 export type AgentGroupSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -610,6 +712,7 @@ export type AgentGroupSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   updatedAt?: boolean
   items?: boolean | Prisma.AgentGroup$itemsArgs<ExtArgs>
   assignments?: boolean | Prisma.AgentGroup$assignmentsArgs<ExtArgs>
+  membershipLinks?: boolean | Prisma.AgentGroup$membershipLinksArgs<ExtArgs>
   _count?: boolean | Prisma.AgentGroupCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["agentGroup"]>
 
@@ -647,6 +750,7 @@ export type AgentGroupOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs
 export type AgentGroupInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   items?: boolean | Prisma.AgentGroup$itemsArgs<ExtArgs>
   assignments?: boolean | Prisma.AgentGroup$assignmentsArgs<ExtArgs>
+  membershipLinks?: boolean | Prisma.AgentGroup$membershipLinksArgs<ExtArgs>
   _count?: boolean | Prisma.AgentGroupCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type AgentGroupIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -657,6 +761,7 @@ export type $AgentGroupPayload<ExtArgs extends runtime.Types.Extensions.Internal
   objects: {
     items: Prisma.$AgentGroupItemPayload<ExtArgs>[]
     assignments: Prisma.$AssignedGroupPayload<ExtArgs>[]
+    membershipLinks: Prisma.$MembershipTemplateGroupPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1062,6 +1167,7 @@ export interface Prisma__AgentGroupClient<T, Null = never, ExtArgs extends runti
   readonly [Symbol.toStringTag]: "PrismaPromise"
   items<T extends Prisma.AgentGroup$itemsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.AgentGroup$itemsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AgentGroupItemPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   assignments<T extends Prisma.AgentGroup$assignmentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.AgentGroup$assignmentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AssignedGroupPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  membershipLinks<T extends Prisma.AgentGroup$membershipLinksArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.AgentGroup$membershipLinksArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$MembershipTemplateGroupPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1536,6 +1642,30 @@ export type AgentGroup$assignmentsArgs<ExtArgs extends runtime.Types.Extensions.
   take?: number
   skip?: number
   distinct?: Prisma.AssignedGroupScalarFieldEnum | Prisma.AssignedGroupScalarFieldEnum[]
+}
+
+/**
+ * AgentGroup.membershipLinks
+ */
+export type AgentGroup$membershipLinksArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the MembershipTemplateGroup
+   */
+  select?: Prisma.MembershipTemplateGroupSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the MembershipTemplateGroup
+   */
+  omit?: Prisma.MembershipTemplateGroupOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.MembershipTemplateGroupInclude<ExtArgs> | null
+  where?: Prisma.MembershipTemplateGroupWhereInput
+  orderBy?: Prisma.MembershipTemplateGroupOrderByWithRelationInput | Prisma.MembershipTemplateGroupOrderByWithRelationInput[]
+  cursor?: Prisma.MembershipTemplateGroupWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.MembershipTemplateGroupScalarFieldEnum | Prisma.MembershipTemplateGroupScalarFieldEnum[]
 }
 
 /**

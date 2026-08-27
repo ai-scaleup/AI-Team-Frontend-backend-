@@ -78,6 +78,7 @@ export class AdminDashboardController {
         durationDays: 30,
         monthlyTokenLimit: 100000,
         includedAgents: ['JIM'],
+        includedGroupIds: ['1f0a6d4c-1c3e-4d1a-9b52-1a2b3c4d5e6f'],
       },
     },
   })

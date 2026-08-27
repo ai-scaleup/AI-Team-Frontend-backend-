@@ -106,7 +106,21 @@ export class TokenUsageService {
           where: { isActive: true },
           include: { group: { include: { items: true } } },
         },
-        memberships: { where: { isActive: true }, include: { template: true } },
+        memberships: {
+          where: { isActive: true },
+          include: {
+            template: {
+              include: {
+                // A membership can carry whole teams, not just loose agents,
+                // so its allowance has to cover the agents on those teams too.
+                includedGroups: {
+                  where: { isActive: true },
+                  include: { group: { include: { items: true } } },
+                },
+              },
+            },
+          },
+        },
       },
     });
 
@@ -139,9 +153,17 @@ export class TokenUsageService {
       }
     }
 
-    // Check memberships
+    // Check memberships — an agent counts when the template lists it directly
+    // or when it sits on one of the teams the template bundles. The membership
+    // is still counted once either way, so bundling a team the user already
+    // holds does not hand out its allowance twice.
     for (const m of user.memberships) {
-      if (m.template.includedAgents.includes(agentName)) {
+      const coveredDirectly = m.template.includedAgents.includes(agentName);
+      const coveredByTeam = m.template.includedGroups.some((link) =>
+        link.group.items.some((i) => i.agentName === agentName),
+      );
+
+      if (coveredDirectly || coveredByTeam) {
         hasAccess = true;
         totalLimit += m.monthlyTokenLimit ?? m.template.monthlyTokenLimit;
         if (m.startsAt < earliestStart) earliestStart = m.startsAt;

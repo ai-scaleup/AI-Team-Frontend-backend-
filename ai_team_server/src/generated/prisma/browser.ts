@@ -128,6 +128,11 @@ export type MembershipTemplate = Prisma.MembershipTemplateModel
  */
 export type AssignedMembership = Prisma.AssignedMembershipModel
 /**
+ * Model MembershipTemplateGroup
+ * 
+ */
+export type MembershipTemplateGroup = Prisma.MembershipTemplateGroupModel
+/**
  * Model DailyTokenUsage
  * 
  */

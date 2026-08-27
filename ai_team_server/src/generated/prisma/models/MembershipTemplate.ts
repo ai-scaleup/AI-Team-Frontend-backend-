@@ -232,6 +232,7 @@ export type MembershipTemplateWhereInput = {
   includedAgents?: Prisma.EnumAgentNameNullableListFilter<"MembershipTemplate">
   createdAt?: Prisma.DateTimeFilter<"MembershipTemplate"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"MembershipTemplate"> | Date | string
+  includedGroups?: Prisma.MembershipTemplateGroupListRelationFilter
   assignments?: Prisma.AssignedMembershipListRelationFilter
 }
 
@@ -243,6 +244,7 @@ export type MembershipTemplateOrderByWithRelationInput = {
   includedAgents?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  includedGroups?: Prisma.MembershipTemplateGroupOrderByRelationAggregateInput
   assignments?: Prisma.AssignedMembershipOrderByRelationAggregateInput
 }
 
@@ -257,6 +259,7 @@ export type MembershipTemplateWhereUniqueInput = Prisma.AtLeast<{
   includedAgents?: Prisma.EnumAgentNameNullableListFilter<"MembershipTemplate">
   createdAt?: Prisma.DateTimeFilter<"MembershipTemplate"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"MembershipTemplate"> | Date | string
+  includedGroups?: Prisma.MembershipTemplateGroupListRelationFilter
   assignments?: Prisma.AssignedMembershipListRelationFilter
 }, "id" | "name">
 
@@ -296,6 +299,7 @@ export type MembershipTemplateCreateInput = {
   includedAgents?: Prisma.MembershipTemplateCreateincludedAgentsInput | $Enums.AgentName[]
   createdAt?: Date | string
   updatedAt?: Date | string
+  includedGroups?: Prisma.MembershipTemplateGroupCreateNestedManyWithoutTemplateInput
   assignments?: Prisma.AssignedMembershipCreateNestedManyWithoutTemplateInput
 }
 
@@ -307,6 +311,7 @@ export type MembershipTemplateUncheckedCreateInput = {
   includedAgents?: Prisma.MembershipTemplateCreateincludedAgentsInput | $Enums.AgentName[]
   createdAt?: Date | string
   updatedAt?: Date | string
+  includedGroups?: Prisma.MembershipTemplateGroupUncheckedCreateNestedManyWithoutTemplateInput
   assignments?: Prisma.AssignedMembershipUncheckedCreateNestedManyWithoutTemplateInput
 }
 
@@ -318,6 +323,7 @@ export type MembershipTemplateUpdateInput = {
   includedAgents?: Prisma.MembershipTemplateUpdateincludedAgentsInput | $Enums.AgentName[]
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  includedGroups?: Prisma.MembershipTemplateGroupUpdateManyWithoutTemplateNestedInput
   assignments?: Prisma.AssignedMembershipUpdateManyWithoutTemplateNestedInput
 }
 
@@ -329,6 +335,7 @@ export type MembershipTemplateUncheckedUpdateInput = {
   includedAgents?: Prisma.MembershipTemplateUpdateincludedAgentsInput | $Enums.AgentName[]
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  includedGroups?: Prisma.MembershipTemplateGroupUncheckedUpdateManyWithoutTemplateNestedInput
   assignments?: Prisma.AssignedMembershipUncheckedUpdateManyWithoutTemplateNestedInput
 }
 
@@ -436,6 +443,20 @@ export type MembershipTemplateUpdateOneRequiredWithoutAssignmentsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.MembershipTemplateUpdateToOneWithWhereWithoutAssignmentsInput, Prisma.MembershipTemplateUpdateWithoutAssignmentsInput>, Prisma.MembershipTemplateUncheckedUpdateWithoutAssignmentsInput>
 }
 
+export type MembershipTemplateCreateNestedOneWithoutIncludedGroupsInput = {
+  create?: Prisma.XOR<Prisma.MembershipTemplateCreateWithoutIncludedGroupsInput, Prisma.MembershipTemplateUncheckedCreateWithoutIncludedGroupsInput>
+  connectOrCreate?: Prisma.MembershipTemplateCreateOrConnectWithoutIncludedGroupsInput
+  connect?: Prisma.MembershipTemplateWhereUniqueInput
+}
+
+export type MembershipTemplateUpdateOneRequiredWithoutIncludedGroupsNestedInput = {
+  create?: Prisma.XOR<Prisma.MembershipTemplateCreateWithoutIncludedGroupsInput, Prisma.MembershipTemplateUncheckedCreateWithoutIncludedGroupsInput>
+  connectOrCreate?: Prisma.MembershipTemplateCreateOrConnectWithoutIncludedGroupsInput
+  upsert?: Prisma.MembershipTemplateUpsertWithoutIncludedGroupsInput
+  connect?: Prisma.MembershipTemplateWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.MembershipTemplateUpdateToOneWithWhereWithoutIncludedGroupsInput, Prisma.MembershipTemplateUpdateWithoutIncludedGroupsInput>, Prisma.MembershipTemplateUncheckedUpdateWithoutIncludedGroupsInput>
+}
+
 export type MembershipTemplateCreateWithoutAssignmentsInput = {
   id?: string
   name: string
@@ -444,6 +465,7 @@ export type MembershipTemplateCreateWithoutAssignmentsInput = {
   includedAgents?: Prisma.MembershipTemplateCreateincludedAgentsInput | $Enums.AgentName[]
   createdAt?: Date | string
   updatedAt?: Date | string
+  includedGroups?: Prisma.MembershipTemplateGroupCreateNestedManyWithoutTemplateInput
 }
 
 export type MembershipTemplateUncheckedCreateWithoutAssignmentsInput = {
@@ -454,6 +476,7 @@ export type MembershipTemplateUncheckedCreateWithoutAssignmentsInput = {
   includedAgents?: Prisma.MembershipTemplateCreateincludedAgentsInput | $Enums.AgentName[]
   createdAt?: Date | string
   updatedAt?: Date | string
+  includedGroups?: Prisma.MembershipTemplateGroupUncheckedCreateNestedManyWithoutTemplateInput
 }
 
 export type MembershipTemplateCreateOrConnectWithoutAssignmentsInput = {
@@ -480,6 +503,7 @@ export type MembershipTemplateUpdateWithoutAssignmentsInput = {
   includedAgents?: Prisma.MembershipTemplateUpdateincludedAgentsInput | $Enums.AgentName[]
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  includedGroups?: Prisma.MembershipTemplateGroupUpdateManyWithoutTemplateNestedInput
 }
 
 export type MembershipTemplateUncheckedUpdateWithoutAssignmentsInput = {
@@ -490,6 +514,67 @@ export type MembershipTemplateUncheckedUpdateWithoutAssignmentsInput = {
   includedAgents?: Prisma.MembershipTemplateUpdateincludedAgentsInput | $Enums.AgentName[]
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  includedGroups?: Prisma.MembershipTemplateGroupUncheckedUpdateManyWithoutTemplateNestedInput
+}
+
+export type MembershipTemplateCreateWithoutIncludedGroupsInput = {
+  id?: string
+  name: string
+  durationDays: number
+  monthlyTokenLimit: number
+  includedAgents?: Prisma.MembershipTemplateCreateincludedAgentsInput | $Enums.AgentName[]
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  assignments?: Prisma.AssignedMembershipCreateNestedManyWithoutTemplateInput
+}
+
+export type MembershipTemplateUncheckedCreateWithoutIncludedGroupsInput = {
+  id?: string
+  name: string
+  durationDays: number
+  monthlyTokenLimit: number
+  includedAgents?: Prisma.MembershipTemplateCreateincludedAgentsInput | $Enums.AgentName[]
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  assignments?: Prisma.AssignedMembershipUncheckedCreateNestedManyWithoutTemplateInput
+}
+
+export type MembershipTemplateCreateOrConnectWithoutIncludedGroupsInput = {
+  where: Prisma.MembershipTemplateWhereUniqueInput
+  create: Prisma.XOR<Prisma.MembershipTemplateCreateWithoutIncludedGroupsInput, Prisma.MembershipTemplateUncheckedCreateWithoutIncludedGroupsInput>
+}
+
+export type MembershipTemplateUpsertWithoutIncludedGroupsInput = {
+  update: Prisma.XOR<Prisma.MembershipTemplateUpdateWithoutIncludedGroupsInput, Prisma.MembershipTemplateUncheckedUpdateWithoutIncludedGroupsInput>
+  create: Prisma.XOR<Prisma.MembershipTemplateCreateWithoutIncludedGroupsInput, Prisma.MembershipTemplateUncheckedCreateWithoutIncludedGroupsInput>
+  where?: Prisma.MembershipTemplateWhereInput
+}
+
+export type MembershipTemplateUpdateToOneWithWhereWithoutIncludedGroupsInput = {
+  where?: Prisma.MembershipTemplateWhereInput
+  data: Prisma.XOR<Prisma.MembershipTemplateUpdateWithoutIncludedGroupsInput, Prisma.MembershipTemplateUncheckedUpdateWithoutIncludedGroupsInput>
+}
+
+export type MembershipTemplateUpdateWithoutIncludedGroupsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  durationDays?: Prisma.IntFieldUpdateOperationsInput | number
+  monthlyTokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
+  includedAgents?: Prisma.MembershipTemplateUpdateincludedAgentsInput | $Enums.AgentName[]
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  assignments?: Prisma.AssignedMembershipUpdateManyWithoutTemplateNestedInput
+}
+
+export type MembershipTemplateUncheckedUpdateWithoutIncludedGroupsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  durationDays?: Prisma.IntFieldUpdateOperationsInput | number
+  monthlyTokenLimit?: Prisma.IntFieldUpdateOperationsInput | number
+  includedAgents?: Prisma.MembershipTemplateUpdateincludedAgentsInput | $Enums.AgentName[]
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  assignments?: Prisma.AssignedMembershipUncheckedUpdateManyWithoutTemplateNestedInput
 }
 
 
@@ -498,10 +583,12 @@ export type MembershipTemplateUncheckedUpdateWithoutAssignmentsInput = {
  */
 
 export type MembershipTemplateCountOutputType = {
+  includedGroups: number
   assignments: number
 }
 
 export type MembershipTemplateCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  includedGroups?: boolean | MembershipTemplateCountOutputTypeCountIncludedGroupsArgs
   assignments?: boolean | MembershipTemplateCountOutputTypeCountAssignmentsArgs
 }
 
@@ -513,6 +600,13 @@ export type MembershipTemplateCountOutputTypeDefaultArgs<ExtArgs extends runtime
    * Select specific fields to fetch from the MembershipTemplateCountOutputType
    */
   select?: Prisma.MembershipTemplateCountOutputTypeSelect<ExtArgs> | null
+}
+
+/**
+ * MembershipTemplateCountOutputType without action
+ */
+export type MembershipTemplateCountOutputTypeCountIncludedGroupsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.MembershipTemplateGroupWhereInput
 }
 
 /**
@@ -531,6 +625,7 @@ export type MembershipTemplateSelect<ExtArgs extends runtime.Types.Extensions.In
   includedAgents?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  includedGroups?: boolean | Prisma.MembershipTemplate$includedGroupsArgs<ExtArgs>
   assignments?: boolean | Prisma.MembershipTemplate$assignmentsArgs<ExtArgs>
   _count?: boolean | Prisma.MembershipTemplateCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["membershipTemplate"]>
@@ -567,6 +662,7 @@ export type MembershipTemplateSelectScalar = {
 
 export type MembershipTemplateOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "durationDays" | "monthlyTokenLimit" | "includedAgents" | "createdAt" | "updatedAt", ExtArgs["result"]["membershipTemplate"]>
 export type MembershipTemplateInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  includedGroups?: boolean | Prisma.MembershipTemplate$includedGroupsArgs<ExtArgs>
   assignments?: boolean | Prisma.MembershipTemplate$assignmentsArgs<ExtArgs>
   _count?: boolean | Prisma.MembershipTemplateCountOutputTypeDefaultArgs<ExtArgs>
 }
@@ -576,6 +672,7 @@ export type MembershipTemplateIncludeUpdateManyAndReturn<ExtArgs extends runtime
 export type $MembershipTemplatePayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "MembershipTemplate"
   objects: {
+    includedGroups: Prisma.$MembershipTemplateGroupPayload<ExtArgs>[]
     assignments: Prisma.$AssignedMembershipPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
@@ -980,6 +1077,7 @@ readonly fields: MembershipTemplateFieldRefs;
  */
 export interface Prisma__MembershipTemplateClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
+  includedGroups<T extends Prisma.MembershipTemplate$includedGroupsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.MembershipTemplate$includedGroupsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$MembershipTemplateGroupPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   assignments<T extends Prisma.MembershipTemplate$assignmentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.MembershipTemplate$assignmentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AssignedMembershipPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -1407,6 +1505,30 @@ export type MembershipTemplateDeleteManyArgs<ExtArgs extends runtime.Types.Exten
    * Limit how many MembershipTemplates to delete.
    */
   limit?: number
+}
+
+/**
+ * MembershipTemplate.includedGroups
+ */
+export type MembershipTemplate$includedGroupsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the MembershipTemplateGroup
+   */
+  select?: Prisma.MembershipTemplateGroupSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the MembershipTemplateGroup
+   */
+  omit?: Prisma.MembershipTemplateGroupOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.MembershipTemplateGroupInclude<ExtArgs> | null
+  where?: Prisma.MembershipTemplateGroupWhereInput
+  orderBy?: Prisma.MembershipTemplateGroupOrderByWithRelationInput | Prisma.MembershipTemplateGroupOrderByWithRelationInput[]
+  cursor?: Prisma.MembershipTemplateGroupWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.MembershipTemplateGroupScalarFieldEnum | Prisma.MembershipTemplateGroupScalarFieldEnum[]
 }
 
 /**

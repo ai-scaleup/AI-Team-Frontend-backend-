@@ -73,6 +73,7 @@ export const ModelName = {
   TokenUsageAlertRule: 'TokenUsageAlertRule',
   MembershipTemplate: 'MembershipTemplate',
   AssignedMembership: 'AssignedMembership',
+  MembershipTemplateGroup: 'MembershipTemplateGroup',
   DailyTokenUsage: 'DailyTokenUsage',
   TokenLimitStopLog: 'TokenLimitStopLog',
   UserAlert: 'UserAlert'
@@ -406,6 +407,18 @@ export const AssignedMembershipScalarFieldEnum = {
 } as const
 
 export type AssignedMembershipScalarFieldEnum = (typeof AssignedMembershipScalarFieldEnum)[keyof typeof AssignedMembershipScalarFieldEnum]
+
+
+export const MembershipTemplateGroupScalarFieldEnum = {
+  id: 'id',
+  membershipTemplateId: 'membershipTemplateId',
+  groupId: 'groupId',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type MembershipTemplateGroupScalarFieldEnum = (typeof MembershipTemplateGroupScalarFieldEnum)[keyof typeof MembershipTemplateGroupScalarFieldEnum]
 
 
 export const DailyTokenUsageScalarFieldEnum = {
