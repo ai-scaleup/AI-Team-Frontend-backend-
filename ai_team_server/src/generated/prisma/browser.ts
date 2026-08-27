@@ -23,6 +23,16 @@ export * from './enums';
  */
 export type User = Prisma.UserModel
 /**
+ * Model PearlWhitelabelUser
+ * 
+ */
+export type PearlWhitelabelUser = Prisma.PearlWhitelabelUserModel
+/**
+ * Model PearlWhitelabelUserData
+ * 
+ */
+export type PearlWhitelabelUserData = Prisma.PearlWhitelabelUserDataModel
+/**
  * Model UserPreference
  * 
  */

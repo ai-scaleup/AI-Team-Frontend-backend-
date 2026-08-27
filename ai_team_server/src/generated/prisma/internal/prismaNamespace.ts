@@ -385,6 +385,8 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 
 export const ModelName = {
   User: 'User',
+  PearlWhitelabelUser: 'PearlWhitelabelUser',
+  PearlWhitelabelUserData: 'PearlWhitelabelUserData',
   UserPreference: 'UserPreference',
   AssignedAgent: 'AssignedAgent',
   AgentGroup: 'AgentGroup',
@@ -422,7 +424,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "userPreference" | "assignedAgent" | "agentGroup" | "agentGroupItem" | "assignedGroup" | "conversation" | "message" | "chatLog" | "metisChatLog" | "chiaraInboundChatLog" | "freapChiaraInboundChatLog" | "freapJenniferChatLog" | "chiaraLead" | "tagField" | "tag" | "userAgentTokenUsage" | "tokenUsageAlertRule" | "membershipTemplate" | "assignedMembership" | "dailyTokenUsage" | "tokenLimitStopLog" | "userAlert"
+    modelProps: "user" | "pearlWhitelabelUser" | "pearlWhitelabelUserData" | "userPreference" | "assignedAgent" | "agentGroup" | "agentGroupItem" | "assignedGroup" | "conversation" | "message" | "chatLog" | "metisChatLog" | "chiaraInboundChatLog" | "freapChiaraInboundChatLog" | "freapJenniferChatLog" | "chiaraLead" | "tagField" | "tag" | "userAgentTokenUsage" | "tokenUsageAlertRule" | "membershipTemplate" | "assignedMembership" | "dailyTokenUsage" | "tokenLimitStopLog" | "userAlert"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -497,6 +499,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.UserCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.UserCountAggregateOutputType> | number
+        }
+      }
+    }
+    PearlWhitelabelUser: {
+      payload: Prisma.$PearlWhitelabelUserPayload<ExtArgs>
+      fields: Prisma.PearlWhitelabelUserFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.PearlWhitelabelUserFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PearlWhitelabelUserPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.PearlWhitelabelUserFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PearlWhitelabelUserPayload>
+        }
+        findFirst: {
+          args: Prisma.PearlWhitelabelUserFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PearlWhitelabelUserPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.PearlWhitelabelUserFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PearlWhitelabelUserPayload>
+        }
+        findMany: {
+          args: Prisma.PearlWhitelabelUserFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PearlWhitelabelUserPayload>[]
+        }
+        create: {
+          args: Prisma.PearlWhitelabelUserCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PearlWhitelabelUserPayload>
+        }
+        createMany: {
+          args: Prisma.PearlWhitelabelUserCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.PearlWhitelabelUserCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PearlWhitelabelUserPayload>[]
+        }
+        delete: {
+          args: Prisma.PearlWhitelabelUserDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PearlWhitelabelUserPayload>
+        }
+        update: {
+          args: Prisma.PearlWhitelabelUserUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PearlWhitelabelUserPayload>
+        }
+        deleteMany: {
+          args: Prisma.PearlWhitelabelUserDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.PearlWhitelabelUserUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.PearlWhitelabelUserUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PearlWhitelabelUserPayload>[]
+        }
+        upsert: {
+          args: Prisma.PearlWhitelabelUserUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PearlWhitelabelUserPayload>
+        }
+        aggregate: {
+          args: Prisma.PearlWhitelabelUserAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregatePearlWhitelabelUser>
+        }
+        groupBy: {
+          args: Prisma.PearlWhitelabelUserGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PearlWhitelabelUserGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.PearlWhitelabelUserCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PearlWhitelabelUserCountAggregateOutputType> | number
+        }
+      }
+    }
+    PearlWhitelabelUserData: {
+      payload: Prisma.$PearlWhitelabelUserDataPayload<ExtArgs>
+      fields: Prisma.PearlWhitelabelUserDataFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.PearlWhitelabelUserDataFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PearlWhitelabelUserDataPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.PearlWhitelabelUserDataFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PearlWhitelabelUserDataPayload>
+        }
+        findFirst: {
+          args: Prisma.PearlWhitelabelUserDataFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PearlWhitelabelUserDataPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.PearlWhitelabelUserDataFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PearlWhitelabelUserDataPayload>
+        }
+        findMany: {
+          args: Prisma.PearlWhitelabelUserDataFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PearlWhitelabelUserDataPayload>[]
+        }
+        create: {
+          args: Prisma.PearlWhitelabelUserDataCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PearlWhitelabelUserDataPayload>
+        }
+        createMany: {
+          args: Prisma.PearlWhitelabelUserDataCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.PearlWhitelabelUserDataCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PearlWhitelabelUserDataPayload>[]
+        }
+        delete: {
+          args: Prisma.PearlWhitelabelUserDataDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PearlWhitelabelUserDataPayload>
+        }
+        update: {
+          args: Prisma.PearlWhitelabelUserDataUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PearlWhitelabelUserDataPayload>
+        }
+        deleteMany: {
+          args: Prisma.PearlWhitelabelUserDataDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.PearlWhitelabelUserDataUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.PearlWhitelabelUserDataUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PearlWhitelabelUserDataPayload>[]
+        }
+        upsert: {
+          args: Prisma.PearlWhitelabelUserDataUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PearlWhitelabelUserDataPayload>
+        }
+        aggregate: {
+          args: Prisma.PearlWhitelabelUserDataAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregatePearlWhitelabelUserData>
+        }
+        groupBy: {
+          args: Prisma.PearlWhitelabelUserDataGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PearlWhitelabelUserDataGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.PearlWhitelabelUserDataCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PearlWhitelabelUserDataCountAggregateOutputType> | number
         }
       }
     }
@@ -2180,6 +2330,31 @@ export const UserScalarFieldEnum = {
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
 
 
+export const PearlWhitelabelUserScalarFieldEnum = {
+  id: 'id',
+  email: 'email',
+  oauthId: 'oauthId',
+  username: 'username',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PearlWhitelabelUserScalarFieldEnum = (typeof PearlWhitelabelUserScalarFieldEnum)[keyof typeof PearlWhitelabelUserScalarFieldEnum]
+
+
+export const PearlWhitelabelUserDataScalarFieldEnum = {
+  id: 'id',
+  campaignName: 'campaignName',
+  outboundId: 'outboundId',
+  bearerToken: 'bearerToken',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  userId: 'userId'
+} as const
+
+export type PearlWhitelabelUserDataScalarFieldEnum = (typeof PearlWhitelabelUserDataScalarFieldEnum)[keyof typeof PearlWhitelabelUserDataScalarFieldEnum]
+
+
 export const UserPreferenceScalarFieldEnum = {
   id: 'id',
   oauthId: 'oauthId',
@@ -2865,6 +3040,8 @@ export type PrismaClientOptions = ({
 }
 export type GlobalOmitConfig = {
   user?: Prisma.UserOmit
+  pearlWhitelabelUser?: Prisma.PearlWhitelabelUserOmit
+  pearlWhitelabelUserData?: Prisma.PearlWhitelabelUserDataOmit
   userPreference?: Prisma.UserPreferenceOmit
   assignedAgent?: Prisma.AssignedAgentOmit
   agentGroup?: Prisma.AgentGroupOmit

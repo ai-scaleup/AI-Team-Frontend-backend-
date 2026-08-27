@@ -52,6 +52,8 @@ export const AnyNull = runtime.AnyNull
 
 export const ModelName = {
   User: 'User',
+  PearlWhitelabelUser: 'PearlWhitelabelUser',
+  PearlWhitelabelUserData: 'PearlWhitelabelUserData',
   UserPreference: 'UserPreference',
   AssignedAgent: 'AssignedAgent',
   AgentGroup: 'AgentGroup',
@@ -103,6 +105,31 @@ export const UserScalarFieldEnum = {
 } as const
 
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
+
+
+export const PearlWhitelabelUserScalarFieldEnum = {
+  id: 'id',
+  email: 'email',
+  oauthId: 'oauthId',
+  username: 'username',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PearlWhitelabelUserScalarFieldEnum = (typeof PearlWhitelabelUserScalarFieldEnum)[keyof typeof PearlWhitelabelUserScalarFieldEnum]
+
+
+export const PearlWhitelabelUserDataScalarFieldEnum = {
+  id: 'id',
+  campaignName: 'campaignName',
+  outboundId: 'outboundId',
+  bearerToken: 'bearerToken',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  userId: 'userId'
+} as const
+
+export type PearlWhitelabelUserDataScalarFieldEnum = (typeof PearlWhitelabelUserDataScalarFieldEnum)[keyof typeof PearlWhitelabelUserDataScalarFieldEnum]
 
 
 export const UserPreferenceScalarFieldEnum = {

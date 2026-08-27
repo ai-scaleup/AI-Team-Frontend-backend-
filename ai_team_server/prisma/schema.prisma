@@ -168,6 +168,35 @@ model User {
   alerts        UserAlert[]
 }
 
+// Pearl white-label data is isolated from the application's existing User
+// model. The mapped database names retain the requested prefix.
+model PearlWhitelabelUser {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  oauthId   String   @unique
+  username  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userData PearlWhitelabelUserData[]
+
+  @@map("pearl_whitelabel_User")
+}
+
+model PearlWhitelabelUserData {
+  id           String              @id @default(uuid())
+  campaignName String
+  outboundId   String
+  bearerToken  String
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  userId       String
+  user         PearlWhitelabelUser @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([userId])
+  @@map("pearl_whitelabel_UserData")
+}
+
 // ─────────────────────────────────────────────────────────────
 // User Preferences Model (Per User + Agent combination)
 // ─────────────────────────────────────────────────────────────
