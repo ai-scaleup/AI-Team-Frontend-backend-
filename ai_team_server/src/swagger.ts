@@ -7,7 +7,8 @@ export function setupSwagger(app: INestApplication) {
     .setDescription(
       [
         'Interactive API documentation for the AI Team backend.',
-        'Application endpoints require a Clerk JWT; signed external webhooks are the exception. Use the Authorize button and enter the bearer token before sending requests.',
+        'Application endpoints accept either credential — a Clerk JWT or the development token from the backend .env (DEV_API_TOKEN) — and at least one of them is required; signed external webhooks are the exception.',
+        'Use the Authorize button and fill in whichever one you have before sending requests.',
       ].join(' '),
     )
     .setVersion('1.0.0')
@@ -21,7 +22,19 @@ export function setupSwagger(app: INestApplication) {
       },
       'clerk-bearer',
     )
+    .addApiKey(
+      {
+        type: 'apiKey',
+        in: 'header',
+        name: 'x-dev-token',
+        description:
+          'Development token from the backend .env (DEV_API_TOKEN). An alternative to the Clerk JWT — either one authenticates the request.',
+      },
+      'dev-token',
+    )
+    // Two independent requirements: satisfying either one authorizes the call.
     .addSecurityRequirements('clerk-bearer')
+    .addSecurityRequirements('dev-token')
     .addTag('health', 'Application health and root endpoints')
     .addTag('users', 'User management, sync, and alerts')
     .addTag('conversations', 'Conversation and message history')

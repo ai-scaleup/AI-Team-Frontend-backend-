@@ -1,3 +1,5 @@
+import { applyDevAuthHeaders, isDevAuthEnabled } from "./devToken";
+
 type ClerkTokenGetter = () => Promise<string | null>;
 
 let tokenGetter: ClerkTokenGetter | null = null;
@@ -38,6 +40,11 @@ function targetsBackendApi(input: RequestInfo | URL) {
 }
 
 async function currentClerkToken() {
+  // A development-token session never signs in, so there is no getter to wait for.
+  if (isDevAuthEnabled()) {
+    return null;
+  }
+
   if (!tokenGetter && typeof window !== "undefined") {
     await Promise.race([
       tokenGetterReady,
@@ -49,9 +56,13 @@ async function currentClerkToken() {
 }
 
 /**
- * Drop-in fetch replacement. It adds a Clerk bearer token only when the
- * request targets NEXT_PUBLIC_API_BASE; third-party and local Next.js API
- * requests pass through unchanged.
+ * Drop-in fetch replacement. It authenticates only requests that target
+ * NEXT_PUBLIC_API_BASE; third-party and local Next.js API requests pass
+ * through unchanged.
+ *
+ * The development token from .env is used first when one is configured — that
+ * is the credential a developer works with instead of signing in. Without it
+ * the request carries the Clerk bearer token of the active session.
  */
 export async function authenticatedFetch(
   input: RequestInfo | URL,
@@ -61,12 +72,14 @@ export async function authenticatedFetch(
     return fetch(input, init);
   }
 
-  const token = await currentClerkToken();
   const headers = new Headers(input instanceof Request ? input.headers : undefined);
   new Headers(init.headers).forEach((value, key) => headers.set(key, value));
 
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
+  if (!applyDevAuthHeaders(headers)) {
+    const token = await currentClerkToken();
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
   }
 
   return fetch(input, { ...init, headers });

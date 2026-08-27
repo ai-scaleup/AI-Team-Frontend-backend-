@@ -41,6 +41,7 @@ import { UserPreferences, DEFAULT_PREFERENCES } from "@/types/preferences"
 import { preferenceService } from "@/services/preferenceService"
 import DanHome from "@/components/dan-ai/DanHome"
 import ResourcesPanel from "@/components/dan-ai/ResourcesPanel"
+import { getDevUserEmail } from "@/lib/devToken"
 
 // --- TYPES ---
 interface Message {
@@ -292,7 +293,7 @@ export default function page() {
     const [userPrefs, setUserPrefs] = useState<UserPreferences>(DEFAULT_PREFERENCES)
     const [legacyPrefs, setLegacyPrefs] = useState<Record<string, any>>({})
     const { user } = useUser()
-    const userEmail = user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || ""
+    const userEmail = user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || getDevUserEmail()
     const [activeSubjectId, setActiveSubjectId] = useState<string | null>(null)
     const [showHome, setShowHome] = useState(true)
     const [isResourcesPanelOpen, setIsResourcesPanelOpen] = useState(false)

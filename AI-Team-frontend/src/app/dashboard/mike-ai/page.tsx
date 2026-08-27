@@ -41,6 +41,7 @@ import {
 import { useUser } from "@clerk/nextjs"
 import { conversationService } from "@/services/conversationService"
 import { extractFileContent } from "@/utils/fileExtraction"
+import { getDevUserEmail } from "@/lib/devToken"
 
 // --- TYPES ---
 interface Message {
@@ -551,7 +552,7 @@ export default function App() {
   const currentAgent = AGENTS_DB[activeAgentId] || AGENTS_DB["mike-ai"]
 
   const { user } = useUser()
-  const userEmail = user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || ""
+  const userEmail = user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || getDevUserEmail()
 
   // --- Set Pinecone namespace ---
   useEffect(() => {
@@ -651,255 +652,6 @@ export default function App() {
     }
   }, [])
 
-  // Migrate localStorage chats to database API (runs once per user)
-  const migrateLocalStorageChats = async (userId: string) => {
-    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ''
-    console.log("🔍 Mike AI Migration: Starting migration check...")
-    console.log("🔍 User ID:", userId)
-    console.log("🔍 API Base URL:", API_BASE || "(empty - will use relative path)")
-
-    const migrationKey = "mike-ai-migrated"
-    const migrationVersionKey = "mike-ai-migration-v5"
-
-    const hasMigrationV5 = localStorage.getItem(migrationVersionKey)
-    if (!hasMigrationV5) {
-      console.log("🔄 Mike AI: Migration v5 not found, forcing re-migration...")
-      localStorage.removeItem(migrationKey)
-      localStorage.setItem(migrationVersionKey, "true")
-    }
-
-    const alreadyMigrated = localStorage.getItem(migrationKey)
-    console.log("🔍 Migration flag value:", alreadyMigrated)
-
-    if (alreadyMigrated === "true") {
-      console.log("✅ Mike AI: Already migrated, skipping localStorage migration")
-      return
-    }
-
-    const savedChats = localStorage.getItem("mike-ai-chats")
-    console.log("🔍 localStorage mike-ai-chats exists:", !!savedChats)
-
-    if (!savedChats) {
-      console.log("📝 Mike AI: No localStorage chats found, marking as migrated")
-      localStorage.setItem(migrationKey, "true")
-      return
-    }
-
-    try {
-      const chatsData = JSON.parse(savedChats) as Record<string, ChatSession>
-      const chatEntries = Object.entries(chatsData)
-      console.log("🔍 Parsed chats count:", chatEntries.length)
-
-      const mikeAiChats = chatEntries
-      console.log("🔍 Mike AI chats to migrate:", mikeAiChats.length)
-
-      if (mikeAiChats.length === 0) {
-        console.log("📝 Mike AI: No chats in localStorage, marking as migrated")
-        localStorage.setItem(migrationKey, "true")
-        return
-      }
-
-      console.log(`📦 Mike AI: Migrating ${mikeAiChats.length} chats from localStorage to database...`)
-
-      let successCount = 0
-      let alreadyExistsCount = 0
-      let failedCount = 0
-
-      for (const [chatId, chat] of mikeAiChats) {
-        try {
-          const payload = {
-            id: chatId,
-            title: chat.title || "Migrated Chat",
-            agentId: chat.agentId || "mike-ai",
-            sessionId: chat.sessionId || `migrated_${chatId}`,
-            folderId: chat.folderId || null,
-            archived: chat.archived || false,
-            messages: chat.messages || [],
-          }
-
-          console.log(`📤 Migrating chat ${chatId}:`, {
-            title: payload.title,
-            agentId: payload.agentId,
-            messagesCount: payload.messages.length,
-            sessionId: payload.sessionId
-          })
-
-          const result = await conversationService.createConversation(userId, payload)
-          successCount++
-          console.log(`✅ Migrated chat: ${chatId} - "${chat.title}"`)
-          console.log(`📥 Server response:`, result)
-
-          if (chat.messages && chat.messages.length > 0) {
-            console.log(`📨 Chat ${chatId} has ${chat.messages.length} messages to migrate`)
-            let messageMigratedCount = 0
-            let messageFailedCount = 0
-            let conversationNotFound = false
-            let activeConversationId = chatId
-
-            for (const message of chat.messages) {
-              try {
-                await conversationService.addMessage(userId, activeConversationId, {
-                  text: message.text,
-                  sender: message.sender,
-                  time: message.time,
-                  files: message.files,
-                })
-                messageMigratedCount++
-                console.log(`   ✅ Message migrated: sender=${message.sender}, time=${message.time}`)
-              } catch (msgError: any) {
-                if (msgError?.message?.includes('404') || msgError?.message?.toLowerCase().includes('not found')) {
-                  if (!conversationNotFound) {
-                    conversationNotFound = true
-                    console.log(`   ⚠️ Conversation ${activeConversationId} not found, creating new conversation...`)
-                    const newChatId = "chat_" + Date.now() + "_migrated"
-                    const newSessionId = "session_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9)
-                    try {
-                      const newPayload = {
-                        id: newChatId,
-                        title: chat.title || "Migrated Chat",
-                        agentId: chat.agentId || "mike-ai",
-                        sessionId: newSessionId,
-                        folderId: chat.folderId || null,
-                        archived: chat.archived || false,
-                        messages: [],
-                      }
-                      await conversationService.createConversation(userId, newPayload)
-                      console.log(`   ✅ Created new conversation: ${newChatId}`)
-                      activeConversationId = newChatId
-                      await conversationService.addMessage(userId, activeConversationId, {
-                        text: message.text,
-                        sender: message.sender,
-                        time: message.time,
-                        files: message.files,
-                      })
-                      messageMigratedCount++
-                      console.log(`   ✅ Message migrated to new conversation: sender=${message.sender}`)
-                    } catch (createError: any) {
-                      messageFailedCount++
-                      console.error(`   ❌ Failed to create new conversation:`, createError?.message)
-                    }
-                  } else {
-                    try {
-                      await conversationService.addMessage(userId, activeConversationId, {
-                        text: message.text,
-                        sender: message.sender,
-                        time: message.time,
-                        files: message.files,
-                      })
-                      messageMigratedCount++
-                    } catch (retryError: any) {
-                      messageFailedCount++
-                      console.error(`   ❌ Failed to add message to new conversation:`, retryError?.message)
-                    }
-                  }
-                } else if (msgError?.message?.includes('409') || msgError?.message?.toLowerCase().includes('already exists')) {
-                  console.log(`   📌 Message already exists: sender=${message.sender}, time=${message.time}`)
-                } else {
-                  messageFailedCount++
-                  console.error(`   ❌ Failed to migrate message:`, msgError?.message || msgError)
-                }
-              }
-            }
-            console.log(`   📊 Messages: ${messageMigratedCount} migrated, ${messageFailedCount} failed`)
-          }
-        } catch (error: any) {
-          if (error?.message?.includes('409') || error?.message?.toLowerCase().includes('already exists') || error?.message?.toLowerCase().includes('conflict')) {
-            alreadyExistsCount++
-            console.log(`📌 Chat already exists in database: ${chatId} - "${chat.title}"`)
-            if (chat.messages && chat.messages.length > 0) {
-              console.log(`📨 Migrating ${chat.messages.length} messages for existing chat ${chatId}...`)
-              let messageMigratedCount = 0
-              let messageSkippedCount = 0
-              let conversationNotFound = false
-              let activeConversationId = chatId
-
-              for (const message of chat.messages) {
-                try {
-                  await conversationService.addMessage(userId, activeConversationId, {
-                    text: message.text,
-                    sender: message.sender,
-                    time: message.time,
-                    files: message.files,
-                  })
-                  messageMigratedCount++
-                } catch (msgError: any) {
-                  if (msgError?.message?.includes('404') || msgError?.message?.toLowerCase().includes('not found')) {
-                    if (!conversationNotFound) {
-                      conversationNotFound = true
-                      console.log(`   ⚠️ Conversation ${activeConversationId} not found in DB, creating new conversation...`)
-                      const newChatId = "chat_" + Date.now() + "_migrated"
-                      const newSessionId = "session_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9)
-                      try {
-                        const newPayload = {
-                          id: newChatId,
-                          title: chat.title || "Migrated Chat",
-                          agentId: chat.agentId || "mike-ai",
-                          sessionId: newSessionId,
-                          folderId: chat.folderId || null,
-                          archived: chat.archived || false,
-                          messages: [],
-                        }
-                        await conversationService.createConversation(userId, newPayload)
-                        console.log(`   ✅ Created new conversation: ${newChatId}`)
-                        activeConversationId = newChatId
-                        await conversationService.addMessage(userId, activeConversationId, {
-                          text: message.text,
-                          sender: message.sender,
-                          time: message.time,
-                          files: message.files,
-                        })
-                        messageMigratedCount++
-                        console.log(`   ✅ Message migrated to new conversation: sender=${message.sender}`)
-                      } catch (createError: any) {
-                        messageSkippedCount++
-                        console.error(`   ❌ Failed to create new conversation:`, createError?.message)
-                      }
-                    } else {
-                      try {
-                        await conversationService.addMessage(userId, activeConversationId, {
-                          text: message.text,
-                          sender: message.sender,
-                          time: message.time,
-                          files: message.files,
-                        })
-                        messageMigratedCount++
-                      } catch (retryError: any) {
-                        messageSkippedCount++
-                      }
-                    }
-                  } else {
-                    messageSkippedCount++
-                  }
-                }
-              }
-              console.log(`   📊 Messages for existing chat: ${messageMigratedCount} added, ${messageSkippedCount} skipped`)
-            }
-          } else {
-            failedCount++
-            console.error(`❌ Failed to migrate chat ${chatId}:`, error)
-            console.error(`❌ Error details:`, { message: error?.message, status: error?.status, stack: error?.stack })
-          }
-        }
-      }
-
-      console.log(`📊 Migration Summary:`)
-      console.log(`   ✅ Success: ${successCount}`)
-      console.log(`   📌 Already existed: ${alreadyExistsCount}`)
-      console.log(`   ❌ Failed: ${failedCount}`)
-      console.log(`   📦 Total: ${mikeAiChats.length}`)
-
-      if (successCount > 0 || alreadyExistsCount === mikeAiChats.length) {
-        localStorage.setItem(migrationKey, "true")
-        console.log(`✅ Mike AI: Migration completed! ${successCount}/${mikeAiChats.length} chats migrated successfully. ${alreadyExistsCount} already existed.`)
-      } else {
-        console.error(`❌ Mike AI: Migration failed - no chats were migrated. Will retry on next page load.`)
-      }
-    } catch (error) {
-      console.error("❌ Mike AI: Migration failed:", error)
-      console.error("❌ Parse error details:", error instanceof Error ? error.message : String(error))
-    }
-  }
-
   // Load conversations from API when user is available
   useEffect(() => {
     if (!user?.id) return
@@ -916,9 +668,6 @@ export default function App() {
             body: JSON.stringify({ oauthId: user.id, email, username: user.username ?? undefined }),
           })
         }
-
-        // First, migrate any localStorage chats (runs only once)
-        await migrateLocalStorageChats(user.id)
 
         console.log("📡 Mike AI: Fetching conversations from API for user:", user.id)
         const conversations = await conversationService.getConversations(user.id, "mike-ai")

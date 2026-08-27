@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { hasValidDevToken } from '../auth/dev-token';
 
 @Injectable()
 export class PearlAdminAccessGuard implements CanActivate {
@@ -14,6 +15,12 @@ export class PearlAdminAccessGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
+
+    // A development-token caller is trusted without a Pearl Admin assignment.
+    if (hasValidDevToken(request)) {
+      return true;
+    }
+
     const emailHeader = request.headers['x-user-email'];
     const email = (Array.isArray(emailHeader) ? emailHeader[0] : emailHeader)
       ?.trim()

@@ -42,6 +42,7 @@ import { userPreferenceService } from "@/services/preferenceService"
 import { conversationService } from "@/services/conversationService"
 import { Conversation, Message as ApiMessage, CreateConversationDto } from "@/types/conversation"
 import { extractFileContent } from "@/utils/fileExtraction"
+import { getDevUserEmail } from "@/lib/devToken"
 
 // --- TYPES ---
 interface Message {
@@ -349,7 +350,7 @@ export default function App() {
 
   // --- USER PREFERENCES STATE ---
   const { user } = useUser()
-  const userEmail = user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || ""
+  const userEmail = user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || getDevUserEmail()
   const [isPrefsOpen, setIsPrefsOpen] = useState(false)
   const [userPrefs, setUserPrefs] = useState<UserPreference | null>(null)
 
@@ -418,77 +419,12 @@ export default function App() {
     }
   }, [])
 
-  // Migrate localStorage chats to database API (runs once per user)
-  const migrateLocalStorageChats = async (userId: string) => {
-    const migrationKey = "roberta-ai-migrated"
-    const alreadyMigrated = localStorage.getItem(migrationKey)
-
-    if (alreadyMigrated === "true") {
-      console.log("✅ Roberta AI: Already migrated, skipping localStorage migration")
-      return
-    }
-
-    const savedChats = localStorage.getItem("roberta-ai-chats")
-    if (!savedChats) {
-      console.log("📝 Roberta AI: No localStorage chats found, marking as migrated")
-      localStorage.setItem(migrationKey, "true")
-      return
-    }
-
-    try {
-      const chatsData = JSON.parse(savedChats) as Record<string, ChatSession>
-      const chatEntries = Object.entries(chatsData)
-
-      // Filter only roberta-ai chats
-      const nikoAiChats = chatEntries.filter(
-        ([, chat]) => chat.agentId === "roberta-ai" || !chat.agentId
-      )
-
-      if (nikoAiChats.length === 0) {
-        console.log("📝 Roberta AI: No Roberta AI chats in localStorage, marking as migrated")
-        localStorage.setItem(migrationKey, "true")
-        return
-      }
-
-      console.log(`📦 Roberta AI: Migrating ${nikoAiChats.length} chats from localStorage to database...`)
-
-      let successCount = 0
-      for (const [chatId, chat] of nikoAiChats) {
-        try {
-          await conversationService.createConversation(userId, {
-            id: chatId,
-            title: chat.title || "Migrated Chat",
-            agentId: chat.agentId || "roberta-ai",
-            sessionId: chat.sessionId || `migrated_${chatId}`,
-            folderId: chat.folderId || null,
-            archived: chat.archived || false,
-            messages: chat.messages || [],
-          })
-          successCount++
-          console.log(`✅ Migrated chat: ${chatId} - "${chat.title}"`)
-        } catch (error) {
-          console.error(`❌ Failed to migrate chat ${chatId}:`, error)
-        }
-      }
-
-      localStorage.setItem(migrationKey, "true")
-      console.log(`✅ Roberta AI: Migration completed! ${successCount}/${nikoAiChats.length} chats migrated successfully.`)
-    } catch (error) {
-      console.error("❌ Roberta AI: Migration failed:", error)
-      // Still mark as migrated to prevent endless loops
-      localStorage.setItem(migrationKey, "true")
-    }
-  }
-
   // Load conversations from API when user is available
   useEffect(() => {
     if (!user?.id) return
 
     const loadConversations = async () => {
       try {
-        // First, migrate any localStorage chats (runs only once)
-        await migrateLocalStorageChats(user.id)
-
         console.log("📡 Roberta AI: Fetching conversations from API for user:", user.id)
         const conversations = await conversationService.getConversations(user.id, "roberta-ai")
 

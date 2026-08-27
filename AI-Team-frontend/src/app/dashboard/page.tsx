@@ -9,6 +9,7 @@ import Link from "next/link"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useUser, UserButton } from "@clerk/nextjs"
 import { Moon, Sun } from "lucide-react"
+import { resolveUserEmail } from "@/lib/devToken"
 
 /* ---------------------------- API base URL ---------------------------- */
 
@@ -319,13 +320,15 @@ export default function HomePage() {
     async function fetchData() {
       if (!isLoaded) return
 
-      if (!user?.primaryEmailAddress?.emailAddress) {
+      // Without a Clerk session the development email identifies the caller.
+      const userEmail = resolveUserEmail(user?.primaryEmailAddress?.emailAddress)
+
+      if (!userEmail) {
         setIsLoading(false)
         return
       }
 
       try {
-        const userEmail = user.primaryEmailAddress.emailAddress
         setEmail(userEmail)
 
         console.log("[v0] Fetching data for user:", userEmail)

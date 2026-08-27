@@ -1,5 +1,12 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
+import {
+  DEV_TOKEN_HEADER,
+  getDevApiToken,
+  getDevUserEmail,
+  isDevAuthEnabled,
+  USER_EMAIL_HEADER,
+} from "@/lib/devToken";
 
 type RouteContext = {
   params: Promise<{
@@ -48,7 +55,7 @@ function pearlBaseUrl() {
   return process.env.PEARL_ADMIN_API_URL?.replace(/\/$/, "");
 }
 
-async function hasPearlAdminAssignment(email: string, token: string) {
+async function hasPearlAdminAssignment(email: string, token: string | null) {
   const aiTeamApiUrl = process.env.NEXT_PUBLIC_API_BASE?.replace(/\/$/, "");
   if (!aiTeamApiUrl) return false;
 
@@ -56,10 +63,16 @@ async function hasPearlAdminAssignment(email: string, token: string) {
   url.searchParams.set("email", email);
   url.searchParams.set("activeOnly", "true");
 
+  // The development token is used first; a Clerk JWT is the fallback.
+  const devToken = getDevApiToken();
+  const headers: Record<string, string> = devToken
+    ? { [DEV_TOKEN_HEADER]: devToken, [USER_EMAIL_HEADER]: email }
+    : { Authorization: `Bearer ${token}` };
+
   try {
     const response = await fetch(url, {
       cache: "no-store",
-      headers: { Authorization: `Bearer ${token}` },
+      headers,
     });
     if (!response.ok) return false;
 
@@ -76,16 +89,21 @@ type AuthResult =
 
 /** Resolves the caller, their Pearl Admin assignment and the upstream credentials. */
 async function authorize(): Promise<AuthResult> {
-  const user = await currentUser();
-  const { getToken } = await auth();
-  const token = await getToken();
-  const email = user?.primaryEmailAddress?.emailAddress;
+  // A development-token caller is trusted without a Clerk session, the same
+  // way the backend's PearlAdminAccessGuard treats it.
+  const devAuth = isDevAuthEnabled();
 
-  if (!email || !token) {
+  const user = devAuth ? null : await currentUser();
+  const token = devAuth ? null : await (await auth()).getToken();
+  const email = devAuth
+    ? getDevUserEmail()
+    : user?.primaryEmailAddress?.emailAddress;
+
+  if (!devAuth && (!email || !token)) {
     return { error: NextResponse.json({ message: "Unauthorized" }, { status: 401 }) };
   }
 
-  if (!(await hasPearlAdminAssignment(email, token))) {
+  if (!devAuth && !(await hasPearlAdminAssignment(email!, token))) {
     return {
       error: NextResponse.json(
         { message: "Pearl Admin is not assigned to this user." },

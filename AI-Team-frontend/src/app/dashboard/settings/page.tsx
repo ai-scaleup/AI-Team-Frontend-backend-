@@ -29,10 +29,11 @@ import {
     DEFAULT_PREFERENCE_VALUES,
 } from "@/types/preferences"
 import { userPreferenceService } from "@/services/preferenceService"
+import { getDevUserEmail } from "@/lib/devToken"
 
 export default function SettingsPage() {
     const { user, isLoaded } = useUser()
-    const userEmail = user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || ""
+    const userEmail = user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || getDevUserEmail()
     const [isDark, setIsDark] = useState(true)
     const [selectedAgent, setSelectedAgent] = useState<AgentName>("JIM")
     const [preferences, setPreferences] = useState<UserPreference | null>(null)

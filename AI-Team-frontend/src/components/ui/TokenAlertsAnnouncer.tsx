@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
+import { authenticatedFetch } from "@/lib/authenticatedFetch";
 import { AlertTriangle, X } from "lucide-react";
 
 export default function TokenAlertsAnnouncer() {
-  const { getToken, userId } = useAuth();
+  const { userId } = useAuth();
   const [alerts, setAlerts] = useState<any[]>([]);
 
   useEffect(() => {
@@ -13,11 +14,8 @@ export default function TokenAlertsAnnouncer() {
 
     const fetchAlerts = async () => {
       try {
-        const token = await getToken();
         const base = process.env.NEXT_PUBLIC_API_BASE;
-        const res = await fetch(`${base}/users/${userId}/alerts`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const res = await authenticatedFetch(`${base}/users/${userId}/alerts`);
         if (res.ok) {
           const data = await res.json();
           setAlerts(data);
@@ -31,16 +29,14 @@ export default function TokenAlertsAnnouncer() {
     // Poll every 3 minutes
     const interval = setInterval(fetchAlerts, 1000 * 60 * 3);
     return () => clearInterval(interval);
-  }, [userId, getToken]);
+  }, [userId]);
 
   const dismissAlert = async (id: string) => {
     setAlerts(prev => prev.filter(a => a.id !== id));
     try {
-      const token = await getToken();
       const base = process.env.NEXT_PUBLIC_API_BASE;
-      await fetch(`${base}/users/alerts/${id}/dismiss`, {
+      await authenticatedFetch(`${base}/users/alerts/${id}/dismiss`, {
         method: "PATCH",
-        headers: { Authorization: `Bearer ${token}` }
       });
     } catch {}
   };

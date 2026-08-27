@@ -25,6 +25,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { getDevUserEmail } from "@/lib/devToken"
 
 const API_BASE = "/api/pearl-admin";
 const PAGE_SIZE = 10;
@@ -424,7 +425,7 @@ export default function PearlAdminPage() {
           <div className="flex flex-wrap items-center gap-3">
             <div className="hidden text-right md:block">
               <p className="text-xs text-slate-500">Signed in as</p>
-              <p className="max-w-52 truncate text-sm text-slate-300">{user?.primaryEmailAddress?.emailAddress}</p>
+              <p className="max-w-52 truncate text-sm text-slate-300">{user?.primaryEmailAddress?.emailAddress || getDevUserEmail() || "developer"}</p>
             </div>
             <a href="https://pearl-whitelabel-monorepo.onrender.com/docs#/Admin%20-%20User%20Data%20Management" target="_blank" rel="noreferrer" className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-slate-300 transition hover:border-white/20 hover:bg-white/10 hover:text-white">
               API docs <ExternalLink className="h-4 w-4" />

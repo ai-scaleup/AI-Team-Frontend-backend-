@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
+import { isDevAuthEnabled } from "@/lib/devToken"
 
 const DEFAULT_CHIARA_API_URL = "https://chiara-backend.onrender.com"
 
@@ -10,10 +11,13 @@ type RouteContext = {
 }
 
 async function proxyChiaraRequest(request: NextRequest, context: RouteContext) {
-  const { userId } = await auth()
+  // A development-token session has no Clerk user, and does not need one.
+  if (!isDevAuthEnabled()) {
+    const { userId } = await auth()
 
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
   }
 
   const apiUrl = process.env.CHIARA_API_URL || process.env.NEXT_PUBLIC_CHIARA_API_URL || DEFAULT_CHIARA_API_URL

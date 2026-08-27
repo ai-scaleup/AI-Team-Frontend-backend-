@@ -1,5 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
+import { isDevAuthEnabled } from '@/lib/devToken';
 
 // Define protected routes (dashboard and all its sub-routes)
 const isProtectedRoute = createRouteMatcher(['/dashboard(.*)']);
@@ -12,6 +13,13 @@ const isPublicRoute = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
+  // A development token stands in for the whole sign-in flow: when one is
+  // configured the dashboard opens without a Clerk session, and every backend
+  // call carries that token instead of a Clerk JWT.
+  if (isDevAuthEnabled()) {
+    return NextResponse.next();
+  }
+
   // If the route is protected, check for authentication
   if (isProtectedRoute(req)) {
     const { userId } = await auth();
@@ -30,7 +38,7 @@ export default clerkMiddleware(async (auth, req) => {
 export const config = {
   matcher: [
     // Skip Next.js internals and all static files
-    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    '/((?!_next|[^?]*\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
     // Always run for API routes
     '/(api|trpc)(.*)',
   ],
