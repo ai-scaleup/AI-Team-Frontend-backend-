@@ -1,7 +1,8 @@
 // ===================================================
 // 1. Authentication Middleware (auth/auth.middleware.ts)
 // Verifies the caller and attaches auth claims to the request object.
-// Two credentials are accepted, and exactly one of them is required:
+// The routes listed in public-routes.ts skip this entirely.
+// Everywhere else, two credentials are accepted and exactly one is required:
 //   * a Clerk JWT sent as `Authorization: Bearer <jwt>`
 //   * the development token from .env (DEV_API_TOKEN), sent either as
 //     `x-dev-token: <token>` or `Authorization: Bearer <token>`
@@ -19,6 +20,7 @@ import {
   isDevAuthEnabled,
   isDevToken,
 } from './dev-token';
+import { isPublicRoute } from './public-routes';
 
 // This extends the Express Request interface to include our 'auth' property
 declare global {
@@ -34,7 +36,13 @@ const clerk = Clerk({ secretKey: process.env.CLERK_SECRET_KEY });
 @Injectable()
 export class AuthMiddleware implements NestMiddleware {
   async use(req: Request, res: Response, next: NextFunction) {
-    // 1. Development token — checked first so it never reaches Clerk.
+    // 1. Public routes — the n8n workflow calls these with no credential.
+    if (isPublicRoute(req)) {
+      next();
+      return;
+    }
+
+    // 2. Development token — checked next so it never reaches Clerk.
     const devToken = extractDevToken(req);
     if (isDevToken(devToken)) {
       req.auth = buildDevAuthClaims(req);
@@ -42,7 +50,7 @@ export class AuthMiddleware implements NestMiddleware {
       return;
     }
 
-    // 2. Clerk JWT.
+    // 3. Clerk JWT.
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
