@@ -31,5 +31,16 @@ export class SyncTokenAlertRuleItemDto {
 /** Payload behind the admin panel's "Save Alerts" button. */
 export class SyncTokenAlertRulesDto {
   scope?: TokenAlertScope;
+  /** Panel-level token allowance. Omitted leaves the saved value alone. */
+  tokenLimit?: number;
+  /** Enum value (GPT_4O_MINI) or provider model id (gpt-4o-mini). */
+  apiModel?: string;
   rules!: SyncTokenAlertRuleItemDto[];
+}
+
+/** Panel-level settings: the token allowance and the model to run on. */
+export class UpdateTokenAlertSettingsDto {
+  scope?: TokenAlertScope;
+  tokenLimit?: number;
+  apiModel?: string;
 }

@@ -404,6 +404,7 @@ export const ModelName = {
   Tag: 'Tag',
   UserAgentTokenUsage: 'UserAgentTokenUsage',
   TokenUsageAlertRule: 'TokenUsageAlertRule',
+  TokenAlertSettings: 'TokenAlertSettings',
   MembershipTemplate: 'MembershipTemplate',
   AssignedMembership: 'AssignedMembership',
   MembershipTemplateGroup: 'MembershipTemplateGroup',
@@ -425,7 +426,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "pearlWhitelabelUser" | "pearlWhitelabelUserData" | "userPreference" | "assignedAgent" | "agentGroup" | "agentGroupItem" | "assignedGroup" | "conversation" | "message" | "chatLog" | "metisChatLog" | "chiaraInboundChatLog" | "freapChiaraInboundChatLog" | "freapJenniferChatLog" | "chiaraLead" | "tagField" | "tag" | "userAgentTokenUsage" | "tokenUsageAlertRule" | "membershipTemplate" | "assignedMembership" | "membershipTemplateGroup" | "dailyTokenUsage" | "tokenLimitStopLog" | "userAlert"
+    modelProps: "user" | "pearlWhitelabelUser" | "pearlWhitelabelUserData" | "userPreference" | "assignedAgent" | "agentGroup" | "agentGroupItem" | "assignedGroup" | "conversation" | "message" | "chatLog" | "metisChatLog" | "chiaraInboundChatLog" | "freapChiaraInboundChatLog" | "freapJenniferChatLog" | "chiaraLead" | "tagField" | "tag" | "userAgentTokenUsage" | "tokenUsageAlertRule" | "tokenAlertSettings" | "membershipTemplate" | "assignedMembership" | "membershipTemplateGroup" | "dailyTokenUsage" | "tokenLimitStopLog" | "userAlert"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1909,6 +1910,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    TokenAlertSettings: {
+      payload: Prisma.$TokenAlertSettingsPayload<ExtArgs>
+      fields: Prisma.TokenAlertSettingsFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.TokenAlertSettingsFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenAlertSettingsPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.TokenAlertSettingsFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenAlertSettingsPayload>
+        }
+        findFirst: {
+          args: Prisma.TokenAlertSettingsFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenAlertSettingsPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.TokenAlertSettingsFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenAlertSettingsPayload>
+        }
+        findMany: {
+          args: Prisma.TokenAlertSettingsFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenAlertSettingsPayload>[]
+        }
+        create: {
+          args: Prisma.TokenAlertSettingsCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenAlertSettingsPayload>
+        }
+        createMany: {
+          args: Prisma.TokenAlertSettingsCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.TokenAlertSettingsCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenAlertSettingsPayload>[]
+        }
+        delete: {
+          args: Prisma.TokenAlertSettingsDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenAlertSettingsPayload>
+        }
+        update: {
+          args: Prisma.TokenAlertSettingsUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenAlertSettingsPayload>
+        }
+        deleteMany: {
+          args: Prisma.TokenAlertSettingsDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.TokenAlertSettingsUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.TokenAlertSettingsUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenAlertSettingsPayload>[]
+        }
+        upsert: {
+          args: Prisma.TokenAlertSettingsUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TokenAlertSettingsPayload>
+        }
+        aggregate: {
+          args: Prisma.TokenAlertSettingsAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateTokenAlertSettings>
+        }
+        groupBy: {
+          args: Prisma.TokenAlertSettingsGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.TokenAlertSettingsGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.TokenAlertSettingsCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.TokenAlertSettingsCountAggregateOutputType> | number
+        }
+      }
+    }
     MembershipTemplate: {
       payload: Prisma.$MembershipTemplatePayload<ExtArgs>
       fields: Prisma.MembershipTemplateFieldRefs
@@ -2674,6 +2749,18 @@ export const TokenUsageAlertRuleScalarFieldEnum = {
 export type TokenUsageAlertRuleScalarFieldEnum = (typeof TokenUsageAlertRuleScalarFieldEnum)[keyof typeof TokenUsageAlertRuleScalarFieldEnum]
 
 
+export const TokenAlertSettingsScalarFieldEnum = {
+  id: 'id',
+  scope: 'scope',
+  tokenLimit: 'tokenLimit',
+  apiModel: 'apiModel',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type TokenAlertSettingsScalarFieldEnum = (typeof TokenAlertSettingsScalarFieldEnum)[keyof typeof TokenAlertSettingsScalarFieldEnum]
+
+
 export const MembershipTemplateScalarFieldEnum = {
   id: 'id',
   name: 'name',
@@ -3019,6 +3106,20 @@ export type ListEnumTokenAlertLevelFieldRefInput<$PrismaModel> = FieldRefInputTy
 
 
 /**
+ * Reference to a field of type 'ApiModel'
+ */
+export type EnumApiModelFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ApiModel'>
+    
+
+
+/**
+ * Reference to a field of type 'ApiModel[]'
+ */
+export type ListEnumApiModelFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ApiModel[]'>
+    
+
+
+/**
  * Reference to a field of type 'Float'
  */
 export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
@@ -3146,6 +3247,7 @@ export type GlobalOmitConfig = {
   tag?: Prisma.TagOmit
   userAgentTokenUsage?: Prisma.UserAgentTokenUsageOmit
   tokenUsageAlertRule?: Prisma.TokenUsageAlertRuleOmit
+  tokenAlertSettings?: Prisma.TokenAlertSettingsOmit
   membershipTemplate?: Prisma.MembershipTemplateOmit
   assignedMembership?: Prisma.AssignedMembershipOmit
   membershipTemplateGroup?: Prisma.MembershipTemplateGroupOmit

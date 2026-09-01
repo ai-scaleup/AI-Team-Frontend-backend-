@@ -140,6 +140,11 @@ export type UserAgentTokenUsage = Prisma.UserAgentTokenUsageModel
  */
 export type TokenUsageAlertRule = Prisma.TokenUsageAlertRuleModel
 /**
+ * Model TokenAlertSettings
+ * 
+ */
+export type TokenAlertSettings = Prisma.TokenAlertSettingsModel
+/**
  * Model MembershipTemplate
  * 
  */

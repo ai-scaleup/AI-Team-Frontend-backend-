@@ -423,6 +423,23 @@ export type EnumTokenAlertLevelWithAggregatesFilter<$PrismaModel = never> = {
   _max?: Prisma.NestedEnumTokenAlertLevelFilter<$PrismaModel>
 }
 
+export type EnumApiModelFilter<$PrismaModel = never> = {
+  equals?: $Enums.ApiModel | Prisma.EnumApiModelFieldRefInput<$PrismaModel>
+  in?: $Enums.ApiModel[] | Prisma.ListEnumApiModelFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ApiModel[] | Prisma.ListEnumApiModelFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumApiModelFilter<$PrismaModel> | $Enums.ApiModel
+}
+
+export type EnumApiModelWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.ApiModel | Prisma.EnumApiModelFieldRefInput<$PrismaModel>
+  in?: $Enums.ApiModel[] | Prisma.ListEnumApiModelFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ApiModel[] | Prisma.ListEnumApiModelFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumApiModelWithAggregatesFilter<$PrismaModel> | $Enums.ApiModel
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumApiModelFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumApiModelFilter<$PrismaModel>
+}
+
 export type NestedStringFilter<$PrismaModel = never> = {
   equals?: string | Prisma.StringFieldRefInput<$PrismaModel>
   in?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel>
@@ -843,6 +860,23 @@ export type NestedEnumTokenAlertLevelWithAggregatesFilter<$PrismaModel = never> 
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumTokenAlertLevelFilter<$PrismaModel>
   _max?: Prisma.NestedEnumTokenAlertLevelFilter<$PrismaModel>
+}
+
+export type NestedEnumApiModelFilter<$PrismaModel = never> = {
+  equals?: $Enums.ApiModel | Prisma.EnumApiModelFieldRefInput<$PrismaModel>
+  in?: $Enums.ApiModel[] | Prisma.ListEnumApiModelFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ApiModel[] | Prisma.ListEnumApiModelFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumApiModelFilter<$PrismaModel> | $Enums.ApiModel
+}
+
+export type NestedEnumApiModelWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.ApiModel | Prisma.EnumApiModelFieldRefInput<$PrismaModel>
+  in?: $Enums.ApiModel[] | Prisma.ListEnumApiModelFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ApiModel[] | Prisma.ListEnumApiModelFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumApiModelWithAggregatesFilter<$PrismaModel> | $Enums.ApiModel
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumApiModelFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumApiModelFilter<$PrismaModel>
 }
 
 

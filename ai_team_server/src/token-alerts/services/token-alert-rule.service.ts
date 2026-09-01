@@ -5,21 +5,38 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  ApiModel,
   TokenAlertLevel,
   TokenAlertScope,
 } from 'src/generated/prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
+  API_MODEL_BY_MODEL_ID,
+  API_MODEL_CATALOG,
+  API_MODEL_IDS,
+  API_MODEL_LABELS,
+  API_MODEL_PROVIDER,
+} from '../constants/api-models';
+import {
   CreateTokenAlertRuleDto,
   SyncTokenAlertRuleItemDto,
   SyncTokenAlertRulesDto,
   UpdateTokenAlertRuleDto,
+  UpdateTokenAlertSettingsDto,
 } from '../dto/token-alert-rule.dto';
 
 const LEVELS = Object.values(TokenAlertLevel) as TokenAlertLevel[];
 const SCOPES = Object.values(TokenAlertScope) as TokenAlertScope[];
 
 const MESSAGE_MAX_LENGTH = 500;
+
+const API_MODELS = Object.values(ApiModel) as ApiModel[];
+
+// A conversation allowance well past any real context window is still a
+// typo guard -- it keeps a stray paste from writing a nonsensical row.
+const TOKEN_LIMIT_MAX = 100_000_000;
+
+const DEFAULT_API_MODEL = ApiModel.GPT_4O_MINI;
 
 @Injectable()
 export class TokenAlertRuleService {
@@ -70,6 +87,38 @@ export class TokenAlertRuleService {
       );
     }
     return message;
+  }
+
+  /**
+   * Accepts either the enum value (`GPT_4O_MINI`) or the provider model id
+   * (`gpt-4o-mini`), so the admin panel may send whichever it holds.
+   */
+  private parseApiModel(value: unknown): ApiModel {
+    const raw = String(value ?? '').trim();
+    const asEnum = raw.toUpperCase().replace(/[-.]/g, '_') as ApiModel;
+    if (API_MODELS.includes(asEnum)) return asEnum;
+
+    const byModelId = API_MODEL_BY_MODEL_ID.get(raw.toLowerCase());
+    if (byModelId) return byModelId;
+
+    throw new BadRequestException(
+      `apiModel must be one of: ${API_MODELS.join(', ')}`,
+    );
+  }
+
+  private parseTokenLimit(value: unknown): number {
+    const limit = typeof value === 'string' ? Number(value) : value;
+    if (
+      typeof limit !== 'number' ||
+      !Number.isInteger(limit) ||
+      limit < 0 ||
+      limit > TOKEN_LIMIT_MAX
+    ) {
+      throw new BadRequestException(
+        `tokenLimit must be an integer between 0 and ${TOKEN_LIMIT_MAX}`,
+      );
+    }
+    return limit;
   }
 
   private isUniqueViolation(error: unknown): boolean {
@@ -190,6 +239,23 @@ export class TokenAlertRuleService {
   async syncRules(payload: SyncTokenAlertRulesDto) {
     const scope = this.parseScope(payload?.scope, TokenAlertScope.CONVERSATION);
 
+    const hasSettings =
+      (payload?.tokenLimit !== undefined && payload.tokenLimit !== null) ||
+      (payload?.apiModel !== undefined &&
+        payload.apiModel !== null &&
+        payload.apiModel !== '');
+
+    // Fail on a bad limit or model before any rule is written, so a rejected
+    // save leaves the whole panel as it was.
+    if (hasSettings) {
+      if (payload.tokenLimit !== undefined && payload.tokenLimit !== null) {
+        this.parseTokenLimit(payload.tokenLimit);
+      }
+      if (payload.apiModel !== undefined && payload.apiModel !== null && payload.apiModel !== '') {
+        this.parseApiModel(payload.apiModel);
+      }
+    }
+
     if (!Array.isArray(payload?.rules)) {
       throw new BadRequestException('rules must be an array');
     }
@@ -277,12 +343,102 @@ export class TokenAlertRuleService {
       throw error;
     }
 
+    const settings = hasSettings
+      ? await this.updateSettings({
+          scope,
+          tokenLimit: payload.tokenLimit,
+          apiModel: payload.apiModel,
+        })
+      : await this.getSettings(scope);
+
     return {
       scope,
       created: normalized.filter((rule) => !rule.id).length,
       updated: keptIds.size,
       deleted: removedIds.length,
+      settings,
       rules: await this.listRules(scope),
     };
+  }
+
+  /** Shapes a settings row for the API, resolving the provider model id. */
+  private serializeSettings(settings: {
+    id: string;
+    scope: TokenAlertScope;
+    tokenLimit: number;
+    apiModel: ApiModel;
+    createdAt: Date;
+    updatedAt: Date;
+  }) {
+    return {
+      ...settings,
+      apiModelId: API_MODEL_IDS[settings.apiModel],
+      apiModelLabel: API_MODEL_LABELS[settings.apiModel],
+      apiProvider: API_MODEL_PROVIDER,
+    };
+  }
+
+  /**
+   * Panel settings for one scope. The row is created on first read rather
+   * than 404ing, so a fresh install still answers with the defaults.
+   */
+  async getSettings(scope?: unknown) {
+    const parsedScope = this.parseScope(scope, TokenAlertScope.CONVERSATION);
+
+    const existing = await this.prisma.tokenAlertSettings.findUnique({
+      where: { scope: parsedScope },
+    });
+    if (existing) return this.serializeSettings(existing);
+
+    const created = await this.prisma.tokenAlertSettings.create({
+      data: { scope: parsedScope, tokenLimit: 0, apiModel: DEFAULT_API_MODEL },
+    });
+    return this.serializeSettings(created);
+  }
+
+  /** Every scope's settings, for an admin panel that renders them together. */
+  async listSettings() {
+    return Promise.all(SCOPES.map((scope) => this.getSettings(scope)));
+  }
+
+  /**
+   * Writes the token limit and/or the model for one scope. Fields left out
+   * of the payload keep their stored value -- nothing is cleared.
+   */
+  async updateSettings(payload: UpdateTokenAlertSettingsDto) {
+    const scope = this.parseScope(payload?.scope, TokenAlertScope.CONVERSATION);
+
+    const tokenLimit =
+      payload?.tokenLimit === undefined || payload.tokenLimit === null
+        ? undefined
+        : this.parseTokenLimit(payload.tokenLimit);
+    const apiModel =
+      payload?.apiModel === undefined ||
+      payload.apiModel === null ||
+      payload.apiModel === ''
+        ? undefined
+        : this.parseApiModel(payload.apiModel);
+
+    if (tokenLimit === undefined && apiModel === undefined) {
+      throw new BadRequestException(
+        'Provide tokenLimit and/or apiModel to update',
+      );
+    }
+
+    const settings = await this.prisma.tokenAlertSettings.upsert({
+      where: { scope },
+      update: { tokenLimit, apiModel },
+      create: {
+        scope,
+        tokenLimit: tokenLimit ?? 0,
+        apiModel: apiModel ?? DEFAULT_API_MODEL,
+      },
+    });
+    return this.serializeSettings(settings);
+  }
+
+  /** The model dropdown's options. OpenAI only for now. */
+  listApiModels() {
+    return API_MODEL_CATALOG;
   }
 }

@@ -7,8 +7,8 @@ export function setupSwagger(app: INestApplication) {
     .setDescription(
       [
         'Interactive API documentation for the AI Team backend.',
-        'Application endpoints accept either credential — a Clerk JWT or the development token from the backend .env (DEV_API_TOKEN) — and at least one of them is required; signed external webhooks are the exception.',
-        'Use the Authorize button and fill in whichever one you have before sending requests.',
+        'Every application endpoint requires a credential. The development token from the backend .env (DEV_API_TOKEN) is checked first and takes priority — send it either as the x-dev-token header or as Authorization: Bearer <token>. Otherwise a Clerk JWT in Authorization: Bearer authenticates the request. Signed external webhooks and the n8n workflow routes are the exception.',
+        'Use the Authorize button and fill in whichever one you have before sending requests: paste the development token into either field, or a Clerk JWT into the bearer field.',
       ].join(' '),
     )
     .setVersion('1.0.0')
@@ -16,9 +16,9 @@ export function setupSwagger(app: INestApplication) {
       {
         type: 'http',
         scheme: 'bearer',
-        bearerFormat: 'JWT',
+        bearerFormat: 'JWT or DEV_API_TOKEN',
         description:
-          'Paste the Clerk JWT only. Swagger adds the Bearer prefix automatically.',
+          'Authorization: Bearer <token>. Accepts either the development token from the backend .env (DEV_API_TOKEN) — which is matched first — or a Clerk JWT. Swagger adds the Bearer prefix automatically.',
       },
       'clerk-bearer',
     )
@@ -28,7 +28,7 @@ export function setupSwagger(app: INestApplication) {
         in: 'header',
         name: 'x-dev-token',
         description:
-          'Development token from the backend .env (DEV_API_TOKEN). An alternative to the Clerk JWT — either one authenticates the request.',
+          'Development token from the backend .env (DEV_API_TOKEN), sent as the x-dev-token header. Checked before the Clerk JWT: a correct token authorizes the request on its own.',
       },
       'dev-token',
     )

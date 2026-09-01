@@ -1,4 +1,9 @@
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import {
+  MiddlewareConsumer,
+  Module,
+  NestModule,
+  RequestMethod,
+} from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthMiddleware } from './auth/auth.middleware';
@@ -43,6 +48,11 @@ import { PearlAdminModule } from './pearl-admin/pearl-admin.module';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(AuthMiddleware).forRoutes(AppController);
+    // Every route authenticates: the development token from .env is tried
+    // first (x-dev-token or Authorization: Bearer), then the Clerk JWT. Only
+    // the entries in public-routes.ts opt out.
+    consumer
+      .apply(AuthMiddleware)
+      .forRoutes({ path: '{*splat}', method: RequestMethod.ALL });
   }
 }

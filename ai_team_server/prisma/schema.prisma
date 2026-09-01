@@ -137,6 +137,21 @@ enum TokenAlertScope {
   MONTHLY
 }
 
+// Chat completion model the platform calls. OpenAI only for now; other
+// providers get appended here later -- values are only ever added, never
+// removed, so stored rows stay readable.
+enum ApiModel {
+  GPT_5
+  GPT_5_MINI
+  GPT_5_NANO
+  GPT_4_1
+  GPT_4_1_MINI
+  GPT_4O
+  GPT_4O_MINI
+  O3
+  O4_MINI
+}
+
 model User {
   id            String                @id @default(uuid())
   email         String                @unique
@@ -492,6 +507,18 @@ model TokenUsageAlertRule {
   @@unique([scope, thresholdPercent], map: "uniq_token_alert_rule_scope_threshold")
   @@index([scope, isActive])
   @@index([sortOrder])
+}
+
+// Panel-level configuration behind the admin "Token Usage Alerts" card: the
+// token allowance the threshold percentages are measured against, and the
+// model the conversation runs on. One row per scope, created on demand.
+model TokenAlertSettings {
+  id         String          @id @default(uuid())
+  scope      TokenAlertScope @unique(map: "uniq_token_alert_settings_scope")
+  tokenLimit Int             @default(0)
+  apiModel   ApiModel        @default(GPT_4O_MINI)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
 }
 
 // ─────────────────────────────────────────────────────────────

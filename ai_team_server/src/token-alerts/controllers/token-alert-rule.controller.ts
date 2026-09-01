@@ -21,13 +21,16 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
+  ApiModel,
   TokenAlertLevel,
   TokenAlertScope,
 } from 'src/generated/prisma/client';
+import { API_MODEL_CATALOG } from '../constants/api-models';
 import {
   CreateTokenAlertRuleDto,
   SyncTokenAlertRulesDto,
   UpdateTokenAlertRuleDto,
+  UpdateTokenAlertSettingsDto,
 } from '../dto/token-alert-rule.dto';
 import { TokenAlertRuleService } from '../services/token-alert-rule.service';
 
@@ -49,6 +52,31 @@ const RULE_SCHEMA = {
     },
     isActive: { type: 'boolean', example: true },
     sortOrder: { type: 'integer', example: 2 },
+    createdAt: { type: 'string', format: 'date-time' },
+    updatedAt: { type: 'string', format: 'date-time' },
+  },
+} as const;
+
+const SETTINGS_SCHEMA = {
+  type: 'object',
+  properties: {
+    id: { type: 'string' },
+    scope: { enum: Object.values(TokenAlertScope), example: 'CONVERSATION' },
+    tokenLimit: {
+      type: 'integer',
+      minimum: 0,
+      example: 120000,
+      description:
+        'Token allowance the threshold percentages are measured against. 0 means unset.',
+    },
+    apiModel: { enum: Object.values(ApiModel), example: 'GPT_4O_MINI' },
+    apiModelId: {
+      type: 'string',
+      example: 'gpt-4o-mini',
+      description: 'The id passed to the provider API.',
+    },
+    apiModelLabel: { type: 'string', example: 'GPT-4o mini' },
+    apiProvider: { type: 'string', example: 'openai' },
     createdAt: { type: 'string', format: 'date-time' },
     updatedAt: { type: 'string', format: 'date-time' },
   },
@@ -87,6 +115,108 @@ export class TokenAlertRuleController {
     @Query('isActive') isActive?: string,
   ) {
     return this.tokenAlertRuleService.listRules(scope, isActive);
+  }
+
+  // Declared before @Get(':id') so the literal paths are not captured by it.
+  @Get('settings')
+  @ApiOperation({
+    summary: 'Get the panel token limit and API model',
+    description:
+      'Returns the token allowance and the model configured for one scope. The row is created with defaults on first read, so this never 404s.',
+  })
+  @ApiQuery({
+    name: 'scope',
+    required: false,
+    enum: TokenAlertScope,
+    description: 'Defaults to CONVERSATION.',
+  })
+  @ApiOkResponse({ description: 'Settings returned', schema: SETTINGS_SCHEMA })
+  @ApiBadRequestResponse({ description: 'Invalid scope' })
+  getSettings(@Query('scope') scope?: string) {
+    return this.tokenAlertRuleService.getSettings(scope);
+  }
+
+  @Get('settings/all')
+  @ApiOperation({ summary: 'Get the settings for every scope' })
+  @ApiOkResponse({
+    description: 'Settings returned',
+    schema: { type: 'array', items: SETTINGS_SCHEMA },
+  })
+  listSettings() {
+    return this.tokenAlertRuleService.listSettings();
+  }
+
+  @Get('api-models')
+  @ApiOperation({
+    summary: 'List the selectable API models',
+    description:
+      'Options for the model dropdown. OpenAI models only for now; other providers are appended here later.',
+  })
+  @ApiOkResponse({
+    description: 'Models returned',
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          value: { enum: Object.values(ApiModel) },
+          label: { type: 'string', example: 'GPT-4o mini' },
+          modelId: { type: 'string', example: 'gpt-4o-mini' },
+          provider: { type: 'string', example: 'openai' },
+        },
+      },
+      example: API_MODEL_CATALOG,
+    },
+  })
+  listApiModels() {
+    return this.tokenAlertRuleService.listApiModels();
+  }
+
+  @Patch('settings')
+  @ApiOperation({
+    summary: 'Update the panel token limit and/or API model',
+    description:
+      'Writes only the fields present in the body; anything omitted keeps its stored value. Touches the settings row for this scope and nothing else.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        scope: {
+          enum: Object.values(TokenAlertScope),
+          default: 'CONVERSATION',
+        },
+        tokenLimit: { type: 'integer', minimum: 0, example: 120000 },
+        apiModel: {
+          type: 'string',
+          enum: Object.values(ApiModel),
+          example: 'GPT_4O_MINI',
+          description:
+            'Enum value (GPT_4O_MINI) or provider model id (gpt-4o-mini).',
+        },
+      },
+    },
+    examples: {
+      both: {
+        summary: 'Set the limit and the model',
+        value: {
+          scope: 'CONVERSATION',
+          tokenLimit: 120000,
+          apiModel: 'GPT_4O_MINI',
+        },
+      },
+      limitOnly: {
+        summary: 'Set only the limit',
+        value: { tokenLimit: 200000 },
+      },
+    },
+  })
+  @ApiOkResponse({ description: 'Settings updated', schema: SETTINGS_SCHEMA })
+  @ApiBadRequestResponse({
+    description: 'Invalid scope, tokenLimit, or apiModel',
+  })
+  updateSettings(@Body() body: UpdateTokenAlertSettingsDto) {
+    return this.tokenAlertRuleService.updateSettings(body);
   }
 
   @Get(':id')
@@ -153,6 +283,20 @@ export class TokenAlertRuleController {
           enum: Object.values(TokenAlertScope),
           default: 'CONVERSATION',
         },
+        tokenLimit: {
+          type: 'integer',
+          minimum: 0,
+          example: 120000,
+          description:
+            'Optional. Saves the panel token limit in the same call. Omit to leave it unchanged.',
+        },
+        apiModel: {
+          type: 'string',
+          enum: Object.values(ApiModel),
+          example: 'GPT_4O_MINI',
+          description:
+            'Optional. Saves the panel API model in the same call. Omit to leave it unchanged.',
+        },
         rules: {
           type: 'array',
           items: {
@@ -181,6 +325,8 @@ export class TokenAlertRuleController {
       },
       example: {
         scope: 'CONVERSATION',
+        tokenLimit: 120000,
+        apiModel: 'GPT_4O_MINI',
         rules: [
           {
             id: 'token-alert-conversation-50',
@@ -209,6 +355,7 @@ export class TokenAlertRuleController {
         created: { type: 'integer', example: 1 },
         updated: { type: 'integer', example: 3 },
         deleted: { type: 'integer', example: 0 },
+        settings: SETTINGS_SCHEMA,
         rules: { type: 'array', items: RULE_SCHEMA },
       },
     },

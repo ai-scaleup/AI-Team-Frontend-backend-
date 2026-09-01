@@ -16,6 +16,10 @@ type PublicRoute = {
 };
 
 const PUBLIC_ROUTES: PublicRoute[] = [
+  // Clerk webhook: authenticated by its own Svix signature headers.
+  // POST /webhooks/clerk
+  { method: 'POST', pattern: /^\/webhooks\/clerk$/ },
+
   // Records what a workflow run spent:
   // PATCH /token-usage/{email}/{agentName}/usage
   { method: 'PATCH', pattern: /^\/token-usage\/[^/]+\/[^/]+\/usage$/ },
@@ -30,6 +34,21 @@ const PUBLIC_ROUTES: PublicRoute[] = [
 ];
 
 /**
+ * The Swagger UI itself and the JSON documents behind it. Authentication now
+ * covers every route, and the docs page is mounted on the same Express
+ * instance, so it has to be reachable without a credential — otherwise there
+ * is no page on which to press Authorize.
+ */
+const DOCS_PATHS = [/^\/api(\/.*)?$/, /^\/api-json$/, /^\/api-yaml$/];
+
+function isDocsRequest(method: string, path: string): boolean {
+  return (
+    (method === 'GET' || method === 'HEAD') &&
+    DOCS_PATHS.some((pattern) => pattern.test(path))
+  );
+}
+
+/**
  * Strips the query string and any trailing slash so the patterns above can be
  * written against the bare path.
  */
@@ -41,6 +60,10 @@ function normalizePath(url: string): string {
 export function isPublicRoute(req: Request): boolean {
   const method = (req.method ?? '').toUpperCase();
   const path = normalizePath(req.path ?? req.url ?? '');
+
+  if (isDocsRequest(method, path)) {
+    return true;
+  }
 
   return PUBLIC_ROUTES.some(
     (route) => route.method === method && route.pattern.test(path),

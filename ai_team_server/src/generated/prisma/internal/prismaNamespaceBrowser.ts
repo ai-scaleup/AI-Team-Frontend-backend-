@@ -71,6 +71,7 @@ export const ModelName = {
   Tag: 'Tag',
   UserAgentTokenUsage: 'UserAgentTokenUsage',
   TokenUsageAlertRule: 'TokenUsageAlertRule',
+  TokenAlertSettings: 'TokenAlertSettings',
   MembershipTemplate: 'MembershipTemplate',
   AssignedMembership: 'AssignedMembership',
   MembershipTemplateGroup: 'MembershipTemplateGroup',
@@ -375,6 +376,18 @@ export const TokenUsageAlertRuleScalarFieldEnum = {
 } as const
 
 export type TokenUsageAlertRuleScalarFieldEnum = (typeof TokenUsageAlertRuleScalarFieldEnum)[keyof typeof TokenUsageAlertRuleScalarFieldEnum]
+
+
+export const TokenAlertSettingsScalarFieldEnum = {
+  id: 'id',
+  scope: 'scope',
+  tokenLimit: 'tokenLimit',
+  apiModel: 'apiModel',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type TokenAlertSettingsScalarFieldEnum = (typeof TokenAlertSettingsScalarFieldEnum)[keyof typeof TokenAlertSettingsScalarFieldEnum]
 
 
 export const MembershipTemplateScalarFieldEnum = {

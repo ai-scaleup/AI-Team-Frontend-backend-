@@ -169,3 +169,18 @@ export const TokenAlertScope = {
 } as const
 
 export type TokenAlertScope = (typeof TokenAlertScope)[keyof typeof TokenAlertScope]
+
+
+export const ApiModel = {
+  GPT_5: 'GPT_5',
+  GPT_5_MINI: 'GPT_5_MINI',
+  GPT_5_NANO: 'GPT_5_NANO',
+  GPT_4_1: 'GPT_4_1',
+  GPT_4_1_MINI: 'GPT_4_1_MINI',
+  GPT_4O: 'GPT_4O',
+  GPT_4O_MINI: 'GPT_4O_MINI',
+  O3: 'O3',
+  O4_MINI: 'O4_MINI'
+} as const
+
+export type ApiModel = (typeof ApiModel)[keyof typeof ApiModel]
