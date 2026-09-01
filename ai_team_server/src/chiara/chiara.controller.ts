@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import {
   ApiBody,
+  ApiConflictResponse,
   ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
@@ -63,6 +64,9 @@ export class ChiaraController {
   @ApiOperation({ summary: 'Create a Chiara lead' })
   @ApiBody({ schema: chiaraLeadSchema })
   @ApiCreatedResponse({ description: 'Lead created' })
+  @ApiConflictResponse({
+    description: 'A lead already exists for this sessionId',
+  })
   async createLead(@Body() data: Prisma.ChiaraLeadCreateInput) {
     return this.chiaraService.createLead(data);
   }

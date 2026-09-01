@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from 'src/generated/prisma/client';
 
@@ -90,13 +90,25 @@ export class ChiaraService {
 
   // ChiaraLead methods
   async createLead(data: Prisma.ChiaraLeadCreateInput) {
-    // Since sessionId is unique, we might want to upsert or check existence,
-    // but for now simple create as per requirement.
-    // If unique constraint violation occurs, it will throw error which is handled by global filter or we can handle it here.
-    // Given the requirement "just need create and get", I'll stick to create.
-    return this.prisma.chiaraLead.create({
-      data,
-    });
+    // One lead per session: sessionId is unique. A repeat submission is a
+    // conflict the caller can act on, not the internal error Prisma's raw
+    // P2002 would otherwise surface as.
+    try {
+      return await this.prisma.chiaraLead.create({
+        data,
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          `A lead already exists for session "${data.sessionId}".`,
+        );
+      }
+
+      throw error;
+    }
   }
 
   async getLeadBySessionId(sessionId: string) {
