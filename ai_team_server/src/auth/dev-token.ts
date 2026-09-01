@@ -1,19 +1,32 @@
 // ===================================================
 // Development token support (auth/dev-token.ts)
-// Lets a caller authenticate with a static token from .env instead of a Clerk
-// JWT. Either credential is accepted; at least one of them is required.
+// Lets a caller authenticate with a static token (DEV_API_TOKEN, with a
+// built-in fallback for hosts that define none) instead of a Clerk JWT. Either
+// credential is accepted, at least one of them is required, and the token is
+// the one checked first.
 // ===================================================
 import { Request } from 'express';
 
 export const DEV_TOKEN_HEADER = 'x-dev-token';
 
 /**
- * Every token configured in .env that may be used in place of a Clerk JWT.
- * DEV_API_TOKEN holds a comma-separated list so several environments (local,
- * staging, QA) can each carry their own token.
+ * The token that applies when the host defines no DEV_API_TOKEN of its own — a
+ * deployment (Render, for one) reads its configuration from the dashboard, not
+ * from the .env file, which never leaves the developer's machine. Setting
+ * DEV_API_TOKEN in the environment replaces this value; setting it to an empty
+ * string turns development-token access off entirely.
+ */
+const FALLBACK_DEV_TOKEN = 'ed290bd7895e494b883dd5c7d7faee1ba64d487371e9071e';
+
+/**
+ * Every token that may be used in place of a Clerk JWT. DEV_API_TOKEN holds a
+ * comma-separated list so several environments (local, staging, QA) can each
+ * carry their own token.
  */
 export function getDevTokens(): string[] {
-  return (process.env.DEV_API_TOKEN ?? '')
+  const configured = process.env.DEV_API_TOKEN;
+
+  return (configured === undefined ? FALLBACK_DEV_TOKEN : configured)
     .split(',')
     .map((token) => token.trim())
     .filter((token) => token.length > 0);
