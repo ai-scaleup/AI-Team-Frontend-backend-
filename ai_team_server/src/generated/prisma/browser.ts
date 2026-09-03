@@ -98,6 +98,11 @@ export type FreapJenniferChatLog = Prisma.FreapJenniferChatLogModel
  */
 export type ChiaraLead = Prisma.ChiaraLeadModel
 /**
+ * Model ChiaraWhatsappLead
+ * 
+ */
+export type ChiaraWhatsappLead = Prisma.ChiaraWhatsappLeadModel
+/**
  * Model TagField
  * 
  */

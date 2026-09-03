@@ -34,6 +34,14 @@ const PUBLIC_ROUTES: PublicRoute[] = [
 ];
 
 /**
+ * Route groups that skip this middleware because they authenticate
+ * themselves. The Chiara WhatsApp lead endpoints apply DevTokenMiddleware on
+ * their own controller: the development token (DEV_API_TOKEN) is the only
+ * credential they accept, and a Clerk JWT is not one of them.
+ */
+const PUBLIC_PATH_PREFIXES: RegExp[] = [/^\/chiara-whatsapp(\/.*)?$/];
+
+/**
  * The Swagger UI itself and the JSON documents behind it. Authentication now
  * covers every route, and the docs page is mounted on the same Express
  * instance, so it has to be reachable without a credential — otherwise there
@@ -62,6 +70,10 @@ export function isPublicRoute(req: Request): boolean {
   const path = normalizePath(req.path ?? req.url ?? '');
 
   if (isDocsRequest(method, path)) {
+    return true;
+  }
+
+  if (PUBLIC_PATH_PREFIXES.some((pattern) => pattern.test(path))) {
     return true;
   }
 

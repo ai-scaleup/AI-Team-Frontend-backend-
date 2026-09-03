@@ -448,6 +448,21 @@ model ChiaraLead {
   @@map("chiara_leads")
 }
 
+model ChiaraWhatsappLead {
+  id        Int      @id @default(autoincrement())
+  sessionId String   @map("session_id") @db.VarChar(255)
+  name      String   @db.VarChar(255)
+  email     String   @db.VarChar(255)
+  phone     String   @db.VarChar(50)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([sessionId])
+  @@index([email])
+  @@index([createdAt])
+  @@map("chiara_whatsapp_leads")
+}
+
 // ─────────────────────────────────────────────────────────────
 // Standalone Tag Model (no relations)
 // ─────────────────────────────────────────────────────────────

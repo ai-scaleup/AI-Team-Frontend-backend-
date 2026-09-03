@@ -400,6 +400,7 @@ export const ModelName = {
   FreapChiaraInboundChatLog: 'FreapChiaraInboundChatLog',
   FreapJenniferChatLog: 'FreapJenniferChatLog',
   ChiaraLead: 'ChiaraLead',
+  ChiaraWhatsappLead: 'ChiaraWhatsappLead',
   TagField: 'TagField',
   Tag: 'Tag',
   UserAgentTokenUsage: 'UserAgentTokenUsage',
@@ -426,7 +427,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "pearlWhitelabelUser" | "pearlWhitelabelUserData" | "userPreference" | "assignedAgent" | "agentGroup" | "agentGroupItem" | "assignedGroup" | "conversation" | "message" | "chatLog" | "metisChatLog" | "chiaraInboundChatLog" | "freapChiaraInboundChatLog" | "freapJenniferChatLog" | "chiaraLead" | "tagField" | "tag" | "userAgentTokenUsage" | "tokenUsageAlertRule" | "tokenAlertSettings" | "membershipTemplate" | "assignedMembership" | "membershipTemplateGroup" | "dailyTokenUsage" | "tokenLimitStopLog" | "userAlert"
+    modelProps: "user" | "pearlWhitelabelUser" | "pearlWhitelabelUserData" | "userPreference" | "assignedAgent" | "agentGroup" | "agentGroupItem" | "assignedGroup" | "conversation" | "message" | "chatLog" | "metisChatLog" | "chiaraInboundChatLog" | "freapChiaraInboundChatLog" | "freapJenniferChatLog" | "chiaraLead" | "chiaraWhatsappLead" | "tagField" | "tag" | "userAgentTokenUsage" | "tokenUsageAlertRule" | "tokenAlertSettings" | "membershipTemplate" | "assignedMembership" | "membershipTemplateGroup" | "dailyTokenUsage" | "tokenLimitStopLog" | "userAlert"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1614,6 +1615,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    ChiaraWhatsappLead: {
+      payload: Prisma.$ChiaraWhatsappLeadPayload<ExtArgs>
+      fields: Prisma.ChiaraWhatsappLeadFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ChiaraWhatsappLeadFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraWhatsappLeadPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ChiaraWhatsappLeadFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraWhatsappLeadPayload>
+        }
+        findFirst: {
+          args: Prisma.ChiaraWhatsappLeadFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraWhatsappLeadPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ChiaraWhatsappLeadFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraWhatsappLeadPayload>
+        }
+        findMany: {
+          args: Prisma.ChiaraWhatsappLeadFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraWhatsappLeadPayload>[]
+        }
+        create: {
+          args: Prisma.ChiaraWhatsappLeadCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraWhatsappLeadPayload>
+        }
+        createMany: {
+          args: Prisma.ChiaraWhatsappLeadCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ChiaraWhatsappLeadCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraWhatsappLeadPayload>[]
+        }
+        delete: {
+          args: Prisma.ChiaraWhatsappLeadDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraWhatsappLeadPayload>
+        }
+        update: {
+          args: Prisma.ChiaraWhatsappLeadUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraWhatsappLeadPayload>
+        }
+        deleteMany: {
+          args: Prisma.ChiaraWhatsappLeadDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ChiaraWhatsappLeadUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ChiaraWhatsappLeadUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraWhatsappLeadPayload>[]
+        }
+        upsert: {
+          args: Prisma.ChiaraWhatsappLeadUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraWhatsappLeadPayload>
+        }
+        aggregate: {
+          args: Prisma.ChiaraWhatsappLeadAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateChiaraWhatsappLead>
+        }
+        groupBy: {
+          args: Prisma.ChiaraWhatsappLeadGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ChiaraWhatsappLeadGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ChiaraWhatsappLeadCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ChiaraWhatsappLeadCountAggregateOutputType> | number
+        }
+      }
+    }
     TagField: {
       payload: Prisma.$TagFieldPayload<ExtArgs>
       fields: Prisma.TagFieldFieldRefs
@@ -2696,6 +2771,19 @@ export const ChiaraLeadScalarFieldEnum = {
 export type ChiaraLeadScalarFieldEnum = (typeof ChiaraLeadScalarFieldEnum)[keyof typeof ChiaraLeadScalarFieldEnum]
 
 
+export const ChiaraWhatsappLeadScalarFieldEnum = {
+  id: 'id',
+  sessionId: 'sessionId',
+  name: 'name',
+  email: 'email',
+  phone: 'phone',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ChiaraWhatsappLeadScalarFieldEnum = (typeof ChiaraWhatsappLeadScalarFieldEnum)[keyof typeof ChiaraWhatsappLeadScalarFieldEnum]
+
+
 export const TagFieldScalarFieldEnum = {
   id: 'id',
   tagName: 'tagName',
@@ -3243,6 +3331,7 @@ export type GlobalOmitConfig = {
   freapChiaraInboundChatLog?: Prisma.FreapChiaraInboundChatLogOmit
   freapJenniferChatLog?: Prisma.FreapJenniferChatLogOmit
   chiaraLead?: Prisma.ChiaraLeadOmit
+  chiaraWhatsappLead?: Prisma.ChiaraWhatsappLeadOmit
   tagField?: Prisma.TagFieldOmit
   tag?: Prisma.TagOmit
   userAgentTokenUsage?: Prisma.UserAgentTokenUsageOmit

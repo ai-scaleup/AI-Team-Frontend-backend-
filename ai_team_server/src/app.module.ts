@@ -16,6 +16,7 @@ import { UserPreferenceModule } from './user-preference/user-preference.module';
 import { SaraAiModule } from './sara-ai/sara-ai.module';
 import { JenniferModule } from './jennifer/jennifer.module';
 import { ChiaraModule } from './chiara/chiara.module';
+import { ChiaraWhatsappModule } from './chiara-whatsapp/chiara-whatsapp.module';
 import { FreapChiaraModule } from './freap-chiara/freap-chiara.module';
 import { FreapJenniferModule } from './freap-jennifer/freap-jennifer.module';
 import { TagsModule } from './tags/tags.module';
@@ -35,6 +36,7 @@ import { PearlAdminModule } from './pearl-admin/pearl-admin.module';
     SaraAiModule,
     JenniferModule,
     ChiaraModule,
+    ChiaraWhatsappModule,
     FreapChiaraModule,
     FreapJenniferModule,
     TagsModule,
