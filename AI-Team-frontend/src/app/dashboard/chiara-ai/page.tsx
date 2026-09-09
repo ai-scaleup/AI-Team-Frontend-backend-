@@ -43,6 +43,32 @@ interface ChiaraLead {
     updatedAt: string
 }
 
+// Leads live in two tables with the same columns: chiara_leads (web chat, one
+// row per session) and chiara_whatsapp_leads (many rows per session). One row
+// type carries both, and `source` says which table the row came from.
+type LeadSource = "web" | "whatsapp"
+
+interface LeadRow extends ChiaraLead {
+    source: LeadSource
+}
+
+const LEAD_SOURCE_LABEL: Record<LeadSource, string> = {
+    web: "Web chat",
+    whatsapp: "WhatsApp",
+}
+
+// The two tables number their rows independently, so a row is identified by
+// its source together with its database id.
+const leadRowKey = (lead: LeadRow) => `${lead.source}-${lead.id}`
+
+const leadTime = (value?: string) => {
+    const time = new Date(value ?? "").getTime()
+    return Number.isNaN(time) ? 0 : time
+}
+
+const sortLeadsByDate = (leads: LeadRow[]) =>
+    [...leads].sort((a, b) => leadTime(b.createdAt) - leadTime(a.createdAt))
+
 const normalizeSessionId = (sessionId: string) => {
     const normalized = sessionId
         .split("||")
@@ -67,19 +93,6 @@ const formatDateTime = (value?: string) => {
         year: "numeric",
         hour: "2-digit",
         minute: "2-digit",
-    })
-}
-
-const formatDate = (value?: string) => {
-    if (!value) return "—"
-
-    const date = new Date(value)
-    if (Number.isNaN(date.getTime())) return "—"
-
-    return date.toLocaleDateString("it-IT", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
     })
 }
 
@@ -197,11 +210,13 @@ export default function ChiaraAiPage() {
     const [showLead, setShowLead] = useState(false)
     const [leadError, setLeadError] = useState<string | null>(null)
 
-    // All leads (Leads section)
-    const [allLeads, setAllLeads] = useState<ChiaraLead[]>([])
+    // All leads (Leads section) — both lead tables, in one list
+    const [allLeads, setAllLeads] = useState<LeadRow[]>([])
     const [loadingAllLeads, setLoadingAllLeads] = useState(false)
+    const [leadsError, setLeadsError] = useState<string | null>(null)
     const [leadsSearchQuery, setLeadsSearchQuery] = useState("")
-    const [selectedLeadForChat, setSelectedLeadForChat] = useState<ChiaraLead | null>(null)
+    const [leadsSource, setLeadsSource] = useState<"all" | LeadSource>("all")
+    const [selectedLeadForChat, setSelectedLeadForChat] = useState<LeadRow | null>(null)
     const [leadChatLogs, setLeadChatLogs] = useState<ChatLog[]>([])
     const [loadingLeadChat, setLoadingLeadChat] = useState(false)
 
@@ -258,16 +273,45 @@ export default function ChiaraAiPage() {
     }, [])
 
     // --- FETCH ALL LEADS ---
+    // Both lead tables are read, so the list holds every captured lead.
     const fetchAllLeads = async () => {
         setLoadingAllLeads(true)
-        try {
-            const res = await authenticatedFetch(`${API_BASE}/chiara/leads`)
-            if (res.ok) {
+
+        // null means the table could not be read — that is not the same as a
+        // table that answered with no rows.
+        const loadLeads = async (path: string, source: LeadSource): Promise<LeadRow[] | null> => {
+            try {
+                const res = await authenticatedFetch(`${API_BASE}${path}`)
+                if (!res.ok) {
+                    console.error(`Error fetching ${source} leads: ${res.status} ${res.statusText}`)
+                    return null
+                }
+
                 const data = await res.json()
-                setAllLeads(Array.isArray(data) ? data : [])
+                if (!Array.isArray(data)) return []
+
+                return (data as ChiaraLead[]).map(lead => ({ ...lead, source }))
+            } catch (error) {
+                console.error(`Error fetching ${source} leads:`, error)
+                return null
             }
-        } catch (error) {
-            console.error("Error fetching all leads:", error)
+        }
+
+        try {
+            const [webLeads, whatsappLeads] = await Promise.all([
+                loadLeads("/chiara/leads", "web"),
+                // Only the development token opens this group; a Clerk session
+                // is turned away and the web leads are listed on their own.
+                loadLeads("/chiara-whatsapp/leads", "whatsapp"),
+            ])
+
+            const unavailable = [
+                webLeads === null ? "web chat" : null,
+                whatsappLeads === null ? "WhatsApp" : null,
+            ].filter(Boolean)
+
+            setLeadsError(unavailable.length ? `Could not load the ${unavailable.join(" and ")} leads.` : null)
+            setAllLeads(sortLeadsByDate([...(webLeads ?? []), ...(whatsappLeads ?? [])]))
         } finally {
             setLoadingAllLeads(false)
         }
@@ -363,7 +407,7 @@ export default function ChiaraAiPage() {
     }
 
     // --- FETCH THE CONVERSATION OF A LEAD ---
-    const openLeadConversation = async (lead: ChiaraLead) => {
+    const openLeadConversation = async (lead: LeadRow) => {
         setSelectedLeadForChat(lead)
         setLeadChatLogs([])
         setLoadingLeadChat(true)
@@ -390,13 +434,24 @@ export default function ChiaraAiPage() {
         session.rawSessionIds.some(rawSessionId => rawSessionId.toLowerCase().includes(searchQuery.toLowerCase()))
     )
 
-    const filteredLeads = allLeads.filter(lead => {
-        const query = leadsSearchQuery.toLowerCase()
+    const leadCounts = {
+        all: allLeads.length,
+        web: allLeads.filter(lead => lead.source === "web").length,
+        whatsapp: allLeads.filter(lead => lead.source === "whatsapp").length,
+    }
 
-        return lead.name?.toLowerCase().includes(query)
+    const filteredLeads = allLeads.filter(lead => {
+        if (leadsSource !== "all" && lead.source !== leadsSource) return false
+
+        const query = leadsSearchQuery.trim().toLowerCase()
+        if (!query) return true
+
+        return String(lead.id).includes(query)
+            || lead.name?.toLowerCase().includes(query)
             || lead.email?.toLowerCase().includes(query)
             || lead.phone?.toLowerCase().includes(query)
             || lead.sessionId?.toLowerCase().includes(query)
+            || LEAD_SOURCE_LABEL[lead.source].toLowerCase().includes(query)
     })
 
     // --- SAFE RENDER ---
@@ -653,10 +708,16 @@ export default function ChiaraAiPage() {
             <div className={`flex-1 flex flex-col space-y-6 min-h-0 transition-all duration-300 ${selectedLeadForChat ? 'min-w-0' : ''}`}>
                 {/* Header row */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
                         <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Leads</h2>
                         <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-bold border border-emerald-500/20">
-                            {allLeads.length} total
+                            {leadCounts.all} total
+                        </span>
+                        <span className="px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-400 text-xs font-bold border border-indigo-500/20">
+                            {leadCounts.web} web chat
+                        </span>
+                        <span className="px-2.5 py-1 rounded-full bg-teal-500/10 text-teal-400 text-xs font-bold border border-teal-500/20">
+                            {leadCounts.whatsapp} WhatsApp
                         </span>
                     </div>
                     <button
@@ -669,16 +730,42 @@ export default function ChiaraAiPage() {
                     </button>
                 </div>
 
-                {/* Search bar */}
-                <div className="relative w-full max-w-md shrink-0">
-                    <Search size={16} className="absolute left-3 top-3 text-slate-400" />
-                    <input
-                        className="w-full bg-white dark:bg-black/20 border border-slate-200 dark:border-slate-700/50 focus:border-indigo-500 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none dark:text-white glass-panel"
-                        placeholder="Search by name, email, phone or session..."
-                        value={leadsSearchQuery}
-                        onChange={(e) => setLeadsSearchQuery(e.target.value)}
-                    />
+                {/* Search bar + source filter */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 shrink-0">
+                    <div className="relative w-full max-w-md">
+                        <Search size={16} className="absolute left-3 top-3 text-slate-400" />
+                        <input
+                            className="w-full bg-white dark:bg-black/20 border border-slate-200 dark:border-slate-700/50 focus:border-indigo-500 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none dark:text-white glass-panel"
+                            placeholder="Search by id, name, email, phone, session or source..."
+                            value={leadsSearchQuery}
+                            onChange={(e) => setLeadsSearchQuery(e.target.value)}
+                        />
+                    </div>
+                    <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-black/20 border border-slate-200 dark:border-slate-700/50">
+                        {([
+                            { value: "all", label: `All (${leadCounts.all})` },
+                            { value: "web", label: `Web chat (${leadCounts.web})` },
+                            { value: "whatsapp", label: `WhatsApp (${leadCounts.whatsapp})` },
+                        ] as const).map(tab => (
+                            <button
+                                key={tab.value}
+                                onClick={() => setLeadsSource(tab.value)}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${leadsSource === tab.value
+                                    ? 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/30'
+                                    : 'text-slate-500 border border-transparent hover:bg-white/5'
+                                    }`}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
+
+                {leadsError && (
+                    <div className="shrink-0 px-4 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 text-xs">
+                        {leadsError}
+                    </div>
+                )}
 
                 {/* Table */}
                 <div className="glass-panel rounded-xl border border-slate-200 dark:border-slate-700/50 overflow-hidden flex-1 min-h-0 flex flex-col">
@@ -689,33 +776,46 @@ export default function ChiaraAiPage() {
                     ) : filteredLeads.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-16 opacity-50">
                             <Users className="w-12 h-12 mb-4" />
-                            <p className="text-sm">{allLeads.length === 0 ? 'No leads collected yet.' : 'No lead matches the search.'}</p>
+                            <p className="text-sm">{allLeads.length === 0 ? 'No leads collected yet.' : 'No lead matches the search or the selected source.'}</p>
                         </div>
                     ) : (
                         <div className="overflow-auto custom-scrollbar flex-1 min-h-0">
-                            <table className="w-full min-w-[720px] text-sm">
+                            {/* Every column of both lead tables, nothing hidden. */}
+                            <table className="w-full min-w-[1180px] text-sm">
                                 <thead className="sticky top-0 z-10">
                                     <tr className="border-b border-slate-200 dark:border-slate-700/50 bg-slate-100 dark:bg-[#070d1c]">
                                         <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">#</th>
+                                        <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">ID</th>
+                                        <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Source</th>
                                         <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Name</th>
                                         <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Email</th>
                                         <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Phone</th>
                                         <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Session</th>
-                                        <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Date</th>
+                                        <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Created at</th>
+                                        <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Updated at</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                                     {filteredLeads.map((lead, idx) => (
-                                        <tr key={lead.id || idx}
+                                        <tr key={leadRowKey(lead)}
                                             onClick={() => openLeadConversation(lead)}
-                                            className={`cursor-pointer transition-colors ${selectedLeadForChat?.id === lead.id
+                                            className={`cursor-pointer transition-colors ${selectedLeadForChat && leadRowKey(selectedLeadForChat) === leadRowKey(lead)
                                                 ? 'bg-indigo-50 dark:bg-indigo-900/20'
                                                 : 'hover:bg-slate-50 dark:hover:bg-white/5'
                                                 }`}>
                                             <td className="px-5 py-4 text-slate-400 font-mono text-xs">{idx + 1}</td>
+                                            <td className="px-5 py-4 text-slate-500 dark:text-slate-400 font-mono text-xs">{lead.id}</td>
+                                            <td className="px-5 py-4">
+                                                <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${lead.source === 'whatsapp'
+                                                    ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20'
+                                                    : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+                                                    }`}>
+                                                    {LEAD_SOURCE_LABEL[lead.source]}
+                                                </span>
+                                            </td>
                                             <td className="px-5 py-4">
                                                 <div className="flex items-center gap-2.5">
-                                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-400 flex items-center justify-center text-white text-xs font-bold shadow-sm">
+                                                    <div className="w-8 h-8 shrink-0 rounded-full bg-gradient-to-br from-indigo-400 to-purple-400 flex items-center justify-center text-white text-xs font-bold shadow-sm">
                                                         {lead.name ? lead.name.charAt(0).toUpperCase() : '?'}
                                                     </div>
                                                     <span className="font-medium text-slate-700 dark:text-slate-200">{lead.name || '—'}</span>
@@ -723,23 +823,26 @@ export default function ChiaraAiPage() {
                                             </td>
                                             <td className="px-5 py-4">
                                                 <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
-                                                    <Mail size={13} className="opacity-40" />
-                                                    <span className="truncate max-w-[200px]">{lead.email || '—'}</span>
+                                                    <Mail size={13} className="opacity-40 shrink-0" />
+                                                    <span className="break-all">{lead.email || '—'}</span>
                                                 </div>
                                             </td>
                                             <td className="px-5 py-4">
                                                 <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
-                                                    <Phone size={13} className="opacity-40" />
-                                                    <span>{lead.phone || '—'}</span>
+                                                    <Phone size={13} className="opacity-40 shrink-0" />
+                                                    <span className="whitespace-nowrap">{lead.phone || '—'}</span>
                                                 </div>
                                             </td>
                                             <td className="px-5 py-4">
-                                                <span className="font-mono text-xs text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded truncate max-w-[150px] inline-block">
-                                                    {lead.sessionId ? (lead.sessionId.length > 18 ? `${lead.sessionId.substring(0, 18)}...` : lead.sessionId) : '—'}
+                                                <span className="font-mono text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded break-all inline-block">
+                                                    {lead.sessionId || '—'}
                                                 </span>
                                             </td>
                                             <td className="px-5 py-4 text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap">
-                                                {formatDate(lead.createdAt)}
+                                                {formatDateTime(lead.createdAt)}
+                                            </td>
+                                            <td className="px-5 py-4 text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap">
+                                                {formatDateTime(lead.updatedAt)}
                                             </td>
                                         </tr>
                                     ))}
@@ -771,8 +874,12 @@ export default function ChiaraAiPage() {
                             </button>
                         </div>
 
-                        {/* Lead Strip */}
+                        {/* Lead Strip — every stored column of the selected lead */}
                         <div className="px-4 py-2.5 border-b border-slate-200 dark:border-slate-700/50 bg-emerald-900/10 shrink-0 space-y-1.5 text-slate-600 dark:text-slate-300">
+                            <div className="flex items-center gap-2 text-xs">
+                                <User size={12} className="opacity-40 shrink-0" />
+                                <span className="break-all">{selectedLeadForChat.name || '—'}</span>
+                            </div>
                             <div className="flex items-center gap-2 text-xs">
                                 <Mail size={12} className="opacity-40 shrink-0" />
                                 <span className="break-all">{selectedLeadForChat.email || '—'}</span>
@@ -783,7 +890,15 @@ export default function ChiaraAiPage() {
                             </div>
                             <div className="flex items-center gap-2 text-xs">
                                 <Calendar size={12} className="opacity-40 shrink-0" />
-                                <span>{formatDateTime(selectedLeadForChat.createdAt)}</span>
+                                <span>Created {formatDateTime(selectedLeadForChat.createdAt)}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs">
+                                <Calendar size={12} className="opacity-40 shrink-0" />
+                                <span>Updated {formatDateTime(selectedLeadForChat.updatedAt)}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-[10px] font-mono text-slate-400">
+                                <span>#{selectedLeadForChat.id}</span>
+                                <span className="uppercase tracking-wider">{LEAD_SOURCE_LABEL[selectedLeadForChat.source]}</span>
                             </div>
                         </div>
 
