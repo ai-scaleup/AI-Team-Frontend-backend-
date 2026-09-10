@@ -34,10 +34,11 @@ const PUBLIC_ROUTES: PublicRoute[] = [
 ];
 
 /**
- * Route groups that skip this middleware because they authenticate
- * themselves. The Chiara WhatsApp lead endpoints apply DevTokenMiddleware on
- * their own controller: the development token (DEV_API_TOKEN) is the only
- * credential they accept, and a Clerk JWT is not one of them.
+ * Route prefixes this middleware leaves alone. The Chiara WhatsApp lead
+ * endpoints currently run with no authentication at all — the development
+ * token requirement was lifted, so anyone who knows the URL can read and write
+ * the leads. Restore DevTokenMiddleware on ChiaraWhatsappController to close
+ * them again.
  */
 const PUBLIC_PATH_PREFIXES: RegExp[] = [/^\/chiara-whatsapp(\/.*)?$/];
 

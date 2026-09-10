@@ -16,9 +16,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
-  ApiSecurity,
   ApiTags,
-  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { ChiaraWhatsappService } from './chiara-whatsapp.service';
 import { Prisma } from 'src/generated/prisma/client';
@@ -39,14 +37,12 @@ const chiaraWhatsappLeadUpdateSchema = {
   properties: chiaraWhatsappLeadSchema.properties,
 };
 
-// The development token (DEV_API_TOKEN) is the only credential this group
-// accepts — DevTokenMiddleware checks it, and no Clerk JWT is honoured here.
+// This group carries no authentication: neither the development token nor a
+// Clerk JWT is checked, and auth/public-routes.ts keeps AuthMiddleware off the
+// /chiara-whatsapp prefix. Anyone who knows the URL can read and write the
+// leads, so this is a temporary state to be reverted once the dashboard sends
+// a credential again.
 @ApiTags('chiara-whatsapp')
-@ApiSecurity('dev-token')
-@ApiUnauthorizedResponse({
-  description:
-    'Missing or wrong development token. Send it as x-dev-token, or as Authorization: Bearer <token>.',
-})
 @Controller('chiara-whatsapp')
 export class ChiaraWhatsappController {
   constructor(private readonly chiaraWhatsappService: ChiaraWhatsappService) {}
