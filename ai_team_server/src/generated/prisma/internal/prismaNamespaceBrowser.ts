@@ -68,6 +68,8 @@ export const ModelName = {
   FreapJenniferChatLog: 'FreapJenniferChatLog',
   ChiaraLead: 'ChiaraLead',
   ChiaraWhatsappLead: 'ChiaraWhatsappLead',
+  ChiaraVanessaLead: 'ChiaraVanessaLead',
+  ChiaraVanessaChatLog: 'ChiaraVanessaChatLog',
   TagField: 'TagField',
   Tag: 'Tag',
   UserAgentTokenUsage: 'UserAgentTokenUsage',
@@ -337,6 +339,30 @@ export const ChiaraWhatsappLeadScalarFieldEnum = {
 } as const
 
 export type ChiaraWhatsappLeadScalarFieldEnum = (typeof ChiaraWhatsappLeadScalarFieldEnum)[keyof typeof ChiaraWhatsappLeadScalarFieldEnum]
+
+
+export const ChiaraVanessaLeadScalarFieldEnum = {
+  id: 'id',
+  sessionId: 'sessionId',
+  name: 'name',
+  email: 'email',
+  phone: 'phone',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ChiaraVanessaLeadScalarFieldEnum = (typeof ChiaraVanessaLeadScalarFieldEnum)[keyof typeof ChiaraVanessaLeadScalarFieldEnum]
+
+
+export const ChiaraVanessaChatLogScalarFieldEnum = {
+  id: 'id',
+  sessionId: 'sessionId',
+  sender: 'sender',
+  messageText: 'messageText',
+  createdAt: 'createdAt'
+} as const
+
+export type ChiaraVanessaChatLogScalarFieldEnum = (typeof ChiaraVanessaChatLogScalarFieldEnum)[keyof typeof ChiaraVanessaChatLogScalarFieldEnum]
 
 
 export const TagFieldScalarFieldEnum = {

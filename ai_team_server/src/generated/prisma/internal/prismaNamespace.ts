@@ -401,6 +401,8 @@ export const ModelName = {
   FreapJenniferChatLog: 'FreapJenniferChatLog',
   ChiaraLead: 'ChiaraLead',
   ChiaraWhatsappLead: 'ChiaraWhatsappLead',
+  ChiaraVanessaLead: 'ChiaraVanessaLead',
+  ChiaraVanessaChatLog: 'ChiaraVanessaChatLog',
   TagField: 'TagField',
   Tag: 'Tag',
   UserAgentTokenUsage: 'UserAgentTokenUsage',
@@ -427,7 +429,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "pearlWhitelabelUser" | "pearlWhitelabelUserData" | "userPreference" | "assignedAgent" | "agentGroup" | "agentGroupItem" | "assignedGroup" | "conversation" | "message" | "chatLog" | "metisChatLog" | "chiaraInboundChatLog" | "freapChiaraInboundChatLog" | "freapJenniferChatLog" | "chiaraLead" | "chiaraWhatsappLead" | "tagField" | "tag" | "userAgentTokenUsage" | "tokenUsageAlertRule" | "tokenAlertSettings" | "membershipTemplate" | "assignedMembership" | "membershipTemplateGroup" | "dailyTokenUsage" | "tokenLimitStopLog" | "userAlert"
+    modelProps: "user" | "pearlWhitelabelUser" | "pearlWhitelabelUserData" | "userPreference" | "assignedAgent" | "agentGroup" | "agentGroupItem" | "assignedGroup" | "conversation" | "message" | "chatLog" | "metisChatLog" | "chiaraInboundChatLog" | "freapChiaraInboundChatLog" | "freapJenniferChatLog" | "chiaraLead" | "chiaraWhatsappLead" | "chiaraVanessaLead" | "chiaraVanessaChatLog" | "tagField" | "tag" | "userAgentTokenUsage" | "tokenUsageAlertRule" | "tokenAlertSettings" | "membershipTemplate" | "assignedMembership" | "membershipTemplateGroup" | "dailyTokenUsage" | "tokenLimitStopLog" | "userAlert"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1689,6 +1691,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    ChiaraVanessaLead: {
+      payload: Prisma.$ChiaraVanessaLeadPayload<ExtArgs>
+      fields: Prisma.ChiaraVanessaLeadFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ChiaraVanessaLeadFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraVanessaLeadPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ChiaraVanessaLeadFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraVanessaLeadPayload>
+        }
+        findFirst: {
+          args: Prisma.ChiaraVanessaLeadFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraVanessaLeadPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ChiaraVanessaLeadFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraVanessaLeadPayload>
+        }
+        findMany: {
+          args: Prisma.ChiaraVanessaLeadFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraVanessaLeadPayload>[]
+        }
+        create: {
+          args: Prisma.ChiaraVanessaLeadCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraVanessaLeadPayload>
+        }
+        createMany: {
+          args: Prisma.ChiaraVanessaLeadCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ChiaraVanessaLeadCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraVanessaLeadPayload>[]
+        }
+        delete: {
+          args: Prisma.ChiaraVanessaLeadDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraVanessaLeadPayload>
+        }
+        update: {
+          args: Prisma.ChiaraVanessaLeadUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraVanessaLeadPayload>
+        }
+        deleteMany: {
+          args: Prisma.ChiaraVanessaLeadDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ChiaraVanessaLeadUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ChiaraVanessaLeadUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraVanessaLeadPayload>[]
+        }
+        upsert: {
+          args: Prisma.ChiaraVanessaLeadUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraVanessaLeadPayload>
+        }
+        aggregate: {
+          args: Prisma.ChiaraVanessaLeadAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateChiaraVanessaLead>
+        }
+        groupBy: {
+          args: Prisma.ChiaraVanessaLeadGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ChiaraVanessaLeadGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ChiaraVanessaLeadCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ChiaraVanessaLeadCountAggregateOutputType> | number
+        }
+      }
+    }
+    ChiaraVanessaChatLog: {
+      payload: Prisma.$ChiaraVanessaChatLogPayload<ExtArgs>
+      fields: Prisma.ChiaraVanessaChatLogFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ChiaraVanessaChatLogFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraVanessaChatLogPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ChiaraVanessaChatLogFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraVanessaChatLogPayload>
+        }
+        findFirst: {
+          args: Prisma.ChiaraVanessaChatLogFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraVanessaChatLogPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ChiaraVanessaChatLogFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraVanessaChatLogPayload>
+        }
+        findMany: {
+          args: Prisma.ChiaraVanessaChatLogFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraVanessaChatLogPayload>[]
+        }
+        create: {
+          args: Prisma.ChiaraVanessaChatLogCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraVanessaChatLogPayload>
+        }
+        createMany: {
+          args: Prisma.ChiaraVanessaChatLogCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ChiaraVanessaChatLogCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraVanessaChatLogPayload>[]
+        }
+        delete: {
+          args: Prisma.ChiaraVanessaChatLogDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraVanessaChatLogPayload>
+        }
+        update: {
+          args: Prisma.ChiaraVanessaChatLogUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraVanessaChatLogPayload>
+        }
+        deleteMany: {
+          args: Prisma.ChiaraVanessaChatLogDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ChiaraVanessaChatLogUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ChiaraVanessaChatLogUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraVanessaChatLogPayload>[]
+        }
+        upsert: {
+          args: Prisma.ChiaraVanessaChatLogUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ChiaraVanessaChatLogPayload>
+        }
+        aggregate: {
+          args: Prisma.ChiaraVanessaChatLogAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateChiaraVanessaChatLog>
+        }
+        groupBy: {
+          args: Prisma.ChiaraVanessaChatLogGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ChiaraVanessaChatLogGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ChiaraVanessaChatLogCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ChiaraVanessaChatLogCountAggregateOutputType> | number
+        }
+      }
+    }
     TagField: {
       payload: Prisma.$TagFieldPayload<ExtArgs>
       fields: Prisma.TagFieldFieldRefs
@@ -2784,6 +2934,30 @@ export const ChiaraWhatsappLeadScalarFieldEnum = {
 export type ChiaraWhatsappLeadScalarFieldEnum = (typeof ChiaraWhatsappLeadScalarFieldEnum)[keyof typeof ChiaraWhatsappLeadScalarFieldEnum]
 
 
+export const ChiaraVanessaLeadScalarFieldEnum = {
+  id: 'id',
+  sessionId: 'sessionId',
+  name: 'name',
+  email: 'email',
+  phone: 'phone',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ChiaraVanessaLeadScalarFieldEnum = (typeof ChiaraVanessaLeadScalarFieldEnum)[keyof typeof ChiaraVanessaLeadScalarFieldEnum]
+
+
+export const ChiaraVanessaChatLogScalarFieldEnum = {
+  id: 'id',
+  sessionId: 'sessionId',
+  sender: 'sender',
+  messageText: 'messageText',
+  createdAt: 'createdAt'
+} as const
+
+export type ChiaraVanessaChatLogScalarFieldEnum = (typeof ChiaraVanessaChatLogScalarFieldEnum)[keyof typeof ChiaraVanessaChatLogScalarFieldEnum]
+
+
 export const TagFieldScalarFieldEnum = {
   id: 'id',
   tagName: 'tagName',
@@ -3332,6 +3506,8 @@ export type GlobalOmitConfig = {
   freapJenniferChatLog?: Prisma.FreapJenniferChatLogOmit
   chiaraLead?: Prisma.ChiaraLeadOmit
   chiaraWhatsappLead?: Prisma.ChiaraWhatsappLeadOmit
+  chiaraVanessaLead?: Prisma.ChiaraVanessaLeadOmit
+  chiaraVanessaChatLog?: Prisma.ChiaraVanessaChatLogOmit
   tagField?: Prisma.TagFieldOmit
   tag?: Prisma.TagOmit
   userAgentTokenUsage?: Prisma.UserAgentTokenUsageOmit

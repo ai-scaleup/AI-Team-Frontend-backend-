@@ -32,6 +32,7 @@ enum AgentName {
   FREAP_CHIARA
   FREAP_JENNIFER
   PEARL_ADMIN
+  CHIARA_VANESSA
   // --- test agents ---
   TEST_JIM
   TEST_ALEX
@@ -461,6 +462,33 @@ model ChiaraWhatsappLead {
   @@index([email])
   @@index([createdAt])
   @@map("chiara_whatsapp_leads")
+}
+
+model ChiaraVanessaLead {
+  id        Int      @id @default(autoincrement())
+  sessionId String   @map("session_id") @db.VarChar(255)
+  name      String   @db.VarChar(255)
+  email     String   @db.VarChar(255)
+  phone     String   @db.VarChar(50)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([sessionId])
+  @@index([email])
+  @@index([createdAt])
+  @@map("chiara_vanessa_leads")
+}
+
+model ChiaraVanessaChatLog {
+  id          Int      @id @default(autoincrement())
+  sessionId   String   @map("session_id") @db.VarChar(255)
+  sender      String   @db.VarChar(50)
+  messageText String   @map("message_text")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([sessionId])
+  @@index([sender])
+  @@map("chiara_vanessa_chat_logs")
 }
 
 // ─────────────────────────────────────────────────────────────

@@ -23,6 +23,7 @@ export enum AgentName {
   FREAP_CHIARA = 'FREAP_CHIARA',
   FREAP_JENNIFER = 'FREAP_JENNIFER',
   PEARL_ADMIN = 'PEARL_ADMIN',
+  CHIARA_VANESSA = 'CHIARA_VANESSA',
 
   // --- test agents ---
   TEST_JIM = 'TEST_JIM',

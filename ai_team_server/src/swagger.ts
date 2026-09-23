@@ -48,7 +48,11 @@ export function setupSwagger(app: INestApplication) {
     .addTag('chiara', 'Chiara chat logs and leads')
     .addTag(
       'chiara-whatsapp',
-      'Chiara WhatsApp leads — authenticated by the development token (DEV_API_TOKEN) alone, no Clerk JWT; one session may hold many leads',
+      'Chiara WhatsApp leads — no authentication; one session may hold many leads',
+    )
+    .addTag(
+      'chiara-vanessa',
+      'Chiara Vanessa chat logs and leads — no authentication; one session may hold many leads',
     )
     .addTag('tags', 'Tag field management and tag generation')
     .addTag('token-usage', 'Per-user and per-agent token usage limits')
