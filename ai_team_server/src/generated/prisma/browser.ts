@@ -103,15 +103,15 @@ export type ChiaraLead = Prisma.ChiaraLeadModel
  */
 export type ChiaraWhatsappLead = Prisma.ChiaraWhatsappLeadModel
 /**
- * Model ChiaraVanessaLead
+ * Model VanessaLead
  * 
  */
-export type ChiaraVanessaLead = Prisma.ChiaraVanessaLeadModel
+export type VanessaLead = Prisma.VanessaLeadModel
 /**
- * Model ChiaraVanessaChatLog
+ * Model VanessaChatLog
  * 
  */
-export type ChiaraVanessaChatLog = Prisma.ChiaraVanessaChatLogModel
+export type VanessaChatLog = Prisma.VanessaChatLogModel
 /**
  * Model TagField
  * 

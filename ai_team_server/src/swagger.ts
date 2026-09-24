@@ -51,8 +51,8 @@ export function setupSwagger(app: INestApplication) {
       'Chiara WhatsApp leads — no authentication; one session may hold many leads',
     )
     .addTag(
-      'chiara-vanessa',
-      'Chiara Vanessa chat logs and leads — no authentication; one session may hold many leads',
+      'vanessa',
+      'Vanessa chat logs and leads — no authentication; one session may hold many leads',
     )
     .addTag('tags', 'Tag field management and tag generation')
     .addTag('token-usage', 'Per-user and per-agent token usage limits')

@@ -34,14 +34,16 @@ const PUBLIC_ROUTES: PublicRoute[] = [
 ];
 
 /**
- * Route prefixes this middleware leaves alone. The Chiara WhatsApp and Chiara
- * Vanessa lead endpoints currently run with no authentication at all — the
+ * Route prefixes this middleware leaves alone. The Chiara WhatsApp and Vanessa
+ * lead endpoints currently run with no authentication at all — the
  * development token requirement was lifted, so anyone who knows the URL can
  * read and write the leads. Restore DevTokenMiddleware on
- * ChiaraWhatsappController and ChiaraVanessaController to close them again.
+ * ChiaraWhatsappController and VanessaController to close them again.
  */
 const PUBLIC_PATH_PREFIXES: RegExp[] = [
   /^\/chiara-whatsapp(\/.*)?$/,
+  /^\/vanessa(\/.*)?$/,
+  // Old name of the /vanessa group, still served for existing callers.
   /^\/chiara-vanessa(\/.*)?$/,
 ];
 

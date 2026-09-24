@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from 'src/generated/prisma/client';
 
 @Injectable()
-export class ChiaraVanessaService {
+export class VanessaService {
   constructor(private prisma: PrismaService) {}
 
   private normalizeSessionId(sessionId: string) {
@@ -17,7 +17,7 @@ export class ChiaraVanessaService {
 
   private getRelatedSessionWhere(
     sessionId: string,
-  ): Prisma.ChiaraVanessaChatLogWhereInput {
+  ): Prisma.VanessaChatLogWhereInput {
     const normalizedSessionId = this.normalizeSessionId(sessionId);
 
     return {
@@ -31,22 +31,22 @@ export class ChiaraVanessaService {
     };
   }
 
-  // ChiaraVanessaChatLog methods
-  async createChatLog(data: Prisma.ChiaraVanessaChatLogCreateInput) {
-    return this.prisma.chiaraVanessaChatLog.create({
+  // VanessaChatLog methods
+  async createChatLog(data: Prisma.VanessaChatLogCreateInput) {
+    return this.prisma.vanessaChatLog.create({
       data,
     });
   }
 
   async getChatLogsBySessionId(sessionId: string) {
-    return this.prisma.chiaraVanessaChatLog.findMany({
+    return this.prisma.vanessaChatLog.findMany({
       where: this.getRelatedSessionWhere(sessionId),
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     });
   }
 
   async getAllSessions() {
-    const sessions = await this.prisma.chiaraVanessaChatLog.groupBy({
+    const sessions = await this.prisma.vanessaChatLog.groupBy({
       by: ['sessionId'],
       _max: { createdAt: true },
       _count: { id: true },
@@ -93,27 +93,27 @@ export class ChiaraVanessaService {
     });
   }
 
-  // ChiaraVanessaLead methods
+  // VanessaLead methods
   // A session can hold many leads here, so a create never conflicts.
-  async createLead(data: Prisma.ChiaraVanessaLeadCreateInput) {
-    return this.prisma.chiaraVanessaLead.create({ data });
+  async createLead(data: Prisma.VanessaLeadCreateInput) {
+    return this.prisma.vanessaLead.create({ data });
   }
 
   async getAllLeads() {
-    return this.prisma.chiaraVanessaLead.findMany({
+    return this.prisma.vanessaLead.findMany({
       orderBy: { createdAt: 'desc' },
     });
   }
 
   async getLeadsBySessionId(sessionId: string) {
-    return this.prisma.chiaraVanessaLead.findMany({
+    return this.prisma.vanessaLead.findMany({
       where: { sessionId },
       orderBy: { createdAt: 'desc' },
     });
   }
 
   async getLeadById(id: number) {
-    const lead = await this.prisma.chiaraVanessaLead.findUnique({
+    const lead = await this.prisma.vanessaLead.findUnique({
       where: { id },
     });
 
@@ -124,10 +124,10 @@ export class ChiaraVanessaService {
     return lead;
   }
 
-  async updateLead(id: number, data: Prisma.ChiaraVanessaLeadUpdateInput) {
+  async updateLead(id: number, data: Prisma.VanessaLeadUpdateInput) {
     await this.getLeadById(id);
 
-    return this.prisma.chiaraVanessaLead.update({
+    return this.prisma.vanessaLead.update({
       where: { id },
       data,
     });
@@ -136,7 +136,7 @@ export class ChiaraVanessaService {
   async deleteLead(id: number) {
     await this.getLeadById(id);
 
-    return this.prisma.chiaraVanessaLead.delete({
+    return this.prisma.vanessaLead.delete({
       where: { id },
     });
   }
