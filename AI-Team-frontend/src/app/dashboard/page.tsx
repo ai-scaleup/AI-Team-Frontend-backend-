@@ -202,11 +202,11 @@ const agents: UiAgent[] = [
     href: "/dashboard/freap-chiara",
   },
   {
-    key: "CHIARA_VANESSA",
-    name: "Chiara Vanessa",
+    key: "VANESSA",
+    name: "Vanessa",
     role: "AI Receptionist",
     image: "/assets/agents/Lara-AI-1.png",
-    href: "/dashboard/chiara-vanessa",
+    href: "/dashboard/vanessa",
   },
   {
     key: "FREAP_JENNIFER",
