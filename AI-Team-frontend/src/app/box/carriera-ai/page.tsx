@@ -90,28 +90,20 @@ const BusinessAIGiftLanding: React.FC = () => {
     const JENNIFER_AVATAR = "https://www.digital-coach.com/wp-content/uploads/2025/12/Giulia-small-x-chat.png";
     const ALADINO_ICON = <Lamp className="text-[#D4AF37]" size={24} />;
 
-    const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
 
     // --- HANDLERS ---
     // --- HANDLERS ---
     const triggerOutboundCall = async () => {
         setCallStatus('calling');
         try {
-            const pearlId = process.env.NEXT_PUBLIC_PEARL_ID;
-            const res = await fetch(`https://api.nlpearl.ai/v2/Outbound/${pearlId}/Lead`, {
+            // The Pearl ID and NLPearl key stay server-side in this route.
+            const res = await fetch('/api/public/box/outbound-call', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${process.env.NEXT_PUBLIC_NLPEARL_API_KEY}`
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     phoneNumber: "39" + contactData.phone.replace(/\s+/g, ''),
-                    externalId: Date.now().toString(),
-                    timeZoneId: "Europe/Rome",
-                    callData: {
-                        email: contactData.email,
-                        name: contactData.name
-                    }
+                    email: contactData.email,
+                    name: contactData.name
                 })
             });
 
@@ -210,10 +202,10 @@ const BusinessAIGiftLanding: React.FC = () => {
             const contextSection = ragContext ? `\n\n--- CONTESTO PRODOTTO (da knowledge base) ---\n${ragContext}` : '';
             const prompt = `${systemPrompt}${contextSection}\n\n--- CRONOLOGIA CONVERSAZIONE ---\n${conversationHistory}\n\n--- ISTRUZIONI ---\nRispondi al messaggio più recente dell'utente in modo naturale, seguendo il playbook. Usa le informazioni dal contesto prodotto se rilevanti. Max 4-5 righe. Italiano.`;
 
-            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${API_KEY}`, {
+            const res = await fetch("/api/public/box/chat",{
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                body: JSON.stringify({ prompt })
             });
             const data = await res.json();
             setChatMessages(prev => [...prev, { sender: 'ai', text: data.candidates?.[0]?.content?.parts?.[0]?.text || "Sto elaborando la tua richiesta..." }]);
@@ -232,7 +224,7 @@ const BusinessAIGiftLanding: React.FC = () => {
         if (!careerInput.trim()) return; setIsGeneratingIdea(true); setAiIdea('');
         try {
             const prompt = `Sei Laura AI, Career Coach esperta. L'utente vuole fare un regalo a qualcuno e ti descrive la persona e i suoi sogni/paure: "${careerInput}". Genera un consiglio su perché un corso AI sarebbe il regalo perfetto per QUESTA persona specifica. Struttura: 🧞‍♂️ **Analisi:** (Basata su ciò che ha detto). 💡 **Potenziale:** (Quale ruolo AI potrebbe fare). 🎁 **Perché questo regalo:** (Perché è meglio di oggetti fisici). ✨ **Conclusione.** 15 righe circa. Tono persuasivo per chi compra il regalo.`;
-            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${API_KEY}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
+            const res = await fetch("/api/public/box/chat",{ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt }) });
             const data = await res.json(); setAiIdea(data.candidates?.[0]?.content?.parts?.[0]?.text || "Riprova.");
         } catch (e) { setAiIdea("Errore."); } finally { setIsGeneratingIdea(false); }
     };

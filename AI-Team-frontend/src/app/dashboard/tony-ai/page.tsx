@@ -1,5 +1,6 @@
 "use client"
 
+import { API_BASE } from "@/lib/apiBase"
 import { authenticatedFetch } from "@/lib/authenticatedFetch";
 
 import type React from "react"
@@ -439,7 +440,6 @@ export default function App() {
     if (!userEmail) return
 
     const userIdentifier = encodeURIComponent(userEmail)
-    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""
     authenticatedFetch(`${API_BASE}/token-usage/${userIdentifier}/TONY`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
@@ -1121,7 +1121,6 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
       }
 
       const userIdentifier = userEmail ? encodeURIComponent(userEmail) : ""
-      const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""
       try {
         if (userIdentifier) {
           const [inputCount, outputCount] = await Promise.all([

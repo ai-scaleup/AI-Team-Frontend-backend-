@@ -1,3 +1,4 @@
+import { API_BASE } from "@/lib/apiBase"
 import { authenticatedFetch } from "@/lib/authenticatedFetch";
 import {
     AgentName,
@@ -9,7 +10,6 @@ import {
 } from '@/types/preferences';
 import { waitForUserSync } from '@/lib/userSyncGate';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE;
 
 // Helper function to check if running in browser
 const isBrowser = () => typeof window !== 'undefined';

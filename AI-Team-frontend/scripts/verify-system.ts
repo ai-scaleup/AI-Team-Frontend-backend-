@@ -1,7 +1,7 @@
 import 'dotenv/config';
 // Using Node.js 18+ native fetch
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3000/api'; // Adjust default if needed
+const API_BASE = (process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3000').trim().replace(/\/+$/, '');
 const USER_ID = process.argv[2];
 const CLERK_TEST_JWT = process.env.CLERK_TEST_JWT || process.argv[3];
 

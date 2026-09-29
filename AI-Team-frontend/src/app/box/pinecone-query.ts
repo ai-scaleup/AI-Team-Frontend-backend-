@@ -25,66 +25,22 @@ export async function queryPineconeForContext(
     namespace: string,
     topK: number = 3
 ): Promise<string> {
-    const OPENAI_API_KEY = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
-    const PINECONE_HOST = process.env.NEXT_PUBLIC_PINECONE_HOST;
-    const PINECONE_API_KEY = process.env.NEXT_PUBLIC_PINECONE_API_KEY;
-
-    if (!OPENAI_API_KEY || !PINECONE_HOST || !PINECONE_API_KEY) {
-        console.warn('Missing Pinecone/OpenAI configuration, skipping RAG');
-        return '';
-    }
-
     try {
-        // Create embedding for the user message
-        const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
+        // Embedding and the Pinecone query run server-side so the OpenAI and
+        // Pinecone keys never reach the browser.
+        const response = await fetch('/api/public/box/rag-context', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${OPENAI_API_KEY}`,
-            },
-            body: JSON.stringify({
-                model: 'text-embedding-3-large',
-                input: userMessage,
-            }),
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: userMessage, namespace, topK }),
         });
 
-        if (!embeddingResponse.ok) {
-            console.error('OpenAI embedding error');
+        if (!response.ok) {
+            console.error('RAG context lookup error:', response.status);
             return '';
         }
 
-        const embeddingData = await embeddingResponse.json();
-        const embedding = embeddingData.data[0].embedding;
-
-        // Query Pinecone
-        const queryResponse = await fetch(`${PINECONE_HOST}/query`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Api-Key': PINECONE_API_KEY,
-            },
-            body: JSON.stringify({
-                vector: embedding,
-                topK,
-                namespace,
-                includeMetadata: true,
-            }),
-        });
-
-        if (!queryResponse.ok) {
-            console.error('Pinecone query error');
-            return '';
-        }
-
-        const queryResult: PineconeQueryResult = await queryResponse.json();
-
-        // Extract text from matches
-        const contextTexts = queryResult.matches
-            .filter(match => match.metadata?.text)
-            .map(match => match.metadata!.text!)
-            .join('\n\n');
-
-        return contextTexts;
+        const data: { context?: string } = await response.json();
+        return data.context ?? '';
     } catch (error) {
         console.error('Error querying Pinecone:', error);
         return '';

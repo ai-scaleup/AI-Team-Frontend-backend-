@@ -16,15 +16,6 @@ import {
 } from "lucide-react";
 import { isAdminEmail } from "@/lib/adminAccess";
 
-// Frontend-only admin gate credentials (no database involved)
-const PANEL_CREDENTIALS: Record<string, string> = {
-  "digitalcoachai@gmail.com": "Dca!2026#wQ5n",
-  "luca.papa.digital@gmail.com": "Lcp@2026!hB8s",
-  "natali@digital-coach.com": "Ntl!2026#vK9q",
-  "giuseppe@digital-coach.com": "Gsp@2026!mR4x",
-  "giuseppe.grimaldi.digitalcoach@gmail.com": "Grm#2026@pT7z",
-};
-
 const GATE_STORAGE_KEY = "admin_panel_gate";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -40,10 +31,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     setGateChecked(true);
   }, []);
 
-  const handleGateSubmit = (e: React.FormEvent) => {
+  const handleGateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const email = gateEmail.trim().toLowerCase();
-    if (isAdminEmail(email) && PANEL_CREDENTIALS[email] === gatePassword) {
+    let ok = false;
+    if (isAdminEmail(email)) {
+      // Credentials are checked server-side so they never ship to the browser.
+      try {
+        const res = await fetch("/api/admin/panel-gate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password: gatePassword }),
+        });
+        ok = res.ok && (await res.json()).ok === true;
+      } catch {
+        ok = false;
+      }
+    }
+
+    if (ok) {
       sessionStorage.setItem(GATE_STORAGE_KEY, "ok");
       setGateAuthed(true);
       setGateError("");

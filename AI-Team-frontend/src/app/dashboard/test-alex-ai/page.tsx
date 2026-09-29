@@ -42,7 +42,6 @@ import * as XLSX from "xlsx"
 // This type definition is added to resolve the 'PineconeVector is undeclared' error.
 interface PineconeVector {
   id: string
-  values: number[]
   metadata: Record<string, any>
 }
 
@@ -200,60 +199,28 @@ async function extractFileContent(file: File): Promise<string> {
 }
 
 // --- PINECONE HELPER FUNCTIONS ---
-async function getEmbedding(text: string): Promise<number[]> {
-  const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY
-  const model = process.env.NEXT_PUBLIC_OPENAI_MODEL || "text-embedding-ada-002"
-
-  if (!apiKey) {
-    throw new Error("OpenAI API key not configured")
-  }
-
-  const response = await fetch("https://api.openai.com/v1/embeddings", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      input: text,
-      model: model,
-    }),
-  })
-
-  if (!response.ok) {
-    const error = await response.text()
-    throw new Error(`Failed to get embedding: ${response.status}`)
-  }
-
-  const data = await response.json()
-  return data.data[0].embedding
-}
-
+// Embedding and the Pinecone upsert run server-side (/api/pinecone/upsert) so
+// the OpenAI and Pinecone keys never reach the browser. Records go in small
+// batches because the server embeds them one at a time.
 async function upsertToPinecone(vectors: PineconeVector[], namespace: string): Promise<boolean> {
-  const pineconeHost = process.env.NEXT_PUBLIC_PINECONE_HOST
-  const pineconeApiKey = process.env.NEXT_PUBLIC_PINECONE_API_KEY
+  const batchSize = 10
 
-  if (!pineconeHost || !pineconeApiKey) {
-    throw new Error("Pinecone not configured")
-  }
+  for (let i = 0; i < vectors.length; i += batchSize) {
+    const records = vectors.slice(i, i + batchSize).map((vector) => ({
+      id: vector.id,
+      text: vector.metadata.text,
+      metadata: vector.metadata,
+    }))
 
-  const url = `${pineconeHost}/vectors/upsert`
+    const response = await fetch("/api/pinecone/upsert", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ namespace, records }),
+    })
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Api-Key": pineconeApiKey,
-    },
-    body: JSON.stringify({
-      vectors: vectors,
-      namespace: namespace,
-    }),
-  })
-
-  if (!response.ok) {
-    const error = await response.text()
-    throw new Error(`Failed to upsert to Pinecone: ${response.status}`)
+    if (!response.ok) {
+      throw new Error(`Failed to upsert to Pinecone: ${response.status}`)
+    }
   }
 
   return true
@@ -300,14 +267,12 @@ async function upsertFileToPinecone(
   for (let i = 0; i < chunks.length; i++) {
     const chunk = chunks[i]
     console.log("[v0] Getting embedding for chunk", i + 1, "of", chunks.length)
-    const embedding = await getEmbedding(chunk)
 
     const vectorId =
       chunks.length === 1 ? `file_${cleanFileName}_${timestamp}` : `file_${cleanFileName}_${timestamp}_part${i + 1}`
 
     vectors.push({
       id: vectorId,
-      values: embedding,
       metadata: {
         text: chunk,
         sender: "file",

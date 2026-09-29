@@ -1,3 +1,4 @@
+import { API_BASE } from "@/lib/apiBase"
 import { authenticatedFetch } from "@/lib/authenticatedFetch";
 import {
     StatsResponse,
@@ -6,7 +7,6 @@ import {
     AnalyticsResponse
 } from '@/types/sara-ai';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '';
 
 export const saraAiService = {
     /**

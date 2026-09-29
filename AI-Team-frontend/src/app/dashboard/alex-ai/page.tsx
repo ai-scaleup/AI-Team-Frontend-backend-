@@ -1,5 +1,6 @@
 "use client"
 
+import { API_BASE } from "@/lib/apiBase"
 import { authenticatedFetch } from "@/lib/authenticatedFetch";
 export const dynamic = "force-dynamic"
 
@@ -418,7 +419,6 @@ export default function App() {
   const syncUserToBackend = async () => {
     if (!user?.id || !userEmail) return
 
-    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ''
 
     try {
       const response = await authenticatedFetch(`${API_BASE}/users/sync`, {
@@ -491,7 +491,6 @@ export default function App() {
     if (!userEmail) return
 
     const userIdentifier = encodeURIComponent(userEmail)
-    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""
     authenticatedFetch(`${API_BASE}/token-usage/${userIdentifier}/ALEX`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
@@ -1210,7 +1209,6 @@ export default function App() {
       }
 
       const userIdentifier = userEmail ? encodeURIComponent(userEmail) : ""
-      const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""
       try {
         if (userIdentifier) {
           const [inputCount, outputCount] = await Promise.all([

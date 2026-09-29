@@ -221,49 +221,23 @@ export default function LucaAIPage() {
         console.log('🔊 speakText called with text:', text)
         setIsAISpeaking(true)
         try {
-            const { ElevenLabsClient } = await import("@elevenlabs/elevenlabs-js")
-            console.log('✅ ElevenLabsClient imported')
-
-            const apiKey = process.env.NEXT_PUBLIC_ELEVEN_LABS_API_KEY
-            console.log('🔑 API Key exists:', !!apiKey)
-
-            const client = new ElevenLabsClient({
-                apiKey: apiKey,
-            })
-            console.log('✅ Client created')
-
             // Use Matilda voice (multilingual, works well with Italian)
             const voiceId = 'XrExE9yKIg1WjnnlVkGX'
             console.log('🎤 Using voice ID:', voiceId)
 
-            // Call the stream method
-            console.log('📡 Calling ElevenLabs TTS API...')
-            const audioStream = await client.textToSpeech.stream(voiceId, {
-                text: text,
-                modelId: "eleven_turbo_v2_5", // Note: modelId not model_id
-                voiceSettings: {
-                    stability: 0.5,
-                    similarityBoost: 0.75,
-                },
+            // ElevenLabs is called server-side (/api/tts) so its key never reaches the browser
+            console.log('📡 Calling TTS API...')
+            const response = await fetch('/api/tts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, voiceId }),
             })
-            console.log('✅ Audio stream received')
-
-            // Read the stream properly
-            const reader = audioStream.getReader()
-            const chunks: Uint8Array[] = []
-
-            while (true) {
-                const { done, value } = await reader.read()
-                if (done) break
-                // Collect the audio chunks
-                if (value) chunks.push(value)
+            if (!response.ok) {
+                const errorBody = await response.json().catch(() => null)
+                throw new Error(errorBody?.error || `TTS request failed: ${response.status}`)
             }
-            console.log('✅ Collected', chunks.length, 'audio chunks')
 
-            // Combine chunks into a single blob
-            // Convert chunks to ensure proper ArrayBuffer type for Blob constructor
-            const blobParts = chunks.map(chunk => new Uint8Array(chunk.buffer.slice(0)))
-            const audioBlob = new Blob(blobParts as BlobPart[], { type: 'audio/mpeg' })
+            const audioBlob = await response.blob()
             console.log('✅ Audio blob created, size:', audioBlob.size, 'bytes')
 
             const audioUrl = URL.createObjectURL(audioBlob)

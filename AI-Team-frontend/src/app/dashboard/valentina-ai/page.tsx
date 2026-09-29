@@ -1,5 +1,6 @@
 "use client"
 
+import { API_BASE } from "@/lib/apiBase"
 import { authenticatedFetch } from "@/lib/authenticatedFetch";
 // Valentina AI chat page
 
@@ -420,7 +421,6 @@ export default function App() {
     if (!userEmail) return
 
     const userIdentifier = encodeURIComponent(userEmail)
-    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""
     authenticatedFetch(`${API_BASE}/token-usage/${userIdentifier}/VALENTINA`)
       .then((r) => r.ok ? r.json() : null)
       .then((data) => { if (data) { /* token usage UI disabled */ } })
@@ -1178,7 +1178,6 @@ export default function App() {
 
       // Count tokens and update usage
       const userIdentifier = userEmail ? encodeURIComponent(userEmail) : ""
-      const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""
       try {
         if (!userIdentifier) return
 

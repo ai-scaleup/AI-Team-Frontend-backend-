@@ -1,3 +1,4 @@
+import { API_BASE } from "@/lib/apiBase"
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import {
@@ -56,7 +57,7 @@ function pearlBaseUrl() {
 }
 
 async function hasPearlAdminAssignment(email: string, token: string | null) {
-  const aiTeamApiUrl = process.env.NEXT_PUBLIC_API_BASE?.replace(/\/$/, "");
+  const aiTeamApiUrl = API_BASE;
   if (!aiTeamApiUrl) return false;
 
   const url = new URL(`${aiTeamApiUrl}/admin/agents-by-email`);

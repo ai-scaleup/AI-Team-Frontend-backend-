@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE } from "@/lib/apiBase"
 import { authenticatedFetch } from "@/lib/authenticatedFetch";
 
 import { FormEvent, useState } from "react";
@@ -12,7 +13,6 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE;
 
 const AGENT_OPTIONS = [
   "JIM",

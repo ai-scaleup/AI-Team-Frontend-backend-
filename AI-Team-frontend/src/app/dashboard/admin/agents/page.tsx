@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE } from "@/lib/apiBase"
 import { authenticatedFetch } from "@/lib/authenticatedFetch";
 
 import { FormEvent, useEffect, useState } from "react";
@@ -9,7 +10,6 @@ import {
   X, Loader2, Pencil
 } from "lucide-react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE;
 
 const SINGLE_AGENTS = [
   "SARA_AI", "JENNIFER_AI", "CHIARA_AI", "JIM", "ALEX", "MIKE", "TONY", 

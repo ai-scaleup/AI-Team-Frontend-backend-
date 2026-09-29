@@ -1,3 +1,4 @@
+import { API_BASE } from "./apiBase";
 import { applyDevAuthHeaders, isDevAuthEnabled } from "./devToken";
 
 type ClerkTokenGetter = () => Promise<string | null>;
@@ -32,7 +33,7 @@ function requestUrl(input: RequestInfo | URL) {
 }
 
 function targetsBackendApi(input: RequestInfo | URL) {
-  const configuredBase = process.env.NEXT_PUBLIC_API_BASE?.replace(/\/+$/, "");
+  const configuredBase = API_BASE;
   if (!configuredBase) return false;
 
   const url = requestUrl(input);

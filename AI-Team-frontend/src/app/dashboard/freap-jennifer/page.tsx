@@ -1,5 +1,6 @@
 "use client"
 
+import { API_BASE } from "@/lib/apiBase"
 import { authenticatedFetch } from "@/lib/authenticatedFetch";
 
 import { Fragment, useState, useEffect, useMemo, useRef } from "react"
@@ -8,7 +9,6 @@ import {
 } from "lucide-react"
 
 // --- CONFIGURATION ---
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE
 const FREAP_JENNIFER_AVATAR = "/assets/agents/chiara-ai-Whats-App-Image-2026-02-25-at-15-34-49-1.jpg"
 const USER_AVATAR_URL = "https://www.shutterstock.com/image-vector/vector-flat-illustration-grayscale-avatar-600nw-2264922221.jpg"
 const ROME_TIME_ZONE = "Europe/Rome"

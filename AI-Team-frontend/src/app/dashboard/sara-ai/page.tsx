@@ -488,17 +488,14 @@ export default function App() {
 
     const generateQRCode = async () => {
         console.log("Generating QR Code...")
-        console.log("Token available:", !!process.env.NEXT_PUBLIC_WHAPI_TOKEN)
         setIsQrLoading(true)
         setQrCode(null)
 
         const fetchQR = async () => {
             try {
-                const response = await fetch('https://gate.whapi.cloud/users/login', {
+                // WHAPI is called server-side so its token never reaches the browser
+                const response = await fetch('/api/whapi/login-qr', {
                     method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_WHAPI_TOKEN}`
-                    }
                 })
 
                 console.log("API Response Status:", response.status)

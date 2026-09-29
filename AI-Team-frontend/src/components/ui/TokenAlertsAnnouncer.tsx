@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE } from "@/lib/apiBase"
 import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { authenticatedFetch } from "@/lib/authenticatedFetch";
@@ -14,7 +15,7 @@ export default function TokenAlertsAnnouncer() {
 
     const fetchAlerts = async () => {
       try {
-        const base = process.env.NEXT_PUBLIC_API_BASE;
+        const base = API_BASE;
         const res = await authenticatedFetch(`${base}/users/${userId}/alerts`);
         if (res.ok) {
           const data = await res.json();
@@ -34,7 +35,7 @@ export default function TokenAlertsAnnouncer() {
   const dismissAlert = async (id: string) => {
     setAlerts(prev => prev.filter(a => a.id !== id));
     try {
-      const base = process.env.NEXT_PUBLIC_API_BASE;
+      const base = API_BASE;
       await authenticatedFetch(`${base}/users/alerts/${id}/dismiss`, {
         method: "PATCH",
       });

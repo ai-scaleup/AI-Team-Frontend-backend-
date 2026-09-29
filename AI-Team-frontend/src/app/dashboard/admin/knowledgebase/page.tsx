@@ -1,5 +1,6 @@
 "use client";
 
+import { API_BASE } from "@/lib/apiBase"
 import { authenticatedFetch } from "@/lib/authenticatedFetch";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -19,7 +20,6 @@ import {
 import PineconeDocuments from "@/app/dashboard/knowledgebase/_components/PineconeDocuments";
 import { KB_AGENTS, KB_SHARED_AGENTS } from "@/app/dashboard/knowledgebase/_lib/kbData";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE;
 const ADMIN_KB_ENDPOINT = "/api/admin/knowledgebase/pinecone";
 
 type KnowledgebaseUser = {

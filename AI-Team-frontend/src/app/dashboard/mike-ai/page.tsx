@@ -1,5 +1,6 @@
 "use client"
 
+import { API_BASE } from "@/lib/apiBase"
 import { authenticatedFetch } from "@/lib/authenticatedFetch";
 
 export const dynamic = "force-dynamic"
@@ -71,7 +72,6 @@ interface FolderType {
 
 interface PineconeVector {
   id: string
-  values: number[]
   metadata: {
     text: string
     sender: string
@@ -91,60 +91,28 @@ const USER_AVATAR =
   "https://www.shutterstock.com/image-vector/vector-flat-illustration-grayscale-avatar-600nw-2264922221.jpg"
 
 // --- PINECONE HELPER FUNCTIONS ---
-async function getEmbedding(text: string): Promise<number[]> {
-  const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY
-  const model = process.env.NEXT_PUBLIC_OPENAI_MODEL || "text-embedding-ada-002"
-
-  if (!apiKey) {
-    throw new Error("OpenAI API key not configured")
-  }
-
-  const response = await authenticatedFetch("https://api.openai.com/v1/embeddings", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      input: text,
-      model: model,
-    }),
-  })
-
-  if (!response.ok) {
-    const error = await response.text()
-    throw new Error(`Failed to get embedding: ${response.status}`)
-  }
-
-  const data = await response.json()
-  return data.data[0].embedding
-}
-
+// Embedding and the Pinecone upsert run server-side (/api/pinecone/upsert) so
+// the OpenAI and Pinecone keys never reach the browser. Records go in small
+// batches because the server embeds them one at a time.
 async function upsertToPinecone(vectors: PineconeVector[], namespace: string): Promise<boolean> {
-  const pineconeHost = process.env.NEXT_PUBLIC_PINECONE_HOST
-  const pineconeApiKey = process.env.NEXT_PUBLIC_PINECONE_API_KEY
+  const batchSize = 10
 
-  if (!pineconeHost || !pineconeApiKey) {
-    throw new Error("Pinecone not configured")
-  }
+  for (let i = 0; i < vectors.length; i += batchSize) {
+    const records = vectors.slice(i, i + batchSize).map((vector) => ({
+      id: vector.id,
+      text: vector.metadata.text,
+      metadata: vector.metadata,
+    }))
 
-  const url = `${pineconeHost}/vectors/upsert`
+    const response = await fetch("/api/pinecone/upsert", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ namespace, records }),
+    })
 
-  const response = await authenticatedFetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Api-Key": pineconeApiKey,
-    },
-    body: JSON.stringify({
-      vectors: vectors,
-      namespace: namespace,
-    }),
-  })
-
-  if (!response.ok) {
-    const error = await response.text()
-    throw new Error(`Failed to upsert to Pinecone: ${response.status}`)
+    if (!response.ok) {
+      throw new Error(`Failed to upsert to Pinecone: ${response.status}`)
+    }
   }
 
   return true
@@ -184,14 +152,12 @@ async function upsertFileToPinecone(
 
   for (let i = 0; i < chunks.length; i++) {
     const chunk = chunks[i]
-    const embedding = await getEmbedding(chunk)
 
     const vectorId =
       chunks.length === 1 ? `file_${cleanFileName}_${timestamp}` : `file_${cleanFileName}_${timestamp}_part${i + 1}`
 
     vectors.push({
       id: vectorId,
-      values: embedding,
       metadata: {
         text: chunk,
         sender: "file",
@@ -219,12 +185,10 @@ async function upsertConversation(
 ): Promise<void> {
   const timestamp = Date.now()
 
-  const userEmbedding = await getEmbedding(userMessage.text)
   const userVectorId = `${chatId}_user_${timestamp}`
 
   const userVector: PineconeVector = {
     id: userVectorId,
-    values: userEmbedding,
     metadata: {
       text: userMessage.text,
       sender: "user",
@@ -235,12 +199,10 @@ async function upsertConversation(
     },
   }
 
-  const aiEmbedding = await getEmbedding(aiMessage.text)
   const aiVectorId = `${chatId}_ai_${timestamp}`
 
   const aiVector: PineconeVector = {
     id: aiVectorId,
-    values: aiEmbedding,
     metadata: {
       text: aiMessage.text,
       sender: "ai",
@@ -620,7 +582,6 @@ export default function App() {
     if (!userEmail) return
 
     const userIdentifier = encodeURIComponent(userEmail)
-    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""
     authenticatedFetch(`${API_BASE}/token-usage/${userIdentifier}/MIKE`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
@@ -659,7 +620,6 @@ export default function App() {
     const loadConversations = async () => {
       try {
         // Ensure user exists in DB (handles cases where Clerk webhook didn't fire)
-        const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ''
         const email = user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress
         if (email) {
           await authenticatedFetch(`${API_BASE}/users/sync`, {
@@ -1302,7 +1262,6 @@ export default function App() {
       }
 
       const userIdentifier = userEmail ? encodeURIComponent(userEmail) : ""
-      const API_BASE = process.env.NEXT_PUBLIC_API_BASE || ""
       try {
         if (userIdentifier) {
           const [inputCount, outputCount] = await Promise.all([

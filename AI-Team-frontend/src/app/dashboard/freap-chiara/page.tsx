@@ -1,5 +1,6 @@
 "use client"
 
+import { API_BASE } from "@/lib/apiBase"
 import { authenticatedFetch } from "@/lib/authenticatedFetch";
 
 import { Fragment, useState, useEffect, useMemo, useRef } from "react"
@@ -9,7 +10,6 @@ import {
 } from "lucide-react"
 
 // --- CONFIGURATION ---
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3000"
 const FREAP_CHIARA_AVATAR = "/assets/agents/Lara-AI-1.png"
 const USER_AVATAR_URL = "https://www.shutterstock.com/image-vector/vector-flat-illustration-grayscale-avatar-600nw-2264922221.jpg"
 

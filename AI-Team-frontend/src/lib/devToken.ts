@@ -8,20 +8,28 @@
 //   NEXT_PUBLIC_DEV_API_TOKEN=<one of the backend's DEV_API_TOKEN values>
 //   NEXT_PUBLIC_DEV_USER_EMAIL=<email the dev session should act as>
 // Leave both empty and everything falls back to the Clerk bearer token.
+// The NEXT_PUBLIC_ values are honoured only by `next dev`, never by a
+// production build, so the token cannot ship to the browser.
 // ===================================================
 
 export const DEV_TOKEN_HEADER = "x-dev-token";
 export const USER_EMAIL_HEADER = "x-user-email";
 
 /**
- * Read literally so Next.js can inline the public values into the browser
- * bundle. The non-public names are the server-side fallback (middleware and
- * route handlers), where they resolve to undefined in the browser.
+ * The public values are read only under `next dev`. A production build folds
+ * the NODE_ENV check to false and drops that branch, so the token is never
+ * inlined into the browser bundle a visitor downloads. The non-public names are
+ * the server-side fallback (middleware and route handlers), where they resolve
+ * to undefined in the browser.
  */
 const rawDevToken =
-  process.env.NEXT_PUBLIC_DEV_API_TOKEN || process.env.DEV_API_TOKEN || "";
+  (process.env.NODE_ENV === "development" ? process.env.NEXT_PUBLIC_DEV_API_TOKEN : "") ||
+  process.env.DEV_API_TOKEN ||
+  "";
 const rawDevUserEmail =
-  process.env.NEXT_PUBLIC_DEV_USER_EMAIL || process.env.DEV_USER_EMAIL || "";
+  (process.env.NODE_ENV === "development" ? process.env.NEXT_PUBLIC_DEV_USER_EMAIL : "") ||
+  process.env.DEV_USER_EMAIL ||
+  "";
 
 /** The backend accepts a comma-separated list; the frontend sends the first. */
 const devApiToken = rawDevToken.split(",")[0]?.trim() ?? "";

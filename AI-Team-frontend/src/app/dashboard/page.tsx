@@ -1,5 +1,6 @@
 "use client"
 
+import { API_BASE } from "@/lib/apiBase"
 import { authenticatedFetch } from "@/lib/authenticatedFetch";
 
 import { useState, useEffect } from "react"
@@ -13,7 +14,6 @@ import { resolveUserEmail } from "@/lib/devToken"
 
 /* ---------------------------- API base URL ---------------------------- */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE
 
 /* ------------------------------ Types ------------------------------ */
 
