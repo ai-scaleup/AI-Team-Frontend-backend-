@@ -188,18 +188,14 @@ export class ConversationService {
   }
 
   // ─────────────────────────────────────────────────────────────
-  // Helper: the per-conversation allowance a user's teams grant an agent
+  // Helper: the allowance a user's team assignment grants an agent
   // ─────────────────────────────────────────────────────────────
-  // Null when no team the user currently holds has a number set for this
-  // agent, which leaves the caller on the user-level limit.
-  //
-  // A group sitting at 0 is excluded: 0 is the column default and means "no
-  // team allowance configured", not "this agent may spend nothing". Expired and
-  // deactivated assignments are excluded the same way getSelectedAgentsByEmail
-  // reads them, so a lapsed team stops granting its allowance.
-  //
-  // When two teams the user holds both cover the agent, the larger allowance
-  // wins — holding a second team should not cost the user tokens.
+  // Reads the team tier only (AssignedTeam -> AssignedTeamAgent). The
+  // allowance is per agent: each agent in a team grant has its own row and
+  // its own tokenLimit. Null when no live team assignment of the user covers
+  // the agent, or when the ones that do carry no tokenLimit (access only),
+  // which leaves the caller on the user-level limit. When two assignments
+  // cover the agent, the larger allowance wins.
   private async resolveTeamTokenLimit(
     userId: string,
     agentId: string,
@@ -208,23 +204,25 @@ export class ConversationService {
     if (!agentName) return null;
 
     const now = new Date();
-    const groups = await this.prisma.agentGroup.findMany({
+    const rows = await this.prisma.assignedTeamAgent.findMany({
       where: {
-        singleConversationTokenLimit: { gt: 0 },
-        items: { some: { agentName } },
-        assignments: {
-          some: {
-            userId,
-            isActive: true,
-            OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-          },
+        agentName,
+        tokenLimit: { not: null },
+        grant: {
+          userId,
+          isActive: true,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+          team: { isActive: true },
         },
       },
-      select: { singleConversationTokenLimit: true },
+      select: { tokenLimit: true },
     });
 
-    if (groups.length === 0) return null;
-    return Math.max(...groups.map((g) => g.singleConversationTokenLimit));
+    const limits = rows
+      .map((r) => r.tokenLimit)
+      .filter((l): l is number => typeof l === 'number' && l > 0);
+    if (limits.length === 0) return null;
+    return Math.max(...limits);
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -251,11 +249,11 @@ export class ConversationService {
       // at the full limit, which keeps the three counters consistent from the
       // first message instead of only once something writes them.
       //
-      // A team the user holds overrides that for its own agents: the team's
-      // singleConversationTokenLimit is the allowance the assignment granted,
-      // so a chat with one of its agents opens on the team's number rather than
-      // the user's. Everything else — an agent on no team the user holds, or a
-      // team with no number set — still falls back to the user's own limit.
+      // A team assignment the user holds overrides that for the team's agents:
+      // its tokenLimit is the allowance the assignment granted, so a chat with
+      // one of its agents opens on the team's number rather than the user's.
+      // Everything else — an agent on no team the user holds, or an
+      // access-only assignment — still falls back to the user's own limit.
       //
       // Only the create branch gets these: an upsert that lands on an existing
       // conversation would otherwise wipe usage that has already accrued.

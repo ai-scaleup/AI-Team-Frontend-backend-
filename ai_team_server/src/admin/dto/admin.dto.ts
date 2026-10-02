@@ -45,7 +45,7 @@ const toBool = ({ value }: { value: any }) => {
 };
 
 /* ===========================================================
- * AssignedAgent CRUD (ID-based)
+ * SingleAssignedAgent CRUD (ID-based)
  * =========================================================== */
 
 /** ---------- Simple params ---------- */
@@ -68,8 +68,8 @@ export class FindUserDto {
   oauthId?: string;
 }
 
-/** ---------- Create / Update AssignedAgent ---------- */
-export class CreateAssignedAgentDto {
+/** ---------- Create / Update SingleAssignedAgent ---------- */
+export class CreateSingleAssignedAgentDto {
   @IsUUID()
   userId!: string;
 
@@ -95,7 +95,7 @@ export class CreateAssignedAgentDto {
   isActive?: boolean; // default true in DB
 }
 
-export class UpdateAssignedAgentDto {
+export class UpdateSingleAssignedAgentDto {
   @IsUUID()
   id!: string;
 

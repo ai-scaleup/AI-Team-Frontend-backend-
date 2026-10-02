@@ -105,9 +105,9 @@ async function main() {
         console.error('Failed to assign group to user:', e);
     }
 
-    // 4. Assign Agents Directly to User (AssignedAgent)
+    // 4. Assign Agents Directly to User (SingleAssignedAgent)
     console.log(`Assigning all agents directly to user...`);
-    const assignedAgentsData = allAgents.map((agentName) => ({
+    const singleAssignedAgentsData = allAgents.map((agentName) => ({
         userId: user.id,
         agentName,
         isActive: true,
@@ -115,11 +115,11 @@ async function main() {
     }));
 
     try {
-        const assignedAgentsCount = await prisma.assignedAgent.createMany({
-            data: assignedAgentsData,
+        const singleAssignedAgentsCount = await prisma.singleAssignedAgent.createMany({
+            data: singleAssignedAgentsData,
             skipDuplicates: true,
         });
-        console.log(`Directly assigned ${assignedAgentsCount.count} agents to user.`);
+        console.log(`Directly assigned ${singleAssignedAgentsCount.count} agents to user.`);
     } catch (e) {
         console.error('Failed to assign agents directly:', e);
     }

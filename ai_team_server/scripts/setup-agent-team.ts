@@ -99,14 +99,14 @@ async function main() {
     let skippedCount = 0;
 
     for (const agentName of ALL_PRODUCTION_AGENTS) {
-        const existingAgentAssignment = await prisma.assignedAgent.findFirst({
+        const existingAgentAssignment = await prisma.singleAssignedAgent.findFirst({
             where: { userId: user.id, agentName, isActive: true },
         });
 
         if (existingAgentAssignment) {
             skippedCount++;
         } else {
-            await prisma.assignedAgent.create({
+            await prisma.singleAssignedAgent.create({
                 data: {
                     userId: user.id,
                     agentName,

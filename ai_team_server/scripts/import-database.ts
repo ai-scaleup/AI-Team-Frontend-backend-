@@ -54,18 +54,18 @@ async function importDatabase() {
             console.log('   ✅ AgentGroups imported');
         }
 
-        // 3. AssignedAgents
+        // 3. SingleAssignedAgents
         // No nested relations in export, but good to check. 
-        // Export had: include needed for nested? No, AssignedAgent is leaf or linked to User.
-        // Export query: `prisma.assignedAgent.findMany()` -> no includes. Safe to import directly if fields match.
-        if (tables.assignedAgents && tables.assignedAgents.length > 0) {
-            console.log(`📦 Importing ${tables.assignedAgents.length} AssignedAgents...`);
+        // Export had: include needed for nested? No, SingleAssignedAgent is leaf or linked to User.
+        // Export query: `prisma.singleAssignedAgent.findMany()` -> no includes. Safe to import directly if fields match.
+        if (tables.singleAssignedAgents && tables.singleAssignedAgents.length > 0) {
+            console.log(`📦 Importing ${tables.singleAssignedAgents.length} SingleAssignedAgents...`);
             // Ensure no extra props if schema changed, but assuming matching schema
-            await prisma.assignedAgent.createMany({
-                data: tables.assignedAgents,
+            await prisma.singleAssignedAgent.createMany({
+                data: tables.singleAssignedAgents,
                 skipDuplicates: true,
             });
-            console.log('   ✅ AssignedAgents imported');
+            console.log('   ✅ SingleAssignedAgents imported');
         }
 
         // 4. AgentGroupItems

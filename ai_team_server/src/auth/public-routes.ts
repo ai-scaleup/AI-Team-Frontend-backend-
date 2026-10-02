@@ -16,6 +16,12 @@ type PublicRoute = {
 };
 
 const PUBLIC_ROUTES: PublicRoute[] = [
+  // Health check. Render polls this before routing traffic and carries no
+  // credential, so a 401 here fails every deploy. The handler returns a
+  // static string and reads nothing.
+  // GET /
+  { method: 'GET', pattern: /^\/$/ },
+
   // Clerk webhook: authenticated by its own Svix signature headers.
   // POST /webhooks/clerk
   { method: 'POST', pattern: /^\/webhooks\/clerk$/ },
@@ -31,6 +37,13 @@ const PUBLIC_ROUTES: PublicRoute[] = [
   // Writes the new counters back:
   // PATCH /conversations/{conversationId}/tokens
   { method: 'PATCH', pattern: /^\/conversations\/[^/]+\/tokens$/ },
+
+  // Charges a chat to a membership's shared pool (n8n token tracker):
+  // PATCH /admin/memberships/assignments/{assignmentId}/token-usage
+  {
+    method: 'PATCH',
+    pattern: /^\/admin\/memberships\/assignments\/[^/]+\/token-usage$/,
+  },
 ];
 
 /**
@@ -39,6 +52,10 @@ const PUBLIC_ROUTES: PublicRoute[] = [
  * development token requirement was lifted, so anyone who knows the URL can
  * read and write the leads. Restore DevTokenMiddleware on
  * ChiaraWhatsappController and VanessaController to close them again.
+ *
+ * The single-agent, team and team-assignment admin groups are NOT listed here:
+ * the test platform kept them open while they were being wired up, production
+ * requires a credential on them like on every other admin route.
  */
 const PUBLIC_PATH_PREFIXES: RegExp[] = [
   /^\/chiara-whatsapp(\/.*)?$/,

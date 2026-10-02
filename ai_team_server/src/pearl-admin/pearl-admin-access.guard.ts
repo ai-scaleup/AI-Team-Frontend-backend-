@@ -31,18 +31,33 @@ export class PearlAdminAccessGuard implements CanActivate {
     }
 
     const now = new Date();
-    const assignment = await this.prisma.assignedAgent.findFirst({
-      where: {
-        agentName: 'PEARL_ADMIN',
-        isActive: true,
-        startsAt: { lte: now },
-        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-        user: { email: { equals: email, mode: 'insensitive' } },
-      },
-      select: { id: true },
-    });
+    const userMatch = {
+      email: { equals: email, mode: 'insensitive' as const },
+    };
+    const liveWindow = {
+      isActive: true,
+      startsAt: { lte: now },
+      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+    };
 
-    if (!assignment) {
+    // Access can come from a direct grant or from a team that bundles the
+    // agent; the two are independent sources, so either one is enough.
+    const [direct, viaTeam] = await Promise.all([
+      this.prisma.singleAssignedAgent.findFirst({
+        where: { agentName: 'PEARL_ADMIN', ...liveWindow, user: userMatch },
+        select: { id: true },
+      }),
+      this.prisma.assignedTeam.findFirst({
+        where: {
+          ...liveWindow,
+          user: userMatch,
+          team: { isActive: true, agents: { some: { agentName: 'PEARL_ADMIN' } } },
+        },
+        select: { id: true },
+      }),
+    ]);
+
+    if (!direct && !viaTeam) {
       throw new ForbiddenException('Pearl Admin is not assigned to this user.');
     }
 

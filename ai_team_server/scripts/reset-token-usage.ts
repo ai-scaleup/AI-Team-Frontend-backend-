@@ -34,13 +34,9 @@ async function main() {
       },
     }),
     prisma.tokenLimitStopLog.deleteMany(),
-    prisma.assignedAgent.updateMany({
+    prisma.singleAssignedAgent.updateMany({
       data: {
-        monthlyTokenLimit: 0,
-        threshold50Notified: false,
-        threshold80Notified: false,
-        threshold90Notified: false,
-        threshold100Notified: false,
+        tokenLimit: 0,
       },
     }),
     prisma.assignedGroup.updateMany({

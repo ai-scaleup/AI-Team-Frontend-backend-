@@ -1,0 +1,343 @@
+erDiagram
+    %% ── Relations ──────────────────────────────────────────────
+    User ||--o{ SingleAssignedAgent : "agents"
+    User ||--o{ AssignedTeam : "teams"
+    User ||--o{ AssignedMembership : "memberships"
+    User ||--o{ Conversation : "conversations"
+    User ||--o{ UserAlert : "alerts"
+    User ||--o{ UserPreference : "preferences (oauthId)"
+    User ||--o{ UserAgentTokenUsage : "tokenUsage (oauthId)"
+    User ||--o{ DailyTokenUsage : "dailyUsage (oauthId)"
+    User ||--o{ TokenLimitStopLog : "stopLogs (oauthId)"
+    Conversation ||--o{ Message : "messages"
+    AgentTeam ||--o{ AgentTeamAgent : "agents"
+    AgentTeam ||--o{ AssignedTeam : "assignments"
+    AssignedTeam ||--o{ AssignedTeamAgent : "agents"
+    MembershipTemplate ||--o{ AssignedMembership : "assignments"
+    MembershipTemplate ||--o{ MembershipTemplateTeam : "includedTeams"
+    AgentTeam ||--o{ MembershipTemplateTeam : "membershipTemplates"
+    PearlWhitelabelUser ||--o{ PearlWhitelabelUserData : "userData"
+
+    %% ── Core ───────────────────────────────────────────────────
+    User {
+        string id PK "uuid"
+        string email UK
+        string oauthId UK
+        string username "nullable"
+        int tokenLimit "nullable"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    UserPreference {
+        string id PK "uuid"
+        string oauthId FK "to User.oauthId"
+        string email
+        AgentName agentName "UK with oauthId"
+        string displayName "nullable"
+        string businessName "nullable"
+        ContentLanguage contentLanguage "default ITALIANO"
+        ContentLanguage responseLanguage "default ITALIANO"
+        ToneOfVoice toneOfVoice "default PROFESSIONALE_FORMALE"
+        MarketingKnowledge marketingKnowledge "default INTERMEDIO"
+        ResponseLength responseLength "default BILANCIATA"
+        EmojiUsage emojiUsage "default MINIMO"
+        ProactivityLevel proactivityLevel "default MODERATAMENTE_PROATTIVO"
+        QuestionStyle questionStyle "default UNA_ALLA_VOLTA"
+        DecisionHelpStyle decisionHelpStyle "default ENTRAMBI"
+        LearningPreference learningPreference "default APPRENDIMENTO_CONTINUO"
+        MarketComparison marketComparison "default SOLO_RILEVANTI"
+        boolean onboardingCompleted "default false"
+        int onboardingStep "default 0"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    UserAlert {
+        string id PK "uuid"
+        string userId FK
+        string type
+        string message
+        boolean read "default false"
+        datetime createdAt
+    }
+
+    %% ── Single-agent tier ──────────────────────────────────────
+    SingleAssignedAgent {
+        string id PK "uuid"
+        string userId FK
+        AgentName agentName
+        datetime startsAt "default now"
+        datetime expiresAt "nullable"
+        int durationDays "nullable"
+        boolean isActive "default true"
+        int tokenLimit "nullable, null = access only"
+        int usedTokens "default 0"
+        int inputTokens "default 0"
+        int outputTokens "default 0"
+        int tokensLeft "nullable"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    %% ── Team tier ──────────────────────────────────────────────
+    AgentTeam {
+        string id PK "uuid"
+        string name UK
+        string description
+        boolean isActive "default true"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    AgentTeamAgent {
+        string id PK "uuid"
+        string teamId FK "UK with agentName"
+        AgentName agentName
+        datetime createdAt
+    }
+
+    AssignedTeam {
+        string id PK "uuid"
+        string userId FK
+        string teamId FK
+        datetime startsAt "default now"
+        datetime expiresAt "nullable"
+        int durationDays "nullable"
+        boolean isActive "default true"
+        int tokenLimit "nullable, PER AGENT (seeded from AgentTeam)"
+        int usedTokens "default 0, sum of agent rows"
+        int inputTokens "default 0, sum of agent rows"
+        int outputTokens "default 0, sum of agent rows"
+        int tokensLeft "nullable, sum of agent rows"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    AssignedTeamAgent {
+        string id PK "uuid"
+        string assignedTeamId FK "UK with agentName"
+        AgentName agentName
+        int tokenLimit "nullable, this agent's allowance"
+        int usedTokens "default 0"
+        int inputTokens "default 0"
+        int outputTokens "default 0"
+        int tokensLeft "nullable"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    %% ── Membership tier ────────────────────────────────────────
+    MembershipTemplate {
+        string id PK "uuid"
+        string name UK
+        int durationDays
+        int monthlyTokenLimit
+        AgentName_array includedAgents
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    MembershipTemplateTeam {
+        string id PK "uuid"
+        string membershipTemplateId FK
+        string teamId FK "AgentTeam"
+        datetime createdAt
+    }
+
+    AssignedMembership {
+        string id PK "uuid"
+        string userId FK
+        string membershipTemplateId FK
+        datetime startsAt "default now"
+        datetime expiresAt "nullable"
+        boolean isActive "default true"
+        int monthlyTokenLimit "nullable"
+        boolean threshold50Notified "default false"
+        boolean threshold80Notified "default false"
+        boolean threshold90Notified "default false"
+        boolean threshold100Notified "default false"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    %% ── Conversations ──────────────────────────────────────────
+    Conversation {
+        string id PK
+        string userId FK
+        string email "nullable"
+        string title
+        string agentId
+        string sessionId
+        string folderId "nullable"
+        int tokenLimit "nullable"
+        int tokenUsed "nullable"
+        int tokenLeft "nullable"
+        boolean archived "default false"
+        datetime lastUpdated "default now"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    Message {
+        string id PK "uuid"
+        string conversationId FK
+        string text
+        string sender
+        string time
+        datetime createdAt
+    }
+
+    %% ── Token usage & alerts ───────────────────────────────────
+    UserAgentTokenUsage {
+        string id PK "uuid"
+        string oauthId FK "to User.oauthId"
+        AgentName agentName "UK with oauthId"
+        int totalUsedInputTokens "default 0"
+        int totalUsedOutputTokens "default 0"
+        int totalUsedTokens "default 0"
+        int totalTokensLeft "default 0"
+        int totalTokenLimit "default 1000"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    DailyTokenUsage {
+        string id PK "uuid"
+        string oauthId FK "to User.oauthId"
+        AgentName agentName "UK with oauthId and date"
+        date date
+        int inputTokens "default 0"
+        int outputTokens "default 0"
+        int totalTokens "default 0"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    TokenLimitStopLog {
+        string id PK "uuid"
+        string oauthId FK "to User.oauthId"
+        AgentName agentName
+        string reason
+        int attemptedTokens "default 0"
+        datetime createdAt
+    }
+
+    TokenUsageAlertRule {
+        string id PK "uuid"
+        TokenAlertScope scope "default CONVERSATION"
+        int thresholdPercent "UK with scope"
+        TokenAlertLevel level
+        string message
+        boolean isActive "default true"
+        int sortOrder "default 0"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    TokenAlertSettings {
+        string id PK "uuid"
+        TokenAlertScope scope UK
+        int tokenLimit "default 0"
+        ApiModel apiModel "default GPT_4O_MINI"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    %% ── Pearl white-label (isolated) ───────────────────────────
+    PearlWhitelabelUser {
+        string id PK "uuid"
+        string email UK
+        string oauthId UK
+        string username "nullable"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    PearlWhitelabelUserData {
+        string id PK "uuid"
+        string userId FK
+        string campaignName
+        string outboundId
+        string bearerToken
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    %% ── Standalone chat logs & leads (no relations) ────────────
+    ChatLog {
+        int id PK "autoincrement"
+        string sessionId
+        string sender
+        string messageText
+        datetime createdAt
+    }
+
+    MetisChatLog {
+        int id PK "autoincrement"
+        string sessionId
+        string sender
+        string messageText
+        datetime createdAt
+    }
+
+    ChiaraInboundChatLog {
+        int id PK "autoincrement"
+        string sessionId
+        string sender
+        string messageText
+        datetime createdAt
+    }
+
+    FreapChiaraInboundChatLog {
+        int id PK "autoincrement"
+        string sessionId
+        string sender
+        string messageText
+        datetime createdAt
+    }
+
+    FreapJenniferChatLog {
+        int id PK "autoincrement"
+        string sessionId
+        string sender
+        string messageText
+        datetime createdAt
+    }
+
+    ChiaraLead {
+        int id PK "autoincrement"
+        string sessionId UK
+        string name
+        string email
+        string phone
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    ChiaraWhatsappLead {
+        int id PK "autoincrement"
+        string sessionId
+        string name
+        string email
+        string phone
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    %% ── Tags (no relations) ────────────────────────────────────
+    TagField {
+        string id PK "uuid"
+        string tagName UK
+        string description "nullable"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    Tag {
+        string id PK "uuid"
+        string sessionId
+        string_array tags
+        datetime createdAt
+        datetime updatedAt
+    }

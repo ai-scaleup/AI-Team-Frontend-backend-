@@ -93,8 +93,10 @@ export const createUserPreferenceSchema = z
     agentName: z.enum(agentNames, { message: 'Valid agent name is required.' }),
 
     // SECTION: IDENTITY
-    displayName: z.string().optional(),
-    businessName: z.string().optional(),
+    // Both columns are nullable in the database, and the clients send null for
+    // a field the user left blank, so null has to be accepted here too.
+    displayName: z.string().nullable().optional(),
+    businessName: z.string().nullable().optional(),
 
     // SECTION: TONGUE (Language)
     contentLanguage: z.enum(contentLanguages).optional().default('ITALIANO'),
@@ -147,8 +149,9 @@ export const createUserPreferenceSchema = z
 // Schema for updating user preferences (all fields optional except identifiers)
 export const updateUserPreferenceSchema = z.object({
   // SECTION: IDENTITY
-  displayName: z.string().optional(),
-  businessName: z.string().optional(),
+  // Nullable in the database, and a blank field arrives as null.
+  displayName: z.string().nullable().optional(),
+  businessName: z.string().nullable().optional(),
 
   // SECTION: TONGUE (Language)
   contentLanguage: z.enum(contentLanguages).optional(),

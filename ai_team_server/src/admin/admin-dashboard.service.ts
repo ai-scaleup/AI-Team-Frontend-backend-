@@ -1,10 +1,35 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { AgentName } from 'src/generated/prisma/client';
+import { AgentName, Prisma } from 'src/generated/prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
+import {
+  MembershipService,
+  membershipTemplateInclude,
+} from 'src/membership/membership.service';
+import {
+  currentMembershipCycleStart,
+  LedgerRow,
+  membershipCycleLedgerFrom,
+  membershipPoolsFromLedger,
+  withComputedPools,
+} from 'src/membership/assigned-membership.helpers';
+import {
+  QuotaUser,
+  TokenUsageService,
+} from 'src/token-usage/services/token-usage.service';
+
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+/** Midnight UTC of a day, the shape dailyTokenUsage stores its dates in. */
+const startOfUtcDay = (value: Date) =>
+  new Date(
+    Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()),
+  );
+import { SingleAssignedAgentService } from 'src/single-assigned-agent/single-assigned-agent.service';
 
 type RecentAssignment = {
   id: string;
@@ -16,7 +41,23 @@ type RecentAssignment = {
   assignedAt: Date;
 };
 
-type AssignmentType = 'agent' | 'group' | 'team' | 'membership';
+type AssignmentType = 'agent' | 'team' | 'membership';
+
+// `limit` = `agentLimit` (the agent's own allowance, measured against its own
+// cycle spend) + `poolLimit` (a membership pool shared with the membership's
+// other agents, measured against `poolUsed`). `tokensLeft` is the sum of
+// what is left of each part.
+type AgentQuotaSummary = {
+  agentName: AgentName;
+  limit: number;
+  agentLimit: number;
+  poolLimit: number;
+  poolUsed: number;
+  poolLeft: number;
+  cycleStart: Date;
+  cycleUsedTokens: number;
+  tokensLeft: number;
+};
 
 type AssignmentUpdateInput = {
   startsAt?: string | Date;
@@ -38,7 +79,31 @@ const outputKey = (agentName: string) => `${agentName}__output`;
 
 @Injectable()
 export class AdminDashboardService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(AdminDashboardService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tokenUsage: TokenUsageService,
+    private readonly singleAssignedAgents: SingleAssignedAgentService,
+    private readonly memberships: MembershipService,
+  ) {}
+
+  /**
+   * SingleAssignedAgent rows are owned by /admin/single-agent-assignments and
+   * AssignedTeam rows by /admin/team-assignments; this generic endpoint only
+   * edits membership assignments.
+   */
+  private rejectAgentType(): never {
+    throw new BadRequestException(
+      'Single agent assignments are managed via /admin/single-agent-assignments/{id}',
+    );
+  }
+
+  private rejectTeamType(): never {
+    throw new BadRequestException(
+      'Team assignments are managed via /admin/team-assignments/{id}',
+    );
+  }
 
   private parseOptionalDate(value: string | Date | null | undefined) {
     if (value === undefined) return undefined;
@@ -46,7 +111,9 @@ export class AdminDashboardService {
 
     const date = value instanceof Date ? value : new Date(value);
     if (Number.isNaN(date.getTime())) {
-      throw new BadRequestException('expiresAt and startsAt must be valid dates');
+      throw new BadRequestException(
+        'expiresAt and startsAt must be valid dates',
+      );
     }
 
     return date;
@@ -64,7 +131,9 @@ export class AdminDashboardService {
       durationDays !== undefined &&
       (!Number.isInteger(durationDays) || durationDays < 1)
     ) {
-      throw new BadRequestException('durationDays must be an integer of at least 1');
+      throw new BadRequestException(
+        'durationDays must be an integer of at least 1',
+      );
     }
 
     if (
@@ -76,10 +145,7 @@ export class AdminDashboardService {
       );
     }
 
-    if (
-      input.isActive !== undefined &&
-      typeof input.isActive !== 'boolean'
-    ) {
+    if (input.isActive !== undefined && typeof input.isActive !== 'boolean') {
       throw new BadRequestException('isActive must be a boolean');
     }
 
@@ -125,7 +191,10 @@ export class AdminDashboardService {
     return { data, monthlyTokenLimit };
   }
 
-  private getDurationDays(startsAt: Date, expiresAt: Date | null): number | null {
+  private getDurationDays(
+    startsAt: Date,
+    expiresAt: Date | null,
+  ): number | null {
     if (!expiresAt) return null;
 
     const msPerDay = 1000 * 60 * 60 * 24;
@@ -164,8 +233,15 @@ export class AdminDashboardService {
         : undefined,
       include: {
         agents: true,
-        groups: { include: { group: true } },
-        memberships: { include: { template: true } },
+        teams: {
+          include: {
+            team: { include: { agents: true } },
+            agents: { orderBy: { createdAt: 'asc' } },
+          },
+        },
+        memberships: {
+          include: { template: { include: membershipTemplateInclude } },
+        },
         dailyUsage: {
           where: { date: { gte: monthStart } },
           orderBy: { date: 'desc' },
@@ -174,94 +250,110 @@ export class AdminDashboardService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return users.map((u) => {
-      const sumUsage = (items: typeof u.dailyUsage) =>
-        items.reduce(
-          (sum, item) => ({
-            input: sum.input + item.inputTokens,
-            output: sum.output + item.outputTokens,
-            total: sum.total + item.totalTokens,
-          }),
-          { input: 0, output: 0, total: 0 },
+    return Promise.all(
+      users.map(async (u) => {
+        const sumUsage = (items: typeof u.dailyUsage) =>
+          items.reduce(
+            (sum, item) => ({
+              input: sum.input + item.inputTokens,
+              output: sum.output + item.outputTokens,
+              total: sum.total + item.totalTokens,
+            }),
+            { input: 0, output: 0, total: 0 },
+          );
+        const monthly = sumUsage(u.dailyUsage);
+        const weekly = sumUsage(
+          u.dailyUsage.filter((item) => item.date >= weekStart),
         );
-      const monthly = sumUsage(u.dailyUsage);
-      const weekly = sumUsage(u.dailyUsage.filter((item) => item.date >= weekStart));
-      const daily = sumUsage(u.dailyUsage.filter((item) => item.date >= today));
+        const daily = sumUsage(
+          u.dailyUsage.filter((item) => item.date >= today),
+        );
 
-      return {
-        id: u.id,
-        oauthId: u.oauthId,
-        email: u.email,
-        username: u.username,
-        createdAt: u.createdAt,
-        agents: u.agents,
-        groups: u.groups,
-        memberships: u.memberships,
-        usage: {
-          monthly: monthly.total,
-          monthlyInputTokens: monthly.input,
-          monthlyOutputTokens: monthly.output,
-          weekly: weekly.total,
-          weeklyInputTokens: weekly.input,
-          weeklyOutputTokens: weekly.output,
-          daily: daily.total,
-          dailyInputTokens: daily.input,
-          dailyOutputTokens: daily.output,
-        },
-      };
-    });
+        return {
+          id: u.id,
+          oauthId: u.oauthId,
+          email: u.email,
+          username: u.username,
+          createdAt: u.createdAt,
+          agents: u.agents,
+          teams: u.teams,
+          // Each pool's spend is summed from the ledger for its current cycle,
+          // exactly as the token service enforces it.
+          memberships: await withComputedPools(
+            this.prisma,
+            u.oauthId,
+            u.memberships,
+            now,
+          ),
+          usage: {
+            monthly: monthly.total,
+            monthlyInputTokens: monthly.input,
+            monthlyOutputTokens: monthly.output,
+            weekly: weekly.total,
+            weeklyInputTokens: weekly.input,
+            weeklyOutputTokens: weekly.output,
+            daily: daily.total,
+            dailyInputTokens: daily.input,
+            dailyOutputTokens: daily.output,
+          },
+        };
+      }),
+    );
   }
 
   async listRecentAssignments(limit: number = 6): Promise<RecentAssignment[]> {
     const take = Math.min(50, Math.max(1, Number.isFinite(limit) ? limit : 6));
 
-    const [memberships, groups, agents, tokenLimits] =
-      await this.prisma.$transaction([
-        this.prisma.assignedMembership.findMany({
-          take,
-          orderBy: { createdAt: 'desc' },
-          include: {
-            user: { select: { email: true } },
-            template: { select: { name: true, monthlyTokenLimit: true } },
-          },
-        }),
-        this.prisma.assignedGroup.findMany({
-          take,
-          orderBy: { createdAt: 'desc' },
-          include: {
-            user: { select: { email: true } },
-            group: { select: { name: true } },
-          },
-        }),
-        this.prisma.assignedAgent.findMany({
-          take,
-          orderBy: { createdAt: 'desc' },
-          include: { user: { select: { email: true, oauthId: true } } },
-        }),
-        this.prisma.userAgentTokenUsage.findMany({
-          take,
-          orderBy: { updatedAt: 'desc' },
-          include: { user: { select: { email: true } } },
-        }),
-      ]);
+    // Read-only fan-out, so no transaction: a batch $transaction is the wrong
+    // tool against the pooled connection. Each tier is read on its own.
+    const [memberships, teams, agents, tokenLimits] = await Promise.all([
+      this.prisma.assignedMembership.findMany({
+        take,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: { select: { email: true } },
+          template: { select: { name: true, monthlyTokenLimit: true } },
+        },
+      }),
+      this.prisma.assignedTeam.findMany({
+        take,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: { select: { email: true } },
+          team: { select: { name: true } },
+        },
+      }),
+      this.prisma.singleAssignedAgent.findMany({
+        take,
+        orderBy: { createdAt: 'desc' },
+        include: { user: { select: { email: true, oauthId: true } } },
+      }),
+      this.prisma.userAgentTokenUsage.findMany({
+        take,
+        orderBy: { updatedAt: 'desc' },
+        include: { user: { select: { email: true } } },
+      }),
+    ]);
 
     const agentRows = await Promise.all(
-      agents.map(async (assignment): Promise<RecentAssignment> => ({
-        id: `agent-${assignment.id}`,
-        user: assignment.user.email,
-        type: 'Agent',
-        package: assignment.agentName,
-        durationDays:
-          assignment.durationDays ??
-          this.getDurationDays(assignment.startsAt, assignment.expiresAt),
-        tokens:
-          assignment.monthlyTokenLimit ??
-          (await this.getAgentTokenLimit(
-            assignment.user.oauthId,
-            assignment.agentName,
-          )),
-        assignedAt: assignment.createdAt,
-      })),
+      agents.map(
+        async (assignment): Promise<RecentAssignment> => ({
+          id: `agent-${assignment.id}`,
+          user: assignment.user.email,
+          type: 'Agent',
+          package: assignment.agentName,
+          durationDays:
+            assignment.durationDays ??
+            this.getDurationDays(assignment.startsAt, assignment.expiresAt),
+          tokens:
+            assignment.tokenLimit ??
+            (await this.getAgentTokenLimit(
+              assignment.user.oauthId,
+              assignment.agentName,
+            )),
+          assignedAt: assignment.createdAt,
+        }),
+      ),
     );
 
     const rows: RecentAssignment[] = [
@@ -278,15 +370,15 @@ export class AdminDashboardService {
           assignment.monthlyTokenLimit ?? assignment.template.monthlyTokenLimit,
         assignedAt: assignment.createdAt,
       })),
-      ...groups.map((assignment) => ({
+      ...teams.map((assignment) => ({
         id: `team-${assignment.id}`,
         user: assignment.user.email,
         type: 'Team' as const,
-        package: assignment.group.name,
+        package: assignment.team.name,
         durationDays:
           assignment.durationDays ??
           this.getDurationDays(assignment.startsAt, assignment.expiresAt),
-        tokens: assignment.monthlyTokenLimit ?? 0,
+        tokens: assignment.tokenLimit ?? 0,
         assignedAt: assignment.createdAt,
       })),
       ...agentRows,
@@ -317,20 +409,22 @@ export class AdminDashboardService {
     );
     const today = new Date();
     const todayUtc = new Date(
-      Date.UTC(
-        today.getUTCFullYear(),
-        today.getUTCMonth(),
-        today.getUTCDate(),
-      ),
+      Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
     );
     const fromDate = new Date(todayUtc);
     fromDate.setUTCDate(todayUtc.getUTCDate() - safeDays + 1);
 
-    const rows = await this.prisma.dailyTokenUsage.findMany({
-      where: { date: { gte: fromDate } },
-      include: { user: { select: { email: true, username: true } } },
-      orderBy: { date: 'asc' },
-    });
+    // Ledger rows plus team / single-agent rows: the grant tiers keep their
+    // spend out of the ledger, so without these the charts would miss them.
+    const [ledgerRows, grantRows] = await Promise.all([
+      this.prisma.dailyTokenUsage.findMany({
+        where: { date: { gte: fromDate } },
+        include: { user: { select: { email: true, username: true } } },
+        orderBy: { date: 'asc' },
+      }),
+      this.findGrantDailyUsage({ date: { gte: fromDate } }),
+    ]);
+    const rows = [...ledgerRows, ...grantRows];
 
     const agentNames = Array.from(
       new Set(rows.map((row) => row.agentName)),
@@ -361,7 +455,13 @@ export class AdminDashboardService {
       AgentName,
       Map<
         string,
-        { name: string; email: string; tokens: number; inputTokens: number; outputTokens: number }
+        {
+          name: string;
+          email: string;
+          tokens: number;
+          inputTokens: number;
+          outputTokens: number;
+        }
       >
     >();
 
@@ -370,7 +470,8 @@ export class AdminDashboardService {
       const point = dailyByDate.get(key);
 
       if (point) {
-        point[row.agentName] = Number(point[row.agentName] ?? 0) + row.totalTokens;
+        point[row.agentName] =
+          Number(point[row.agentName] ?? 0) + row.totalTokens;
         point[inputKey(row.agentName)] =
           Number(point[inputKey(row.agentName)] ?? 0) + row.inputTokens;
         point[outputKey(row.agentName)] =
@@ -382,14 +483,18 @@ export class AdminDashboardService {
         topUserMap.get(row.agentName) ??
         new Map<
           string,
-          { name: string; email: string; tokens: number; inputTokens: number; outputTokens: number }
+          {
+            name: string;
+            email: string;
+            tokens: number;
+            inputTokens: number;
+            outputTokens: number;
+          }
         >();
       const existing = agentUsers.get(row.oauthId);
       agentUsers.set(row.oauthId, {
         name:
-          row.user?.username ||
-          row.user?.email?.split('@')[0] ||
-          row.oauthId,
+          row.user?.username || row.user?.email?.split('@')[0] || row.oauthId,
         email: row.user?.email ?? row.oauthId,
         tokens: (existing?.tokens ?? 0) + row.totalTokens,
         inputTokens: (existing?.inputTokens ?? 0) + row.inputTokens,
@@ -403,16 +508,14 @@ export class AdminDashboardService {
 
     dailyUsage.forEach((day, index) => {
       const weekIndex = Math.floor(index / 7);
-      const current =
-        weeklyByIndex.get(weekIndex) ?? {
-          date: `Week ${weekIndex + 1}`,
-          week: `Week ${weekIndex + 1}`,
-          total: 0,
-        };
+      const current = weeklyByIndex.get(weekIndex) ?? {
+        date: `Week ${weekIndex + 1}`,
+        week: `Week ${weekIndex + 1}`,
+        total: 0,
+      };
 
       agentNames.forEach((agent) => {
-        current[agent] =
-          Number(current[agent] ?? 0) + Number(day[agent] ?? 0);
+        current[agent] = Number(current[agent] ?? 0) + Number(day[agent] ?? 0);
         current[inputKey(agent)] =
           Number(current[inputKey(agent)] ?? 0) +
           Number(day[inputKey(agent)] ?? 0);
@@ -421,6 +524,11 @@ export class AdminDashboardService {
           Number(day[outputKey(agent)] ?? 0);
       });
       current.total = Number(current.total ?? 0) + Number(day.total ?? 0);
+      // Name the bucket by the days it covers ("Sep 1 – Sep 7"), not "Week N".
+      const firstDay = dailyUsage[weekIndex * 7].date;
+      current.date =
+        firstDay === day.date ? day.date : `${firstDay} – ${day.date}`;
+      current.week = current.date;
       weeklyByIndex.set(weekIndex, current);
     });
 
@@ -452,8 +560,15 @@ export class AdminDashboardService {
       where: { id: userId },
       include: {
         agents: true,
-        groups: { include: { group: { include: { items: true } } } },
-        memberships: { include: { template: true } },
+        teams: {
+          include: {
+            team: { include: { agents: true } },
+            agents: { orderBy: { createdAt: 'asc' } },
+          },
+        },
+        memberships: {
+          include: { template: { include: membershipTemplateInclude } },
+        },
         tokenUsage: true,
         alerts: { orderBy: { createdAt: 'desc' }, take: 10 },
         stopLogs: { orderBy: { createdAt: 'desc' }, take: 10 },
@@ -471,12 +586,170 @@ export class AdminDashboardService {
       requestedFrom <= requestedTo ? requestedFrom : requestedTo;
     const rangeEnd = requestedFrom <= requestedTo ? requestedTo : requestedFrom;
 
-    const dailyUsage = await this.prisma.dailyTokenUsage.findMany({
-      where: { oauthId: user.oauthId, date: { gte: rangeStart, lte: rangeEnd } },
+    // One ledger read serves the chart range and every cycle window below;
+    // each read of it is a full round trip to the database. A cycle (pool or
+    // agent allowance) is the 30-day one current now, so it opens no earlier
+    // than 30 days back; the membership windows are added exactly anyway.
+    const now = new Date();
+    const rangeFromDay = startOfUtcDay(rangeStart);
+    const rangeToDay = startOfUtcDay(rangeEnd);
+    const ledgerFrom = [
+      rangeFromDay,
+      startOfUtcDay(new Date(now.getTime() - 31 * MS_PER_DAY)),
+      ...user.memberships.map((row) =>
+        membershipCycleLedgerFrom(
+          currentMembershipCycleStart(row.startsAt, now),
+        ),
+      ),
+    ].reduce((earliest, day) => (day < earliest ? day : earliest));
+
+    const ledger = await this.prisma.dailyTokenUsage.findMany({
+      where: { oauthId: user.oauthId, date: { gte: ledgerFrom } },
       orderBy: { date: 'asc' },
     });
+    // The @db.Date column holds UTC midnights; Prisma compares a DateTime
+    // with it by its UTC day, and so does this filter.
+    const dailyUsage = ledger.filter(
+      (row) => row.date >= rangeFromDay && row.date <= rangeToDay,
+    );
+    // Team and single-agent spend by day, for the charts. Returned apart from
+    // dailyUsage because the agent tables read that as ledger (quota) usage.
+    const grantDailyUsage = await this.findGrantDailyUsage({
+      oauthId: user.oauthId,
+      date: { gte: rangeFromDay, lte: rangeToDay },
+    });
 
-    return { user, dailyUsage };
+    const agentQuotas = await this.buildAgentQuotas(user, ledger, ledgerFrom);
+
+    // Each pool's spend is summed from the ledger for its current cycle,
+    // exactly as the token service enforces it.
+    const pools = membershipPoolsFromLedger(user.memberships, ledger, now);
+
+    return {
+      user: {
+        ...user,
+        memberships: user.memberships.map((row) => ({
+          ...row,
+          ...pools.get(row.id)!,
+        })),
+      },
+      dailyUsage,
+      grantDailyUsage,
+      agentQuotas,
+    };
+  }
+
+  /**
+   * GrantTokenUsageDaily rows for the charts. Chart data only, so a read
+   * failure (e.g. the table not migrated yet) degrades to no grant usage
+   * instead of failing the whole page.
+   */
+  private async findGrantDailyUsage(
+    where: Prisma.GrantTokenUsageDailyWhereInput,
+  ) {
+    try {
+      return await this.prisma.grantTokenUsageDaily.findMany({
+        where,
+        include: { user: { select: { email: true, username: true } } },
+        orderBy: { date: 'asc' },
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Grant usage unavailable for charts: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return [];
+    }
+  }
+
+  /**
+   * What each of the user's agents may still spend. The stored
+   * userAgentTokenUsage counters are lifetime totals while an allowance is
+   * per 30-day cycle, so a balance has to be measured against cycle usage --
+   * the same window callClaude enforces against.
+   *
+   * `user` is the detail load (every grant, active or not) and `ledger` the
+   * user's dailyTokenUsage from `ledgerFrom` on; both are reused rather than
+   * read again.
+   */
+  private async buildAgentQuotas(
+    user: QuotaUser & {
+      tokenUsage: { agentName: AgentName; totalTokenLimit: number }[];
+    },
+    ledger: LedgerRow[],
+    ledgerFrom: Date,
+  ): Promise<AgentQuotaSummary[]> {
+    const agentNames = Array.from(
+      new Set<AgentName>([
+        ...user.tokenUsage.map((row) => row.agentName),
+        ...user.agents
+          .filter((assignment) => assignment.isActive)
+          .map((assignment) => assignment.agentName),
+      ]),
+    );
+
+    // The quota rules read only the active grants.
+    const quotas = this.tokenUsage.agentQuotasFromLoaded(
+      {
+        ...user,
+        agents: user.agents.filter((assignment) => assignment.isActive),
+        teams: user.teams.filter((assignment) => assignment.isActive),
+        memberships: user.memberships.filter(
+          (assignment) => assignment.isActive,
+        ),
+      },
+      agentNames,
+      user.tokenUsage,
+      ledger,
+    );
+    if (quotas.length === 0) return [];
+
+    const earliestCycleStart = quotas.reduce(
+      (earliest, quota) =>
+        quota.cycleStart < earliest ? quota.cycleStart : earliest,
+      quotas[0].cycleStart,
+    );
+
+    const cycleRows =
+      earliestCycleStart >= ledgerFrom
+        ? ledger
+        : await this.prisma.dailyTokenUsage.findMany({
+            where: {
+              oauthId: user.oauthId,
+              agentName: { in: agentNames },
+              date: { gte: earliestCycleStart },
+            },
+            select: { agentName: true, date: true, totalTokens: true },
+          });
+
+    return quotas.map((quota) => {
+      const cycleUsedTokens = cycleRows.reduce(
+        (sum, row) =>
+          row.agentName === quota.agentName && row.date >= quota.cycleStart
+            ? sum + row.totalTokens
+            : sum,
+        0,
+      );
+
+      // The agent's own allowance is drawn down by its own cycle spend; the
+      // shared pool by what every agent of the membership spent.
+      const agentLeft =
+        quota.agentLimit > 0
+          ? Math.max(0, quota.agentLimit - cycleUsedTokens)
+          : 0;
+      return {
+        agentName: quota.agentName,
+        limit: quota.limit,
+        agentLimit: quota.agentLimit,
+        poolLimit: quota.poolLimit,
+        poolUsed: quota.poolUsed,
+        poolLeft: quota.poolLeft,
+        cycleStart: quota.cycleStart,
+        cycleUsedTokens,
+        tokensLeft: agentLeft + quota.poolLeft,
+      };
+    });
   }
 
   async updateAssignment(
@@ -486,146 +759,34 @@ export class AdminDashboardService {
   ) {
     if (!id?.trim()) throw new BadRequestException('Assignment id is required');
 
-    const normalizedType = type === 'team' ? 'group' : type;
+    if (type === 'agent') this.rejectAgentType();
+    if (type === 'team') this.rejectTeamType();
 
-    if (normalizedType === 'agent') {
-      const existing = await this.prisma.assignedAgent.findUnique({
-        where: { id },
-        include: { user: { select: { oauthId: true } } },
-      });
-      if (!existing) throw new NotFoundException('Agent assignment not found');
-
-      const { data, monthlyTokenLimit } = this.buildTimedUpdate(
-        existing.startsAt,
-        updates,
-        true,
-      );
-
-      return this.prisma.$transaction(async (tx) => {
-        const assignment = await tx.assignedAgent.update({
-          where: { id },
-          data,
-        });
-
-        if (monthlyTokenLimit !== undefined) {
-          const usage = await tx.userAgentTokenUsage.findUnique({
-            where: {
-              oauthId_agentName: {
-                oauthId: existing.user.oauthId,
-                agentName: existing.agentName,
-              },
-            },
-            select: { totalUsedTokens: true },
-          });
-          const totalTokensLeft = Math.max(
-            0,
-            monthlyTokenLimit - (usage?.totalUsedTokens ?? 0),
-          );
-
-          await tx.userAgentTokenUsage.upsert({
-            where: {
-              oauthId_agentName: {
-                oauthId: existing.user.oauthId,
-                agentName: existing.agentName,
-              },
-            },
-            create: {
-              oauthId: existing.user.oauthId,
-              agentName: existing.agentName,
-              totalTokenLimit: monthlyTokenLimit,
-              totalTokensLeft,
-            },
-            update: {
-              totalTokenLimit: monthlyTokenLimit,
-              totalTokensLeft,
-            },
-          });
-        }
-
-        return assignment;
+    if (type === 'membership') {
+      // The membership tier owns the shared pool: a new monthlyTokenLimit has
+      // to re-price tokensLeft, and a cycle that ended has to be rolled.
+      this.validateAssignmentUpdates(updates);
+      return this.memberships.updateAssignment(id, {
+        startsAt: updates.startsAt,
+        expiresAt: updates.expiresAt,
+        durationDays: updates.durationDays,
+        monthlyTokenLimit: updates.monthlyTokenLimit,
+        isActive: updates.isActive,
       });
     }
 
-    if (normalizedType === 'group') {
-      const existing = await this.prisma.assignedGroup.findUnique({
-        where: { id },
-      });
-      if (!existing) throw new NotFoundException('Team assignment not found');
-
-      const { data } = this.buildTimedUpdate(existing.startsAt, updates, true);
-
-      return this.prisma.assignedGroup.update({
-        where: { id },
-        data,
-      });
-    }
-
-    if (normalizedType === 'membership') {
-      const existing = await this.prisma.assignedMembership.findUnique({
-        where: { id },
-      });
-      if (!existing) {
-        throw new NotFoundException('Membership assignment not found');
-      }
-
-      const { data } = this.buildTimedUpdate(existing.startsAt, updates, false);
-
-      return this.prisma.assignedMembership.update({
-        where: { id },
-        data,
-      });
-    }
-
-    throw new BadRequestException('Assignment type must be agent, group, team, or membership');
+    throw new BadRequestException(
+      'Assignment type must be agent, team, or membership',
+    );
   }
 
   async deleteAssignment(type: AssignmentType, id: string) {
     if (!id?.trim()) throw new BadRequestException('Assignment id is required');
 
-    const normalizedType = type === 'team' ? 'group' : type;
+    if (type === 'agent') this.rejectAgentType();
+    if (type === 'team') this.rejectTeamType();
 
-    if (normalizedType === 'agent') {
-      const existing = await this.prisma.assignedAgent.findUnique({
-        where: { id },
-        include: { user: { select: { oauthId: true } } },
-      });
-      if (!existing) throw new NotFoundException('Agent assignment not found');
-
-      return this.prisma.$transaction(async (tx) => {
-        await tx.assignedAgent.delete({ where: { id } });
-
-        // Quota falls back to userAgentTokenUsage when no assignment grants
-        // the agent, so a removed plan must not leave a spendable budget.
-        const stillAssigned = await tx.assignedAgent.findFirst({
-          where: { userId: existing.userId, agentName: existing.agentName },
-        });
-
-        if (!stillAssigned) {
-          await tx.userAgentTokenUsage.updateMany({
-            where: {
-              oauthId: existing.user.oauthId,
-              agentName: existing.agentName,
-            },
-            data: { totalTokenLimit: 0, totalTokensLeft: 0 },
-          });
-        }
-
-        return { deleted: true, type: 'agent', id };
-      });
-    }
-
-    if (normalizedType === 'group') {
-      const existing = await this.prisma.assignedGroup.findUnique({
-        where: { id },
-      });
-      if (!existing) throw new NotFoundException('Team assignment not found');
-
-      await this.prisma.assignedGroup.delete({ where: { id } });
-
-      return { deleted: true, type: 'group', id };
-    }
-
-    if (normalizedType === 'membership') {
+    if (type === 'membership') {
       const existing = await this.prisma.assignedMembership.findUnique({
         where: { id },
       });
@@ -638,7 +799,9 @@ export class AdminDashboardService {
       return { deleted: true, type: 'membership', id };
     }
 
-    throw new BadRequestException('Assignment type must be agent, group, team, or membership');
+    throw new BadRequestException(
+      'Assignment type must be agent, team, or membership',
+    );
   }
 
   // ======================== BULK ACTIONS ========================
@@ -648,7 +811,8 @@ export class AdminDashboardService {
       dailyUsage,
       stopLogs,
       agentAssignments,
-      groupAssignments,
+      teamAssignments,
+      teamAgentAssignments,
       membershipAssignments,
       tokenAlerts,
       membershipTemplates,
@@ -670,26 +834,23 @@ export class AdminDashboardService {
         },
       }),
       this.prisma.tokenLimitStopLog.deleteMany(),
-      this.prisma.assignedAgent.updateMany({
-        data: {
-          monthlyTokenLimit: 0,
-          threshold50Notified: false,
-          threshold80Notified: false,
-          threshold90Notified: false,
-          threshold100Notified: false,
-        },
+      this.singleAssignedAgents.resetAllTokenLimits(),
+      this.prisma.assignedTeam.updateMany({
+        data: { tokenLimit: 0, tokensLeft: 0 },
       }),
-      this.prisma.assignedGroup.updateMany({
-        data: {
-          monthlyTokenLimit: 0,
-          threshold50Notified: false,
-          threshold80Notified: false,
-          threshold90Notified: false,
-          threshold100Notified: false,
-        },
+      this.prisma.assignedTeamAgent.updateMany({
+        data: { tokenLimit: 0, tokensLeft: 0 },
       }),
+      // The shared pool goes with the allowance: no limit, nothing left,
+      // a fresh cycle from now.
       this.prisma.assignedMembership.updateMany({
         data: {
+          monthlyTokenLimit: 0,
+          cycleStartsAt: new Date(),
+          usedTokens: 0,
+          inputTokens: 0,
+          outputTokens: 0,
+          tokensLeft: 0,
           threshold50Notified: false,
           threshold80Notified: false,
           threshold90Notified: false,
@@ -710,7 +871,8 @@ export class AdminDashboardService {
       dailyUsageRowsReset: dailyUsage.count,
       stopLogsDeleted: stopLogs.count,
       agentAssignmentsReset: agentAssignments.count,
-      groupAssignmentsReset: groupAssignments.count,
+      teamAssignmentsReset: teamAssignments.count,
+      teamAgentAssignmentsReset: teamAgentAssignments.count,
       membershipAssignmentsReset: membershipAssignments.count,
       tokenAlertsDismissed: tokenAlerts.count,
       membershipTemplatesReset: membershipTemplates.count,
@@ -732,11 +894,8 @@ export class AdminDashboardService {
     }
 
     if (updates.deactivateAgents) {
-      const res = await this.prisma.assignedAgent.updateMany({
-        where: { userId: { in: userIds }, isActive: true },
-        data: { isActive: false },
-      });
-      results.agentsAffected = res.count;
+      results.agentsAffected =
+        await this.singleAssignedAgents.deactivateAllForUsers(userIds);
     }
 
     return results;

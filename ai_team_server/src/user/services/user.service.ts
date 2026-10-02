@@ -25,10 +25,10 @@ type AssignedLimitSnapshot = {
     agentName?: string;
     monthlyTokenLimit?: number | null;
   }[];
-  groups?: {
-    monthlyTokenLimit?: number | null;
-    group?: {
-      items?: { agentName?: string }[];
+  teams?: {
+    tokenLimit?: number | null;
+    team?: {
+      agents?: { agentName?: string }[];
     } | null;
   }[];
   memberships?: {
@@ -36,8 +36,11 @@ type AssignedLimitSnapshot = {
     template?: {
       monthlyTokenLimit?: number | null;
       includedAgents?: string[] | null;
-      includedGroups?: {
-        group?: { items?: { agentName?: string }[] } | null;
+      includedTeams?: {
+        team?: {
+          agents?: { agentName?: string }[] | null;
+          isActive?: boolean;
+        } | null;
       }[] | null;
     } | null;
   }[];
@@ -46,6 +49,51 @@ type AssignedLimitSnapshot = {
     totalTokenLimit?: number | null;
   }[];
 };
+
+/**
+ * What the list needs of every matched user (not only the current page) to
+ * sort and summarise: the assignment shapes read by getAssignedLimitTokens
+ * and the duration sort, plus usage and conversation-limit aggregates.
+ */
+type ListSnapshot = {
+  memberships: {
+    monthlyTokenLimit: number | null;
+    template: {
+      durationDays: number;
+      monthlyTokenLimit: number;
+      includedAgents: string[];
+      includedTeams: {
+        team: { isActive: boolean; agents: { agentName: string }[] };
+      }[];
+    };
+  }[];
+  teams: {
+    durationDays: number | null;
+    tokenLimit: number | null;
+    team: { agents: { agentName: string }[] };
+  }[];
+  agents: {
+    agentName: string;
+    durationDays: number | null;
+    tokenLimit: number | null;
+  }[];
+  tokenUsage: { agentName: string; totalTokenLimit: number }[];
+  /** Usage in the requested range; undefined when the user has none. */
+  rangeUsage?: UsageTotals;
+  /** Usage in the window the usage sort reads; undefined when none. */
+  sortUsage?: UsageTotals;
+  conversationLimits: {
+    conversations: number;
+    withLimit: number;
+    minLimit: number | null;
+    maxLimit: number | null;
+  };
+};
+
+type UsageWindow = { from: Date; to: Date };
+
+/** The UTC calendar day Prisma compares a DateTime against a @db.Date column with. */
+const utcDay = (value: Date) => value.toISOString().slice(0, 10);
 
 const sumDailyUsage = (items: DailyUsageItem[]) =>
   items.reduce(
@@ -79,9 +127,9 @@ const getAssignedLimitTokens = (user: AssignedLimitSnapshot) => {
     total += assignment.monthlyTokenLimit ?? tokenLimitByAgent.get(agentName) ?? 0;
   });
 
-  (user.groups ?? []).forEach((assignment) => {
-    total += assignment.monthlyTokenLimit ?? 0;
-    assignment.group?.items?.forEach((item) => {
+  (user.teams ?? []).forEach((assignment) => {
+    total += assignment.tokenLimit ?? 0;
+    assignment.team?.agents?.forEach((item) => {
       if (item.agentName) coveredAgentNames.add(String(item.agentName));
     });
   });
@@ -94,10 +142,9 @@ const getAssignedLimitTokens = (user: AssignedLimitSnapshot) => {
     assignment.template?.includedAgents?.forEach((agentName) => {
       coveredAgentNames.add(String(agentName));
     });
-    // Agents reached through a team the membership bundles are covered too,
-    // so their standalone token-usage limit is not added on top.
-    assignment.template?.includedGroups?.forEach((link) => {
-      link.group?.items?.forEach((item) => {
+    assignment.template?.includedTeams?.forEach((link) => {
+      if (link.team?.isActive === false) return;
+      link.team?.agents?.forEach((item) => {
         if (item.agentName) coveredAgentNames.add(String(item.agentName));
       });
     });
@@ -160,9 +207,9 @@ export class UserService {
             { email: { contains: searchTerm, mode: 'insensitive' } },
             { username: { contains: searchTerm, mode: 'insensitive' } },
             {
-              groups: {
+              teams: {
                 some: {
-                  group: {
+                  team: {
                     name: { contains: searchTerm, mode: 'insensitive' },
                   },
                 },
@@ -181,10 +228,10 @@ export class UserService {
               ? [
                   { agents: { some: { agentName: { in: matchingAgents } } } },
                   {
-                    groups: {
+                    teams: {
                       some: {
-                        group: {
-                          items: {
+                        team: {
+                          agents: {
                             some: { agentName: { in: matchingAgents } },
                           },
                         },
@@ -198,14 +245,11 @@ export class UserService {
                           OR: [
                             { includedAgents: { hasSome: matchingAgents } },
                             {
-                              includedGroups: {
+                              includedTeams: {
                                 some: {
-                                  isActive: true,
-                                  group: {
-                                    items: {
-                                      some: {
-                                        agentName: { in: matchingAgents },
-                                      },
+                                  team: {
+                                    agents: {
+                                      some: { agentName: { in: matchingAgents } },
                                     },
                                   },
                                 },
@@ -238,7 +282,7 @@ export class UserService {
       : undefined;
 
     // A user counts as having access beyond `boundary` when any assignment
-    // (membership, group, or agent) is active and not expired by then.
+    // (membership, team, or agent) is active and not expired by then.
     const now = new Date();
     const expiringBoundary = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
     const hasAccessBeyond = (boundary: Date): Prisma.UserWhereInput => {
@@ -249,7 +293,7 @@ export class UserService {
       return {
         OR: [
           { memberships: { some: live } },
-          { groups: { some: live } },
+          { teams: { some: live } },
           { agents: { some: live } },
         ],
       };
@@ -280,129 +324,73 @@ export class UserService {
 
     // Resolve the full filtered set first (ids only) so sorting and the
     // usage summary cover every matching user, not just the current page.
-    const matched = await this.prisma.user.findMany({
+    const matchedRows = await this.prisma.user.findMany({
       where,
-      select: {
-        id: true,
-        oauthId: true,
-        createdAt: true,
-        memberships: {
-          where: { isActive: true },
-          select: {
-            monthlyTokenLimit: true,
-            template: {
-              select: {
-                durationDays: true,
-                monthlyTokenLimit: true,
-                includedAgents: true,
-                includedGroups: {
-                  where: { isActive: true },
-                  select: {
-                    group: { select: { items: { select: { agentName: true } } } },
-                  },
-                },
-              },
-            },
-          },
-        },
-        groups: {
-          where: { isActive: true },
-          select: {
-            durationDays: true,
-            monthlyTokenLimit: true,
-            group: {
-              select: {
-                items: { select: { agentName: true } },
-              },
-            },
-          },
-        },
-        agents: {
-          where: { isActive: true },
-          select: {
-            agentName: true,
-            durationDays: true,
-            monthlyTokenLimit: true,
-          },
-        },
-        tokenUsage: {
-          select: {
-            agentName: true,
-            totalTokenLimit: true,
-          },
-        },
-      },
+      select: { id: true, createdAt: true },
       orderBy: { createdAt: 'desc' },
     });
 
-    const total = matched.length;
+    const total = matchedRows.length;
     const totalPages = Math.ceil(total / limit);
     // Clamp so a stale page (e.g. after filters shrink the set) still
     // returns the last page instead of an empty one.
     const page = Math.min(requestedPage, Math.max(totalPages, 1));
     const skip = (page - 1) * limit;
 
-    const oauthIds = matched.map((user) => user.oauthId);
-    const sumUsageByOauthId = async (from: Date, to: Date) => {
-      if (oauthIds.length === 0 || from > to) {
-        return new Map<string, UsageTotals>();
-      }
-      const rows = await this.prisma.dailyTokenUsage.groupBy({
-        by: ['oauthId'],
-        where: { oauthId: { in: oauthIds }, date: { gte: from, lte: to } },
-        _sum: { inputTokens: true, outputTokens: true, totalTokens: true },
-      });
-      return new Map(
-        rows.map((row) => {
-          const inputTokens = row._sum.inputTokens ?? 0;
-          const outputTokens = row._sum.outputTokens ?? 0;
-          const totalTokens =
-            row._sum.totalTokens || inputTokens + outputTokens;
-          return [
-            row.oauthId,
-            { inputTokens, outputTokens, totalTokens },
-          ] as const;
-        }),
-      );
-    };
-
     const todayUtc = new Date(now.toISOString().split('T')[0] + 'T00:00:00Z');
     const weekStart = new Date(todayUtc);
     weekStart.setUTCDate(todayUtc.getUTCDate() - 6);
     const laterDate = (a: Date, b: Date) => (a >= b ? a : b);
-
-    const monthlyTotals = await sumUsageByOauthId(rangeStart, rangeEnd);
-    const usageSortTotals =
+    const sortFrom =
       sortBy === 'monthly'
-        ? monthlyTotals
+        ? rangeStart
         : sortBy === 'weekly'
-          ? await sumUsageByOauthId(laterDate(rangeStart, weekStart), rangeEnd)
+          ? laterDate(rangeStart, weekStart)
           : sortBy === 'daily'
-            ? await sumUsageByOauthId(laterDate(rangeStart, todayUtc), rangeEnd)
+            ? laterDate(rangeStart, todayUtc)
             : undefined;
 
-    type MatchedUser = (typeof matched)[number] & {
-      memberships?: { template: { durationDays: number } | null }[];
-      groups?: { durationDays: number | null }[];
-      agents?: { durationDays: number | null }[];
-    };
-    const durationOf = (user: MatchedUser) =>
-      user.memberships?.[0]?.template?.durationDays ??
-      user.groups?.[0]?.durationDays ??
-      user.agents?.[0]?.durationDays ??
+    const snapshots = await this.loadListSnapshots(
+      matchedRows.map((user) => user.id),
+      { from: rangeStart, to: rangeEnd },
+      sortFrom && { from: sortFrom, to: rangeEnd },
+    );
+    const matched = matchedRows.map((user) => ({
+      ...user,
+      ...snapshots.get(user.id)!,
+    }));
+
+    const monthlyTotals = new Map(
+      matched.flatMap((user) =>
+        user.rangeUsage ? [[user.id, user.rangeUsage] as const] : [],
+      ),
+    );
+    const usageSortTotals =
+      sortBy === 'monthly' || sortBy === 'weekly' || sortBy === 'daily'
+        ? new Map(
+            matched.flatMap((user) =>
+              user.sortUsage ? [[user.id, user.sortUsage] as const] : [],
+            ),
+          )
+        : undefined;
+
+    const durationOf = (user: ListSnapshot) =>
+      user.memberships[0]?.template?.durationDays ??
+      user.teams[0]?.durationDays ??
+      user.agents[0]?.durationDays ??
       0;
 
     const direction = sortDir === 'asc' ? 1 : -1;
     const sorted = [...matched].sort((a, b) => {
       const aValue = usageSortTotals
-        ? (usageSortTotals.get(a.oauthId)?.totalTokens ?? 0)
+        ? (usageSortTotals.get(a.id)?.totalTokens ?? 0)
         : sortBy === 'duration'
-          ? durationOf(a as MatchedUser)
+          ? durationOf(a)
           : a.createdAt.getTime();
       const bValue = usageSortTotals
-        ? (usageSortTotals.get(b.oauthId)?.totalTokens ?? 0)
+        ? (usageSortTotals.get(b.id)?.totalTokens ?? 0)
         : sortBy === 'duration'
-          ? durationOf(b as MatchedUser)
+          ? durationOf(b)
           : b.createdAt.getTime();
       if (aValue !== bValue) return (aValue - bValue) * direction;
       return b.createdAt.getTime() - a.createdAt.getTime();
@@ -413,9 +401,9 @@ export class UserService {
       where: { id: { in: pageIds } },
       include: {
         agents: true,
-        groups: {
+        teams: {
           where: { isActive: true },
-          include: { group: { include: { items: true } } },
+          include: { team: { include: { agents: true } } },
         },
         memberships: { include: { template: true } },
         tokenUsage: true,
@@ -434,19 +422,6 @@ export class UserService {
     const users = pageIds
       .map((id) => usersById.get(id))
       .filter((user): user is (typeof pageUsers)[number] => Boolean(user));
-
-    // Conversation token limits are assigned in bulk per user, so the list only
-    // needs one aggregate per row rather than the conversations themselves:
-    // the shared limit when every conversation carries the same one, plus the
-    // counts needed to tell "none set" apart from "set on some of them".
-    const limitRows = await this.prisma.conversation.groupBy({
-      by: ['userId'],
-      where: { userId: { in: pageIds } },
-      _min: { tokenLimit: true },
-      _max: { tokenLimit: true },
-      _count: { _all: true, tokenLimit: true },
-    });
-    const limitsByUserId = new Map(limitRows.map((row) => [row.userId, row]));
 
     let summaryMonthlyTokens = 0;
     let summaryMonthlyInputTokens = 0;
@@ -475,19 +450,17 @@ export class UserService {
           user.dailyUsage.filter((item) => item.date >= today),
         );
 
-        const limits = limitsByUserId.get(user.id);
-        const conversations = limits?._count._all ?? 0;
-        const withLimit = limits?._count.tokenLimit ?? 0;
+        const limits = snapshots.get(user.id)?.conversationLimits;
+        const conversations = limits?.conversations ?? 0;
+        const withLimit = limits?.withLimit ?? 0;
         // A single reportable limit only exists when every conversation carries
         // it; anything else is reported as mixed so the caller does not show a
         // limit that only part of the chats actually has.
         const isUniform =
           conversations > 0 &&
           withLimit === conversations &&
-          limits?._min.tokenLimit === limits?._max.tokenLimit;
-        const uniformLimit = isUniform
-          ? (limits?._min.tokenLimit ?? null)
-          : null;
+          limits?.minLimit === limits?.maxLimit;
+        const uniformLimit = isUniform ? (limits?.minLimit ?? null) : null;
 
         return {
           ...user,
@@ -531,6 +504,163 @@ export class UserService {
         },
       },
     };
+  }
+
+  /**
+   * The list's per-user sort and summary inputs for every matched user in ONE
+   * round trip. Loading the same nesting through Prisma relations costs a
+   * query per relation level, each a full round trip to the database.
+   *
+   * `sort` is a sub-window of `range` that ends with it (the weekly or daily
+   * usage sort); pass undefined when the sort does not read usage. Day
+   * boundaries match Prisma's: a DateTime compared with the @db.Date column
+   * is cut to its UTC day.
+   */
+  private async loadListSnapshots(
+    userIds: string[],
+    range: UsageWindow,
+    sort: UsageWindow | undefined,
+  ): Promise<Map<string, ListSnapshot>> {
+    if (userIds.length === 0) return new Map();
+
+    const rangeFrom = utcDay(range.from);
+    const rangeTo = utcDay(range.to);
+    // An empty window (e.g. a weekly sort over last month) sums to nothing.
+    const sortFrom = sort && sort.from <= sort.to ? utcDay(sort.from) : null;
+
+    const rows = await this.prisma.$queryRaw<
+      (Omit<ListSnapshot, 'rangeUsage' | 'sortUsage' | 'conversationLimits'> & {
+        id: string;
+        rangeRows: number;
+        rangeInput: number;
+        rangeOutput: number;
+        rangeTotal: number;
+        sortRows: number;
+        sortInput: number;
+        sortOutput: number;
+        sortTotal: number;
+        conversations: number;
+        withLimit: number;
+        minLimit: number | null;
+        maxLimit: number | null;
+      })[]
+    >`
+      SELECT
+        u."id",
+        COALESCE((
+          SELECT json_agg(json_build_object(
+            'monthlyTokenLimit', am."monthlyTokenLimit",
+            'template', json_build_object(
+              'durationDays', mt."durationDays",
+              'monthlyTokenLimit', mt."monthlyTokenLimit",
+              'includedAgents', mt."includedAgents",
+              'includedTeams', COALESCE((
+                SELECT json_agg(json_build_object('team', json_build_object(
+                  'isActive', t."isActive",
+                  'agents', COALESCE((
+                    SELECT json_agg(json_build_object('agentName', ta."agentName"))
+                    FROM "AgentTeamAgent" ta WHERE ta."teamId" = t."id"
+                  ), '[]'::json)
+                )))
+                FROM "MembershipTemplateTeam" mtt
+                JOIN "AgentTeam" t ON t."id" = mtt."teamId"
+                WHERE mtt."membershipTemplateId" = mt."id"
+              ), '[]'::json)
+            )
+          ))
+          FROM "AssignedMembership" am
+          JOIN "MembershipTemplate" mt ON mt."id" = am."membershipTemplateId"
+          WHERE am."userId" = u."id" AND am."isActive"
+        ), '[]'::json) AS "memberships",
+        COALESCE((
+          SELECT json_agg(json_build_object(
+            'durationDays', at."durationDays",
+            'tokenLimit', at."tokenLimit",
+            'team', json_build_object('agents', COALESCE((
+              SELECT json_agg(json_build_object('agentName', ta."agentName"))
+              FROM "AgentTeamAgent" ta WHERE ta."teamId" = at."teamId"
+            ), '[]'::json))
+          ))
+          FROM "AssignedTeam" at
+          WHERE at."userId" = u."id" AND at."isActive"
+        ), '[]'::json) AS "teams",
+        COALESCE((
+          SELECT json_agg(json_build_object(
+            'agentName', sa."agentName",
+            'durationDays', sa."durationDays",
+            'tokenLimit', sa."tokenLimit"
+          ))
+          FROM "SingleAssignedAgent" sa
+          WHERE sa."userId" = u."id" AND sa."isActive"
+        ), '[]'::json) AS "agents",
+        COALESCE((
+          SELECT json_agg(json_build_object(
+            'agentName', tu."agentName",
+            'totalTokenLimit', tu."totalTokenLimit"
+          ))
+          FROM "UserAgentTokenUsage" tu
+          WHERE tu."oauthId" = u."oauthId"
+        ), '[]'::json) AS "tokenUsage",
+        usage."rangeRows", usage."rangeInput", usage."rangeOutput", usage."rangeTotal",
+        usage."sortRows", usage."sortInput", usage."sortOutput", usage."sortTotal",
+        conv."conversations", conv."withLimit", conv."minLimit", conv."maxLimit"
+      FROM "User" u
+      LEFT JOIN LATERAL (
+        SELECT
+          COUNT(*)::int AS "rangeRows",
+          COALESCE(SUM(d."inputTokens"), 0)::float8 AS "rangeInput",
+          COALESCE(SUM(d."outputTokens"), 0)::float8 AS "rangeOutput",
+          COALESCE(SUM(d."totalTokens"), 0)::float8 AS "rangeTotal",
+          COUNT(*) FILTER (WHERE d."date" >= ${sortFrom}::date)::int AS "sortRows",
+          COALESCE(SUM(d."inputTokens") FILTER (WHERE d."date" >= ${sortFrom}::date), 0)::float8 AS "sortInput",
+          COALESCE(SUM(d."outputTokens") FILTER (WHERE d."date" >= ${sortFrom}::date), 0)::float8 AS "sortOutput",
+          COALESCE(SUM(d."totalTokens") FILTER (WHERE d."date" >= ${sortFrom}::date), 0)::float8 AS "sortTotal"
+        FROM "DailyTokenUsage" d
+        WHERE d."oauthId" = u."oauthId"
+          AND d."date" >= ${rangeFrom}::date
+          AND d."date" <= ${rangeTo}::date
+      ) usage ON true
+      LEFT JOIN LATERAL (
+        SELECT
+          COUNT(*)::int AS "conversations",
+          COUNT(c."tokenLimit")::int AS "withLimit",
+          MIN(c."tokenLimit") AS "minLimit",
+          MAX(c."tokenLimit") AS "maxLimit"
+        FROM "Conversation" c
+        WHERE c."userId" = u."id"
+      ) conv ON true
+      WHERE u."id" = ANY(${userIds}::text[])
+    `;
+
+    // Same shape the per-user groupBy produced: absent when nothing was
+    // recorded, and a zero total falls back to input + output.
+    const totals = (rowCount: number, input: number, output: number, all: number) =>
+      rowCount > 0
+        ? { inputTokens: input, outputTokens: output, totalTokens: all || input + output }
+        : undefined;
+
+    return new Map(
+      rows.map((row) => [
+        row.id,
+        {
+          memberships: row.memberships,
+          teams: row.teams,
+          agents: row.agents,
+          tokenUsage: row.tokenUsage,
+          rangeUsage: totals(row.rangeRows, row.rangeInput, row.rangeOutput, row.rangeTotal),
+          sortUsage:
+            sortFrom === null
+              ? undefined
+              : totals(row.sortRows, row.sortInput, row.sortOutput, row.sortTotal),
+          conversationLimits: {
+            conversations: row.conversations,
+            withLimit: row.withLimit,
+            minLimit: row.minLimit,
+            maxLimit: row.maxLimit,
+          },
+        },
+      ]),
+    );
   }
 
   // Get a single user by ID

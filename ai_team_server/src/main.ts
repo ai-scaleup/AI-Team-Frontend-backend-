@@ -9,15 +9,24 @@ import { setupSwagger } from './swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
+
+  const configuredOrigins = (process.env.CORS_ORIGINS ?? '')
+    .split(',')
+    .map((origin) => origin.trim().replace(/\/$/, ''))
+    .filter(Boolean);
+
   app.enableCors({
-    // Accept every requesting origin, including credentialed browser requests.
-    origin: true,
+    // CORS_ORIGINS accepts a comma-separated list of frontend URLs. An empty
+    // value keeps the test deployment open to browser clients on any origin.
+    origin: configuredOrigins.length > 0 ? configuredOrigins : true,
     credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
   });
 
   setupSwagger(app);
+  app.enableShutdownHooks();
 
-  await app.listen(process.env.PORT ?? 3000);
+  const port = Number(process.env.PORT) || 8000;
+  await app.listen(port, '0.0.0.0');
 }
 bootstrap();

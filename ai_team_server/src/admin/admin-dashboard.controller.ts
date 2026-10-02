@@ -78,7 +78,6 @@ export class AdminDashboardController {
         durationDays: 30,
         monthlyTokenLimit: 100000,
         includedAgents: ['JIM'],
-        includedGroupIds: ['1f0a6d4c-1c3e-4d1a-9b52-1a2b3c4d5e6f'],
       },
     },
   })
@@ -162,7 +161,7 @@ export class AdminDashboardController {
   @ApiOperation({ summary: 'Update an existing user assignment' })
   @ApiParam({
     name: 'type',
-    enum: ['agent', 'group', 'team', 'membership'],
+    enum: ['agent', 'team', 'membership'],
   })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiBody({
@@ -179,7 +178,7 @@ export class AdminDashboardController {
   })
   @ApiOkResponse({ description: 'Assignment updated' })
   updateAssignment(
-    @Param('type') type: 'agent' | 'group' | 'team' | 'membership',
+    @Param('type') type: 'agent' | 'team' | 'membership',
     @Param('id') id: string,
     @Body()
     body: {
@@ -197,12 +196,12 @@ export class AdminDashboardController {
   @ApiOperation({ summary: 'Delete an existing user assignment' })
   @ApiParam({
     name: 'type',
-    enum: ['agent', 'group', 'team', 'membership'],
+    enum: ['agent', 'team', 'membership'],
   })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOkResponse({ description: 'Assignment deleted' })
   deleteAssignment(
-    @Param('type') type: 'agent' | 'group' | 'team' | 'membership',
+    @Param('type') type: 'agent' | 'team' | 'membership',
     @Param('id') id: string,
   ) {
     return this.dashboardService.deleteAssignment(type, id);

@@ -85,11 +85,11 @@ async function main() {
     // 5. Assign every agent individually to the user (skip duplicates)
     let addedAgents = 0;
     for (const agentName of ALL_AGENTS) {
-        const existing = await prisma.assignedAgent.findFirst({
+        const existing = await prisma.singleAssignedAgent.findFirst({
             where: { userId: user.id, agentName, isActive: true },
         });
         if (!existing) {
-            await prisma.assignedAgent.create({
+            await prisma.singleAssignedAgent.create({
                 data: {
                     userId: user.id,
                     agentName,

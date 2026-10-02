@@ -18,6 +18,11 @@ lerna-debug.log*
 # Tests
 /coverage
 /.nyc_output
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
 
 # IDEs and editors
 /.idea
@@ -36,11 +41,8 @@ lerna-debug.log*
 !.vscode/extensions.json
 
 # dotenv environment variable files
-.env
-.env.development.local
-.env.test.local
-.env.production.local
-.env.local
+.env*
+!.env.example
 
 # Database / user dumps — contain production PII, never commit
 database-export.json
@@ -53,6 +55,14 @@ clerk-users-export.json
 # temp directory
 .temp
 .tmp
+/tmp/
+
+# Local database maintenance scripts containing environment-specific credentials
+/scripts/check-user.ts
+/scripts/delete-user-conversations-supabase.ts
+/scripts/explore-db.js
+/scripts/update-oauth-ids.ts
+/scripts/verify-oauth-sync.ts
 
 # Runtime data
 pids
@@ -64,3 +74,4 @@ pids
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 /generated/prisma
+/src/generated/prisma/

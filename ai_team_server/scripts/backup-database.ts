@@ -37,7 +37,7 @@ const RESTORE_ORDER = [
   'UserPreference',
   'AgentGroup',
   'AgentGroupItem',
-  'AssignedAgent',
+  'SingleAssignedAgent',
   'AssignedGroup',
   'MembershipTemplate',
   'AssignedMembership',

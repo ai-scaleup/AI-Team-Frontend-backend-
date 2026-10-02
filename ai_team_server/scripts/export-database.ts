@@ -24,9 +24,9 @@ async function exportDatabase() {
         });
         console.log(`   Found ${users.length} users`);
 
-        console.log('📦 Fetching AssignedAgents...');
-        const assignedAgents = await prisma.assignedAgent.findMany();
-        console.log(`   Found ${assignedAgents.length} assigned agents`);
+        console.log('📦 Fetching SingleAssignedAgents...');
+        const singleAssignedAgents = await prisma.singleAssignedAgent.findMany();
+        console.log(`   Found ${singleAssignedAgents.length} assigned agents`);
 
         console.log('📦 Fetching AgentGroups...');
         const agentGroups = await prisma.agentGroup.findMany({
@@ -62,7 +62,7 @@ async function exportDatabase() {
             exportedAt: new Date().toISOString(),
             metadata: {
                 totalUsers: users.length,
-                totalAssignedAgents: assignedAgents.length,
+                totalSingleAssignedAgents: singleAssignedAgents.length,
                 totalAgentGroups: agentGroups.length,
                 totalAgentGroupItems: agentGroupItems.length,
                 totalAssignedGroups: assignedGroups.length,
@@ -71,7 +71,7 @@ async function exportDatabase() {
             },
             tables: {
                 users,
-                assignedAgents,
+                singleAssignedAgents,
                 agentGroups,
                 agentGroupItems,
                 assignedGroups,
@@ -88,7 +88,7 @@ async function exportDatabase() {
         console.log(`📁 Data saved to: ${outputPath}`);
         console.log('\n📊 Summary:');
         console.log(`   - Users: ${users.length}`);
-        console.log(`   - Assigned Agents: ${assignedAgents.length}`);
+        console.log(`   - Assigned Agents: ${singleAssignedAgents.length}`);
         console.log(`   - Agent Groups: ${agentGroups.length}`);
         console.log(`   - Agent Group Items: ${agentGroupItems.length}`);
         console.log(`   - Assigned Groups: ${assignedGroups.length}`);

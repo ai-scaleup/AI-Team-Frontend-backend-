@@ -95,10 +95,10 @@ const BoolFromQuery = z.preprocess((v) => {
 }, z.boolean());
 
 /* ===========================================================
- * AssignedAgent CRUD (ID-based, for internal/admin backoffice)
+ * SingleAssignedAgent CRUD (ID-based, for internal/admin backoffice)
  * =========================================================== */
 
-export const CreateAssignedAgentSchema = z.object({
+export const CreateSingleAssignedAgentSchema = z.object({
   userId: UUID,
   agentName: AgentNameEnum,
   startsAt: CoercedDate.optional(), // DB defaults now()
@@ -107,7 +107,7 @@ export const CreateAssignedAgentSchema = z.object({
   isActive: Bool.optional(), // DB defaults true
 });
 
-export const UpdateAssignedAgentSchema = z.object({
+export const UpdateSingleAssignedAgentSchema = z.object({
   id: UUID,
   startsAt: CoercedDate.optional(),
   expiresAt: CoercedDateOrNull.optional(), // allow clearing with null
@@ -310,8 +310,8 @@ export const CreateGroupWithAgentsAndAssignByEmailSchema = z.object({
 /* ===========================================================
  * Types
  * =========================================================== */
-export type CreateAssignedAgentDto = z.infer<typeof CreateAssignedAgentSchema>;
-export type UpdateAssignedAgentDto = z.infer<typeof UpdateAssignedAgentSchema>;
+export type CreateSingleAssignedAgentDto = z.infer<typeof CreateSingleAssignedAgentSchema>;
+export type UpdateSingleAssignedAgentDto = z.infer<typeof UpdateSingleAssignedAgentSchema>;
 export type ToggleAssignmentActiveDto = z.infer<
   typeof ToggleAssignmentActiveSchema
 >;

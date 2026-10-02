@@ -52,6 +52,7 @@ enum AgentName {
   TEST_SARA_AI
   TEST_JENNIFER_AI
   TEST_CHIARA_AI
+  LUCA
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -165,9 +166,9 @@ model User {
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt
   // Per-agent assignments with timing & expiry
-  agents        AssignedAgent[]
-  // Per-group assignments with timing & expiry
-  groups        AssignedGroup[]
+  agents        SingleAssignedAgent[]
+  // Team-level assignments (AgentTeam), independent of the tiers above/below
+  teams         AssignedTeam[]
   // User conversations
   conversations Conversation[]
   // User preferences (one-to-many: per agent)
@@ -178,6 +179,8 @@ model User {
   memberships   AssignedMembership[]
   // Daily Usage Tracking
   dailyUsage    DailyTokenUsage[]
+  // Daily team / single-agent spend, for charts only
+  grantDailyUsage GrantTokenUsageDaily[]
   // Token Quota Stops
   stopLogs      TokenLimitStopLog[]
   // UI Alerts
@@ -253,7 +256,7 @@ model UserPreference {
   @@index([agentName])
 }
 
-model AssignedAgent {
+model SingleAssignedAgent {
   id           String    @id @default(uuid())
   userId       String
   agentName    AgentName
@@ -262,78 +265,129 @@ model AssignedAgent {
   durationDays Int?
   isActive     Boolean   @default(true)
 
-  // Tokens Limits
-  monthlyTokenLimit Int? 
-  
-  threshold50Notified  Boolean            @default(false)
-  threshold80Notified  Boolean            @default(false)
-  threshold90Notified  Boolean            @default(false)
-  threshold100Notified Boolean            @default(false)
+  // Token allowance carried by this direct grant. Null means the grant confers
+  // access only.
+  // Only the direct assign path ever writes this.
+  tokenLimit Int?
 
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Running totals for this grant, so the agent tier can be read without
+  // joining UserAgentTokenUsage. DailyTokenUsage stays the source of truth
+  // for cycle maths -- these are a rollup, not the ledger.
+  usedTokens   Int  @default(0)
+  inputTokens  Int  @default(0)
+  outputTokens Int  @default(0)
+  tokensLeft   Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Allowed multiples just in case, or we keep unique
   @@index([userId, isActive])
   @@index([expiresAt])
 }
 
-model AgentGroup {
-  id          String           @id @default(uuid())
-  name        String           @unique
-  description String?
-  isActive    Boolean          @default(true)
+// ─────────────────────────────────────────────────────────────
+// Agent Teams (team-level assignment tier)
+//
+// A separate tier from SingleAssignedAgent and from the membership tables.
+// Nothing here reads or writes those tables. Memberships may bundle a team
+// (MembershipTemplateTeam) but only read it — they never write this tier.
+// ─────────────────────────────────────────────────────────────
+model AgentTeam {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String
+  isActive    Boolean @default(true)
 
-  // Token allowance for a single conversation with any agent in this group.
-  singleConversationTokenLimit Int @default(0)
+  // Default PER-AGENT token allowance for the team. When the team is
+  // assigned to a user, every agent in the team gets this much on its own
+  // AssignedTeamAgent row (the AssignedTeam grant records it as its
+  // per-agent tokenLimit); null = access only. Only the team CRUD path
+  // writes this.
+  tokenLimit Int?
 
-  items       AgentGroupItem[]
-  assignments AssignedGroup[]
-  // Membership templates that bundle this team
-  membershipLinks MembershipTemplateGroup[]
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  agents              AgentTeamAgent[]
+  assignments         AssignedTeam[]
+  // Memberships that bundle this team (read-only from the membership side).
+  membershipTemplates MembershipTemplateTeam[]
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
 
   @@index([isActive])
 }
 
-model AgentGroupItem {
-  id        String     @id @default(uuid())
-  groupId   String
+model AgentTeamAgent {
+  id        String    @id @default(uuid())
+  teamId    String
   agentName AgentName
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  group     AgentGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  team      AgentTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
-  @@unique([groupId, agentName], map: "uniq_agent_per_group")
-  @@index([groupId])
+  @@unique([teamId, agentName], map: "uniq_agent_per_team")
+  @@index([teamId])
 }
 
-model AssignedGroup {
-  id           String     @id @default(uuid())
+model AssignedTeam {
+  id           String    @id @default(uuid())
   userId       String
-  groupId      String
-  startsAt     DateTime   @default(now())
+  teamId       String
+  startsAt     DateTime  @default(now())
   expiresAt    DateTime?
   durationDays Int?
-  isActive     Boolean    @default(true)
+  isActive     Boolean   @default(true)
 
-  monthlyTokenLimit Int? 
-  
-  threshold50Notified  Boolean            @default(false)
-  threshold80Notified  Boolean            @default(false)
-  threshold90Notified  Boolean            @default(false)
-  threshold100Notified Boolean            @default(false)
+  // PER-AGENT allowance: every agent in the team gets this many tokens on
+  // its own AssignedTeamAgent row -- it is not a pool shared by the team.
+  // Seeded from AgentTeam.tokenLimit at assignment time unless the admin
+  // overrides it. Null = access only.
+  tokenLimit Int?
 
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  group        AgentGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  // Rollup of spend across the team's agents for this grant: the sums of
+  // the AssignedTeamAgent rows below. tokensLeft is the sum of what each
+  // agent still has, so it can reach tokenLimit * agentCount.
+  usedTokens   Int  @default(0)
+  inputTokens  Int  @default(0)
+  outputTokens Int  @default(0)
+  tokensLeft   Int?
+
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team      AgentTeam           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  // One row per agent in the team, kept in step with AgentTeamAgent when
+  // the roster changes.
+  agents    AssignedTeamAgent[]
 
   @@index([userId, isActive])
-  @@index([groupId])
+  @@index([teamId])
   @@index([expiresAt])
+}
+
+// Per-agent slice of a team grant. This is where the team tier's allowance
+// actually lives: each agent in the team draws on its own tokenLimit and the
+// parent AssignedTeam only carries the sums. Limits are written by the team
+// assignment path; usage by the token ledger (TokenUsageService).
+model AssignedTeamAgent {
+  id             String    @id @default(uuid())
+  assignedTeamId String
+  agentName      AgentName
+
+  // Allowance for this one agent under this grant. Null = access only.
+  tokenLimit Int?
+
+  usedTokens   Int  @default(0)
+  inputTokens  Int  @default(0)
+  outputTokens Int  @default(0)
+  tokensLeft   Int?
+
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  grant     AssignedTeam @relation(fields: [assignedTeamId], references: [id], onDelete: Cascade)
+
+  @@unique([assignedTeamId, agentName], map: "uniq_agent_per_assigned_team")
+  @@index([assignedTeamId])
+  @@index([agentName])
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -456,7 +510,7 @@ model ChiaraWhatsappLead {
   email     String   @db.VarChar(255)
   phone     String   @db.VarChar(50)
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@index([sessionId])
   @@index([email])
@@ -519,17 +573,17 @@ model Tag {
 // Token Usage Tracking (per User per Agent)
 // ─────────────────────────────────────────────────────────────
 model UserAgentTokenUsage {
-  id           String    @id @default(uuid())
-  oauthId      String
-  agentName    AgentName
-  totalUsedInputTokens  Int @default(0)
-  totalUsedOutputTokens Int @default(0)
-  totalUsedTokens       Int @default(0)
-  totalTokensLeft       Int @default(0)
-  totalTokenLimit       Int @default(1000)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  user         User      @relation(fields: [oauthId], references: [oauthId], onDelete: Cascade)
+  id                    String    @id @default(uuid())
+  oauthId               String
+  agentName             AgentName
+  totalUsedInputTokens  Int       @default(0)
+  totalUsedOutputTokens Int       @default(0)
+  totalUsedTokens       Int       @default(0)
+  totalTokensLeft       Int       @default(0)
+  totalTokenLimit       Int       @default(1000)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [oauthId], references: [oauthId], onDelete: Cascade)
 
   @@unique([oauthId, agentName], map: "uniq_token_usage_per_user_agent")
   @@index([oauthId])
@@ -561,7 +615,7 @@ model TokenAlertSettings {
   tokenLimit Int             @default(0)
   apiModel   ApiModel        @default(GPT_4O_MINI)
   createdAt  DateTime        @default(now())
-  updatedAt  DateTime        @updatedAt
+  updatedAt  DateTime        @default(now()) @updatedAt
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -569,66 +623,78 @@ model TokenAlertSettings {
 // ─────────────────────────────────────────────────────────────
 
 model MembershipTemplate {
-  id                String    @id @default(uuid())
-  name              String    @unique
+  id                String @id @default(uuid())
+  name              String @unique
   durationDays      Int
   monthlyTokenLimit Int
-  
-  includedAgents    AgentName[]
 
-  // Teams bundled into this membership. Links are soft-toggled through
-  // isActive rather than removed, so unlinking a team never drops a row.
-  includedGroups    MembershipTemplateGroup[]
+  // Single agents bundled directly into the membership.
+  includedAgents AgentName[]
+  // Agent teams bundled into the membership. Single agents and teams are
+  // tracked as two separate lists so either can change without touching the
+  // other. The membership tier only READS AgentTeam through this link; it
+  // never creates, edits or assigns teams.
+  includedTeams  MembershipTemplateTeam[]
+  assignments    AssignedMembership[]
 
-  assignments       AssignedMembership[]
-
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-model AssignedMembership {
-  id                   String             @id @default(uuid())
-  userId               String
-  membershipTemplateId String
-  startsAt             DateTime           @default(now())
-  expiresAt            DateTime?
-  isActive             Boolean            @default(true)
-  monthlyTokenLimit    Int?
-  
-  threshold50Notified  Boolean            @default(false)
-  threshold80Notified  Boolean            @default(false)
-  threshold90Notified  Boolean            @default(false)
-  threshold100Notified Boolean            @default(false)
-
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
-  
-  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  template             MembershipTemplate @relation(fields: [membershipTemplateId], references: [id], onDelete: Cascade)
-
-  @@index([userId, isActive])
-}
-
-// A team bundled into a membership template. Assigning the membership then
-// grants the user every agent on these teams, the same way a direct team
-// assignment does.
-//
-// Unlinking flips isActive instead of removing the row, so a template's team
-// history is never destroyed and re-adding the same team reuses its row.
-model MembershipTemplateGroup {
+// Link between a membership template and an AgentTeam.
+model MembershipTemplateTeam {
   id                   String   @id @default(uuid())
   membershipTemplateId String
-  groupId              String
-  isActive             Boolean  @default(true)
+  teamId               String
   createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
 
   template MembershipTemplate @relation(fields: [membershipTemplateId], references: [id], onDelete: Cascade)
-  group    AgentGroup         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  team     AgentTeam          @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
-  @@unique([membershipTemplateId, groupId], map: "uniq_group_per_membership_template")
-  @@index([membershipTemplateId, isActive])
-  @@index([groupId])
+  @@unique([membershipTemplateId, teamId], map: "uniq_team_per_membership_template")
+  @@index([teamId])
+}
+
+// A membership grant carries ONE token pool shared by every agent the
+// template reaches (single agents and team agents alike): whichever agent
+// chats, the same counters move. That is the opposite of the team tier,
+// where each agent owns its own slice.
+model AssignedMembership {
+  id                   String    @id @default(uuid())
+  userId               String
+  membershipTemplateId String
+  startsAt             DateTime  @default(now())
+  expiresAt            DateTime?
+  isActive             Boolean   @default(true)
+  // Shared allowance per 30-day cycle. Null falls back to the template's
+  // monthlyTokenLimit.
+  monthlyTokenLimit    Int?
+
+  // Start of the 30-day cycle the pool is measured over (counted from
+  // startsAt). Cached; the code always recomputes it.
+  cycleStartsAt DateTime @default(now())
+
+  // Cached rollup of the pool: the SUM of DailyTokenUsage for every agent the
+  // membership reaches, from the start of cycleStartsAt's day. The ledger is
+  // the source of truth (assigned-membership.helpers.ts); these columns are
+  // refreshed whenever a chat moves the ledger.
+  usedTokens   Int  @default(0)
+  inputTokens  Int  @default(0)
+  outputTokens Int  @default(0)
+  tokensLeft   Int?
+
+  threshold50Notified  Boolean @default(false)
+  threshold80Notified  Boolean @default(false)
+  threshold90Notified  Boolean @default(false)
+  threshold100Notified Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template MembershipTemplate @relation(fields: [membershipTemplateId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isActive])
 }
 
 model DailyTokenUsage {
@@ -646,16 +712,43 @@ model DailyTokenUsage {
   @@unique([oauthId, agentName, date], map: "uniq_daily_token_usage")
   @@index([oauthId])
   @@index([date])
-} 
+}
+
+enum GrantUsageSource {
+  TEAM
+  SINGLE
+}
+
+// Day-by-day spend of the grant tiers (team and single agent), for the usage
+// charts only. Those tiers keep their spend out of DailyTokenUsage on purpose
+// -- membership pools and quotas are derived from that ledger by agent, so it
+// would charge one chat twice -- which left the charts blind to them. Nothing
+// enforces a limit from this table; the grant rows stay the source of truth.
+model GrantTokenUsageDaily {
+  id           String           @id @default(uuid())
+  oauthId      String
+  agentName    AgentName
+  source       GrantUsageSource
+  date         DateTime         @db.Date
+  inputTokens  Int              @default(0)
+  outputTokens Int              @default(0)
+  totalTokens  Int              @default(0)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  user         User             @relation(fields: [oauthId], references: [oauthId], onDelete: Cascade)
+
+  @@unique([oauthId, agentName, source, date], map: "uniq_grant_token_usage_daily")
+  @@index([date])
+}
 
 model TokenLimitStopLog {
-  id               String    @id @default(uuid())
-  oauthId          String
-  agentName        AgentName
-  reason           String
-  attemptedTokens  Int       @default(0)
-  createdAt        DateTime  @default(now())
-  user             User      @relation(fields: [oauthId], references: [oauthId], onDelete: Cascade)
+  id              String    @id @default(uuid())
+  oauthId         String
+  agentName       AgentName
+  reason          String
+  attemptedTokens Int       @default(0)
+  createdAt       DateTime  @default(now())
+  user            User      @relation(fields: [oauthId], references: [oauthId], onDelete: Cascade)
 
   @@index([oauthId])
   @@index([createdAt])
@@ -664,11 +757,178 @@ model TokenLimitStopLog {
 model UserAlert {
   id        String   @id @default(uuid())
   userId    String
-  type      String   // e.g. "TOKEN_THRESHOLD_80"
+  type      String // e.g. "TOKEN_THRESHOLD_80"
   message   String
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, read])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Conversation compaction
+//
+// Compaction keeps a long chat inside the model's context window by folding
+// the older turns into one summary (the "memory block") and sending only
+// that plus the most recent turns. It is a separate concern from the token
+// budgets: the budgets decide when a chat STOPS, compaction decides what the
+// model still remembers while the chat runs. Nothing here writes to the
+// assignment, usage or alert tables.
+//
+// The agent workflows keep their live history in Redis, which this server
+// cannot read, so the transcript needed for a summary is mirrored here one
+// turn at a time (CompactionTurn). Keys are the chat's sessionId + chatId,
+// not Conversation.id, because the agent pages talk to n8n directly and do
+// not always own a Conversation row.
+// ─────────────────────────────────────────────────────────────
+
+enum CompactionOwnerType {
+  GLOBAL
+  MEMBERSHIP
+  TEAM
+  AGENT
+}
+
+enum CompactionSummaryStyle {
+  STRUCTURED
+  PROSE
+}
+
+enum CompactionEventStatus {
+  OK
+  FALLBACK
+  FAILED
+}
+
+// One settings row per owner. The GLOBAL row holds the defaults; the others
+// are per-package overrides resolved membership > team > agent > global.
+model CompactionSettings {
+  id        String              @id @default(uuid())
+  ownerType CompactionOwnerType @default(GLOBAL)
+  // MembershipTemplate.id, AgentTeam.id, or an AgentName for AGENT rows.
+  // Empty string for GLOBAL -- not null, so the unique index below actually
+  // keeps a second global row out (Postgres treats NULLs as distinct).
+  ownerId   String              @default("")
+
+  enabled            Boolean @default(true)
+  // Percentage of the conversation budget at which compaction runs. Well
+  // below 100, which is where the budget itself stops the chat.
+  watermarkPercent   Int     @default(80)
+  // Turns kept verbatim after the fold. One turn is a user message plus the
+  // reply to it.
+  keepLastTurns      Int     @default(8)
+  // Hard ceiling on the summary, so repeated compactions cannot grow it.
+  memoryCapTokens    Int     @default(1200)
+  // Budget the watermark is measured against. 0 means inherit the platform
+  // conversation limit (TokenAlertSettings), same convention as that table.
+  // With the default watermark, compaction fires at 200,000 tokens.
+  conversationBudget Int     @default(250000)
+
+  summaryStyle CompactionSummaryStyle @default(STRUCTURED)
+
+  // Model used to write the summary.
+  apiModel ApiModel @default(GPT_4O_MINI)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([ownerType, ownerId], map: "uniq_compaction_settings_owner")
+}
+
+// Live compaction state for one chat.
+model CompactionState {
+  id        String    @id @default(uuid())
+  sessionId String
+  chatId    String    @default("")
+  agentName AgentName
+  email     String?
+  title     String?
+
+  turnCount       Int @default(0)
+  // Estimated tokens the model is being sent right now: memory block plus
+  // the turns that have not been folded in yet.
+  liveTokens      Int @default(0)
+  // Tokens spent on user-visible chat turns. Summary-call overhead is logged
+  // on CompactionEvent but does not consume the conversation allowance.
+  totalTokens     Int @default(0)
+  compactionCount Int @default(0)
+  // Newest summary version already handed to the agent workflow inside a chat
+  // message. A summary above this one is still waiting to be delivered.
+  deliveredSummaryVersion Int @default(0)
+
+  lastCompactedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  turns     CompactionTurn[]
+  summaries CompactionSummary[]
+
+  @@unique([sessionId, chatId, agentName], map: "uniq_compaction_state_chat")
+  @@index([agentName])
+  @@index([updatedAt])
+}
+
+// The server's mirror of the transcript. Rows are never deleted: `compacted`
+// marks the ones already folded into a summary, so the user keeps the full
+// history while the model sees only the tail.
+model CompactionTurn {
+  id         String  @id @default(uuid())
+  stateId    String
+  role       String // "user" | "ai"
+  text       String
+  tokenCount Int     @default(0)
+  compacted  Boolean @default(false)
+
+  createdAt DateTime        @default(now())
+  state     CompactionState @relation(fields: [stateId], references: [id], onDelete: Cascade)
+
+  @@index([stateId, createdAt])
+  @@index([stateId, compacted])
+}
+
+// Successive versions of the summary. The newest row wins; older ones
+// are kept so an admin can see what was dropped and when.
+model CompactionSummary {
+  id              String @id @default(uuid())
+  stateId         String
+  version         Int
+  content         String
+  tokenCount      Int    @default(0)
+  coversTurnCount Int    @default(0)
+
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  state     CompactionState @relation(fields: [stateId], references: [id], onDelete: Cascade)
+
+  @@unique([stateId, version], map: "uniq_summary_version_per_state")
+  @@index([stateId])
+}
+
+// One row per compaction attempt, including the ones that fell back to plain
+// truncation. This is the admin panel's proof the feature is working.
+model CompactionEvent {
+  id        String    @id @default(uuid())
+  stateId   String?
+  sessionId String
+  chatId    String    @default("")
+  agentName AgentName
+  email     String?
+  title     String?
+
+  tokensBefore   Int @default(0)
+  tokensAfter    Int @default(0)
+  turnsCompacted Int @default(0)
+  summaryTokens  Int @default(0)
+  // What the summarising call itself cost.
+  costTokens     Int @default(0)
+
+  status    CompactionEventStatus @default(OK)
+  apiModel  ApiModel?
+  detail    String?
+  createdAt DateTime              @default(now())
+
+  @@index([createdAt])
+  @@index([agentName])
+  @@index([sessionId, chatId])
 }
