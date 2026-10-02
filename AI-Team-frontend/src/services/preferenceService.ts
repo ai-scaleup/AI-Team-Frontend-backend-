@@ -14,6 +14,40 @@ import { waitForUserSync } from '@/lib/userSyncGate';
 // Helper function to check if running in browser
 const isBrowser = () => typeof window !== 'undefined';
 
+/** A save either produced a preference, or a reason it did not. */
+export type UpsertResult = {
+    data: UserPreference | null;
+    error: string | null;
+};
+
+/**
+ * Turns the API's error body into something worth showing the user. A
+ * validation failure names the fields it rejected; anything else falls back to
+ * a generic message so a raw stack trace never reaches the UI.
+ */
+function describeSaveError(body: string, status: number): string {
+    try {
+        const parsed = JSON.parse(body) as {
+            message?: string;
+            errors?: { field?: string; message?: string }[];
+        };
+
+        if (Array.isArray(parsed.errors) && parsed.errors.length > 0) {
+            const details = parsed.errors
+                .map((item) => [item.field, item.message].filter(Boolean).join(": "))
+                .filter(Boolean)
+                .join(" · ");
+            if (details) return `Dati non validi — ${details}`;
+        }
+
+        if (parsed.message) return parsed.message;
+    } catch {
+        // Not JSON; fall through to the status-based message.
+    }
+
+    return `Errore durante il salvataggio (${status}). Riprova.`;
+}
+
 /**
  * User Preferences Service
  * Handles all API calls for user preferences management
@@ -173,6 +207,19 @@ export const userPreferenceService = {
         agentName: AgentName,
         data: UpdateUserPreferenceDto
     ): Promise<UserPreference | null> {
+        return (await this.upsertWithResult(oauthId, agentName, data)).data;
+    },
+
+    /**
+     * Same save as `upsert`, but hands back why it failed. A rejected save used
+     * to collapse into `null`, which left the caller with nothing to show the
+     * user beyond a generic retry message.
+     */
+    async upsertWithResult(
+        oauthId: string,
+        agentName: AgentName,
+        data: UpdateUserPreferenceDto
+    ): Promise<UpsertResult> {
         const url = `${API_BASE}/user-preferences/${encodeURIComponent(oauthId)}/${encodeURIComponent(agentName)}/upsert`;
 
         console.log('💾 [PreferenceService] upsert called');
@@ -196,16 +243,19 @@ export const userPreferenceService = {
                 console.error(`❌ [PreferenceService] Failed to upsert preferences: ${response.status}`);
                 const errorText = await response.text();
                 console.error('❌ [PreferenceService] Error response body:', errorText);
-                return null;
+                return { data: null, error: describeSaveError(errorText, response.status) };
             }
 
             const result = await response.json();
             console.log('✅ [PreferenceService] Preferences saved successfully');
             console.log('✅ [PreferenceService] Saved data:', JSON.stringify(result, null, 2));
-            return result;
+            return { data: result, error: null };
         } catch (error) {
             console.error('❌ [PreferenceService] Error upserting preferences:', error);
-            return null;
+            return {
+                data: null,
+                error: "Impossibile contattare il server. Controlla la connessione e riprova.",
+            };
         }
     },
 

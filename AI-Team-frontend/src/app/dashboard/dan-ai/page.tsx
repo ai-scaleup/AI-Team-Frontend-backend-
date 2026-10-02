@@ -31,6 +31,7 @@ import {
     Share,
     RotateCcw
 } from "lucide-react"
+import { CompactionNotice } from "@/components/ui/CompactionNotice"
 
 import { SUBJECTS, Subject } from "@/data/dan-ai-data"
 import OnboardingModal from "@/components/dan-ai/OnboardingModal"
@@ -348,7 +349,7 @@ export default function page() {
     const CURRENT_NAMESPACE = useRef("")
     const prevMessageCountRef = useRef(0)
 
-    const N8N_ENDPOINT = process.env.NEXT_PUBLIC_DAN_AI_N8N_ENDPOINT || ""
+    const N8N_ENDPOINT = "/api/n8n-proxy?agent=dan-ai"
 
     const activeSubject = SUBJECTS.find(s => s.id === activeSubjectId) || null
 
@@ -1282,6 +1283,12 @@ export default function page() {
                             {/* Chat Messages */}
                             <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
                                 <div className="max-w-4xl mx-auto space-y-6">
+                                    <CompactionNotice
+                                      sessionId={currentChatId ? (chats[currentChatId]?.sessionId ?? null) : null}
+                                      agent="dan-ai"
+                                      chatId={currentChatId}
+                                      refreshKey={isLoading ? -1 : messages.length}
+                                    />
                                     {messages.map((msg, idx) => (
                                         <div key={idx} className={`flex gap-4 ${msg.sender === "user" ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2`}>
                                             {msg.sender === "ai" && (

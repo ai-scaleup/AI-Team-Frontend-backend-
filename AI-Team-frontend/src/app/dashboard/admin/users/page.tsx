@@ -101,6 +101,13 @@ type ApiGroupAssignment = ApiAssignment & {
   group?: { name?: string | null };
 };
 
+type ApiTeamAssignment = ApiAssignment & {
+  team?: {
+    name?: string | null;
+    agents?: { agentName?: string | null }[];
+  } | null;
+};
+
 type ApiMembershipAssignment = {
   startsAt?: string | null;
   expiresAt?: string | null;
@@ -109,6 +116,7 @@ type ApiMembershipAssignment = {
     name?: string;
     durationDays?: number;
     includedAgents?: string[];
+    includedTeams?: { team?: { name?: string; agents?: { agentName?: string }[]; isActive?: boolean } | null }[];
   };
 };
 
@@ -118,6 +126,7 @@ type ApiUser = {
   username?: string | null;
   agents?: ApiAssignment[];
   groups?: ApiGroupAssignment[];
+  teams?: ApiTeamAssignment[];
   memberships?: ApiMembershipAssignment[];
   usage?: {
     monthly?: number;
@@ -195,16 +204,23 @@ const getStatus = (expiresAt?: string | null, isActive = true): UserRow["status"
 const mapUser = (user: ApiUser): UserRow => {
   const activeAgents = (user.agents ?? []).filter((item) => item.isActive !== false);
   const activeGroups = (user.groups ?? []).filter((item) => item.isActive !== false);
+  const activeTeams = (user.teams ?? []).filter((item) => item.isActive !== false);
   const activeMemberships = (user.memberships ?? []).filter((item) => item.isActive !== false);
   const primaryMembership = activeMemberships[0];
-  const primaryTimedAssignment = activeGroups[0] ?? activeAgents[0];
+  const primaryTimedAssignment = activeTeams[0] ?? activeGroups[0] ?? activeAgents[0];
   const hasActiveAccess = Boolean(primaryMembership || primaryTimedAssignment);
+  const assignedTeams = activeTeams.map((item) => item.team?.name).filter(Boolean) as string[];
   const assignedGroups = activeGroups.map((item) => item.group?.name).filter(Boolean) as string[];
   const assignedAgents = activeAgents.map((item) => item.agentName).filter(Boolean) as string[];
-  const assigned = assignedGroups.length > 0 ? assignedGroups : assignedAgents;
+  const assigned = [...assignedTeams, ...assignedGroups, ...assignedAgents];
 
-  if (assigned.length === 0 && primaryMembership?.template?.includedAgents?.length) {
-    assigned.push(...primaryMembership.template.includedAgents);
+  if (assigned.length === 0 && primaryMembership?.template) {
+    // Membership single agents plus the names of its active agent teams.
+    const membershipTeams = (primaryMembership.template.includedTeams ?? [])
+      .filter((link) => link.team?.isActive !== false)
+      .map((link) => link.team?.name)
+      .filter(Boolean) as string[];
+    assigned.push(...membershipTeams, ...(primaryMembership.template.includedAgents ?? []));
   }
 
   return {
@@ -293,6 +309,17 @@ const getUsageRange = (
     default:
       return {};
   }
+};
+
+/**
+ * `fetch` rejects with a bare "Failed to fetch" when the request never reaches
+ * the server, which reads as a mystery in the table. Name the likely cause.
+ */
+const describeUsersError = (err: Error): string => {
+  if (err instanceof TypeError) {
+    return `Could not reach the API at ${API_BASE ?? "(NEXT_PUBLIC_API_BASE unset)"}. Check that the server is running.`;
+  }
+  return err.message || "Failed to load users";
 };
 
 const SORT_PARAM: Record<SortableUserField, string> = {
@@ -392,7 +419,7 @@ export default function AllUsersPage() {
         if (data.meta && data.meta.page !== page) setPage(data.meta.page);
       } catch (err) {
         if ((err as Error).name !== "AbortError") {
-          setError((err as Error).message || "Failed to load users");
+          setError(describeUsersError(err as Error));
           setUsers([]);
           setPagination(undefined);
         }

@@ -6,8 +6,8 @@ import { authenticatedFetch } from "@/lib/authenticatedFetch";
 import { FormEvent, useEffect, useState } from "react";
 import {
   Bot, Users, Plus, ShieldCheck, MoreVertical, Search, CreditCard,
-  AlertTriangle, ToggleLeft, ToggleRight, Trash2, MessageSquare, Save, Zap,
-  X, Loader2, Pencil
+  AlertTriangle, Trash2, MessageSquare, Save,
+  X, Loader2, Pencil, Coins
 } from "lucide-react";
 
 
@@ -15,27 +15,6 @@ const SINGLE_AGENTS = [
   "SARA_AI", "JENNIFER_AI", "CHIARA_AI", "JIM", "ALEX", "MIKE", "TONY", 
   "LARA", "VALENTINA", "DANIELE", "SIMONE", "NIKO", "ALADINO", "LAURA", "DAN"
 ];
-
-const MOCK_MEMBERSHIPS: { id: number; name: string; durationDays: number; tokens: number; items: string[] }[] = [];
-
-// Default per-agent limits (mock)
-const DEFAULT_PER_AGENT_LIMITS: Record<string, number> = {
-  SARA_AI: 16000,
-  JENNIFER_AI: 16000,
-  CHIARA_AI: 12000,
-  JIM: 8000,
-  ALEX: 8000,
-  MIKE: 8000,
-  TONY: 8000,
-  LARA: 10000,
-  VALENTINA: 10000,
-  DANIELE: 10000,
-  SIMONE: 12000,
-  NIKO: 8000,
-  ALADINO: 8000,
-  LAURA: 12000,
-  DAN: 12000,
-};
 
 interface AlertThreshold {
   id: string;
@@ -50,20 +29,24 @@ interface AgentTeam {
   description?: string | null;
   agents: string[];
   users?: number;
+  /** Default allowance seeded onto each user assignment; null = access only. */
+  tokenLimit?: number | null;
 }
 
-interface AgentGroupListItem {
+/** Shape returned by every /admin/teams endpoint. */
+interface AgentTeamResponse {
   id: string;
   name: string;
   description?: string | null;
-}
-
-interface AgentGroupListResponse {
-  data?: AgentGroupListItem[];
-}
-
-interface AgentGroupDetails extends AgentGroupListItem {
+  isActive: boolean;
+  tokenLimit?: number | null;
   agents?: string[];
+  agentCount?: number;
+  assignmentCount?: number;
+}
+
+interface AgentTeamListResponse {
+  data?: AgentTeamResponse[];
 }
 
 interface MembershipTemplate {
@@ -71,8 +54,12 @@ interface MembershipTemplate {
   name: string;
   durationDays: number;
   monthlyTokenLimit: number;
+  /** Single agents bundled directly into the membership. */
   includedAgents?: string[];
-  includedGroupIds?: string[];
+  /** Agent teams (from /admin/teams) bundled into the membership. */
+  includedTeams?: { id: string; name: string; agents: string[]; isActive: boolean }[];
+  includedTeamIds?: string[];
+  effectiveAgents?: string[];
 }
 
 const DEFAULT_ALERTS: AlertThreshold[] = [
@@ -87,6 +74,21 @@ const ALERT_LEVEL_STYLES: Record<string, { badge: string; border: string }> = {
   critical: { badge: "bg-red-500/20 text-red-400", border: "border-red-500/20" },
 };
 
+/**
+ * Turns the token-limit text field into the API value: blank -> null (access
+ * only), a non-negative integer -> that number, anything else -> undefined so
+ * the caller can show a validation error.
+ */
+const parseTokenLimitInput = (raw: string): number | null | undefined => {
+  const trimmed = raw.trim();
+  if (trimmed === "") return null;
+  const n = Number(trimmed);
+  return Number.isInteger(n) && n >= 0 ? n : undefined;
+};
+
+const formatTokenLimit = (limit: number | null | undefined) =>
+  typeof limit === "number" ? `${limit.toLocaleString()} tokens / agent` : "Access only";
+
 export default function AgentsAndTeamsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [teams, setTeams] = useState<AgentTeam[]>([]);
@@ -94,12 +96,15 @@ export default function AgentsAndTeamsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [teamName, setTeamName] = useState("");
   const [teamDescription, setTeamDescription] = useState("");
+  // Kept as a string so the field can be blank (= no allowance, access only).
+  const [teamTokenLimit, setTeamTokenLimit] = useState("");
   const [selectedTeamAgents, setSelectedTeamAgents] = useState<string[]>([]);
   const [isCreatingTeam, setIsCreatingTeam] = useState(false);
   const [deletingTeamId, setDeletingTeamId] = useState<string | null>(null);
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [editTeamName, setEditTeamName] = useState("");
   const [editTeamDescription, setEditTeamDescription] = useState("");
+  const [editTeamTokenLimit, setEditTeamTokenLimit] = useState("");
   const [editTeamAgents, setEditTeamAgents] = useState<string[]>([]);
   const [isUpdatingTeam, setIsUpdatingTeam] = useState(false);
   const [teamMessage, setTeamMessage] = useState<string | null>(null);
@@ -111,8 +116,9 @@ export default function AgentsAndTeamsPage() {
   const [membershipDurationDays, setMembershipDurationDays] = useState(30);
   const [membershipTokenLimit, setMembershipTokenLimit] = useState(100000);
   const [membershipAgents, setMembershipAgents] = useState<string[]>([]);
-  const [membershipGroupIds, setMembershipGroupIds] = useState<string[]>([]);
+  const [membershipTeamIds, setMembershipTeamIds] = useState<string[]>([]);
   const [isCreatingMembership, setIsCreatingMembership] = useState(false);
+  const [deletingMembershipId, setDeletingMembershipId] = useState<string | null>(null);
   const [membershipMessage, setMembershipMessage] = useState<string | null>(null);
   const [membershipError, setMembershipError] = useState<string | null>(null);
   const [editingMembershipId, setEditingMembershipId] = useState<string | null>(null);
@@ -120,13 +126,8 @@ export default function AgentsAndTeamsPage() {
   const [editMembershipDurationDays, setEditMembershipDurationDays] = useState(30);
   const [editMembershipTokenLimit, setEditMembershipTokenLimit] = useState(100000);
   const [editMembershipAgents, setEditMembershipAgents] = useState<string[]>([]);
-  const [editMembershipGroupIds, setEditMembershipGroupIds] = useState<string[]>([]);
+  const [editMembershipTeamIds, setEditMembershipTeamIds] = useState<string[]>([]);
   const [isUpdatingMembership, setIsUpdatingMembership] = useState(false);
-
-  // Conversation Limits state
-  const [globalMode, setGlobalMode] = useState(true);
-  const [globalLimit, setGlobalLimit] = useState(16000);
-  const [perAgentLimits, setPerAgentLimits] = useState<Record<string, number>>({ ...DEFAULT_PER_AGENT_LIMITS });
 
   // Alert Thresholds state
   const [alerts, setAlerts] = useState<AlertThreshold[]>([...DEFAULT_ALERTS]);
@@ -173,37 +174,26 @@ export default function AgentsAndTeamsPage() {
     setTeamError(null);
 
     try {
-      const response = await authenticatedFetch(`${API_BASE}/admin/groups?limit=100&sortBy=createdAt&sortOrder=desc`, {
+      // /admin/teams returns each team's agent list inline, so one request is enough.
+      const response = await authenticatedFetch(`${API_BASE}/admin/teams?limit=100&sortBy=createdAt&sortOrder=desc`, {
         cache: "no-store",
       });
 
       if (!response.ok) {
-        throw new Error(await response.text());
+        throw new Error(await parseApiError(response));
       }
 
-      const payload = (await response.json()) as AgentGroupListResponse | AgentGroupListItem[];
-      const groups = Array.isArray(payload) ? payload : payload.data ?? [];
-
-      const details = await Promise.all(
-        groups.map(async (group) => {
-          const detailResponse = await authenticatedFetch(`${API_BASE}/admin/groups/${group.id}`, {
-            cache: "no-store",
-          });
-
-          if (!detailResponse.ok) {
-            return { ...group, agents: [] };
-          }
-
-          return (await detailResponse.json()) as AgentGroupDetails;
-        }),
-      );
+      const payload = (await response.json()) as AgentTeamListResponse | AgentTeamResponse[];
+      const loaded = Array.isArray(payload) ? payload : payload.data ?? [];
 
       setTeams(
-        details.map((group) => ({
-          id: group.id,
-          name: group.name,
-          description: group.description,
-          agents: group.agents ?? [],
+        loaded.map((team) => ({
+          id: team.id,
+          name: team.name,
+          description: team.description,
+          agents: team.agents ?? [],
+          users: team.assignmentCount,
+          tokenLimit: team.tokenLimit ?? null,
         })),
       );
     } catch (error) {
@@ -218,10 +208,6 @@ export default function AgentsAndTeamsPage() {
     void loadMemberships();
     void loadTeams();
   }, []);
-
-  const updateAgentLimit = (agent: string, value: number) => {
-    setPerAgentLimits(prev => ({ ...prev, [agent]: value }));
-  };
 
   const toggleTeamAgent = (agent: string) => {
     setSelectedTeamAgents(prev =>
@@ -241,27 +227,29 @@ export default function AgentsAndTeamsPage() {
     );
   };
 
-  const toggleMembershipGroup = (groupId: string) => {
-    setMembershipGroupIds(prev =>
-      prev.includes(groupId) ? prev.filter(item => item !== groupId) : [...prev, groupId],
-    );
-  };
-
   const toggleEditMembershipAgent = (agent: string) => {
     setEditMembershipAgents(prev =>
       prev.includes(agent) ? prev.filter(item => item !== agent) : [...prev, agent],
     );
   };
 
-  const toggleEditMembershipGroup = (groupId: string) => {
-    setEditMembershipGroupIds(prev =>
-      prev.includes(groupId) ? prev.filter(item => item !== groupId) : [...prev, groupId],
+  const toggleMembershipTeamId = (teamId: string) => {
+    setMembershipTeamIds(prev =>
+      prev.includes(teamId) ? prev.filter(item => item !== teamId) : [...prev, teamId],
     );
   };
+
+  const toggleEditMembershipTeamId = (teamId: string) => {
+    setEditMembershipTeamIds(prev =>
+      prev.includes(teamId) ? prev.filter(item => item !== teamId) : [...prev, teamId],
+    );
+  };
+
 
   const resetCreateTeamForm = () => {
     setTeamName("");
     setTeamDescription("");
+    setTeamTokenLimit("");
     setSelectedTeamAgents([]);
   };
 
@@ -270,8 +258,9 @@ export default function AgentsAndTeamsPage() {
     setMembershipDurationDays(30);
     setMembershipTokenLimit(100000);
     setMembershipAgents([]);
-    setMembershipGroupIds([]);
+    setMembershipTeamIds([]);
   };
+
 
   const startEditingTeam = (team: AgentTeam) => {
     setTeamError(null);
@@ -279,6 +268,7 @@ export default function AgentsAndTeamsPage() {
     setEditingTeamId(team.id);
     setEditTeamName(team.name);
     setEditTeamDescription(team.description ?? "");
+    setEditTeamTokenLimit(typeof team.tokenLimit === "number" ? String(team.tokenLimit) : "");
     setEditTeamAgents(team.agents);
   };
 
@@ -286,6 +276,7 @@ export default function AgentsAndTeamsPage() {
     setEditingTeamId(null);
     setEditTeamName("");
     setEditTeamDescription("");
+    setEditTeamTokenLimit("");
     setEditTeamAgents([]);
   };
 
@@ -304,34 +295,42 @@ export default function AgentsAndTeamsPage() {
       return;
     }
 
+    const tokenLimit = parseTokenLimitInput(teamTokenLimit);
+    if (tokenLimit === undefined) {
+      setTeamError("Token limit must be a non-negative integer (leave blank for access only).");
+      return;
+    }
+
     setIsCreatingTeam(true);
 
     try {
-      const response = await authenticatedFetch(`${API_BASE}/admin/groups-with-agents`, {
+      const response = await authenticatedFetch(`${API_BASE}/admin/teams`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: teamName.trim(),
-          description: teamDescription.trim() || undefined,
+          // The API requires a non-empty description; fall back to the name.
+          description: teamDescription.trim() || teamName.trim(),
           isActive: true,
-          agentNames: selectedTeamAgents,
+          agents: selectedTeamAgents,
+          tokenLimit,
         }),
       });
 
       if (!response.ok) {
-        const detail = await response.text();
-        throw new Error(detail || "Unable to create team.");
+        throw new Error(await parseApiError(response));
       }
 
-      const result = await response.json();
-      const group = result.group as AgentGroupListItem;
+      const created = (await response.json()) as AgentTeamResponse;
 
       setTeams(prev => [
         {
-          id: group.id,
-          name: group.name,
-          description: group.description,
-          agents: selectedTeamAgents,
+          id: created.id,
+          name: created.name,
+          description: created.description,
+          agents: created.agents ?? selectedTeamAgents,
+          users: created.assignmentCount ?? 0,
+          tokenLimit: created.tokenLimit ?? tokenLimit,
         },
         ...prev,
       ]);
@@ -365,14 +364,15 @@ export default function AgentsAndTeamsPage() {
       return;
     }
 
-    if (membershipAgents.length === 0 && membershipGroupIds.length === 0) {
-      setMembershipError("Select at least one agent or team.");
+    if (membershipAgents.length === 0 && membershipTeamIds.length === 0) {
+      setMembershipError("Select at least one single agent or team.");
       return;
     }
 
     setIsCreatingMembership(true);
 
     try {
+      // Single agents and teams travel as two separate lists.
       const response = await authenticatedFetch(`${API_BASE}/admin/memberships`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -381,7 +381,7 @@ export default function AgentsAndTeamsPage() {
           durationDays: membershipDurationDays,
           monthlyTokenLimit: membershipTokenLimit,
           includedAgents: membershipAgents,
-          includedGroupIds: membershipGroupIds,
+          includedTeamIds: membershipTeamIds,
         }),
       });
 
@@ -409,13 +409,15 @@ export default function AgentsAndTeamsPage() {
     setEditMembershipDurationDays(membership.durationDays);
     setEditMembershipTokenLimit(membership.monthlyTokenLimit);
     setEditMembershipAgents(membership.includedAgents ?? []);
-    setEditMembershipGroupIds(membership.includedGroupIds ?? []);
+    setEditMembershipTeamIds(
+      membership.includedTeamIds ?? membership.includedTeams?.map(team => team.id) ?? [],
+    );
   };
 
   const cancelEditingMembership = () => {
     setEditingMembershipId(null);
     setEditMembershipAgents([]);
-    setEditMembershipGroupIds([]);
+    setEditMembershipTeamIds([]);
   };
 
   const updateMembership = async (membership: MembershipTemplate) => {
@@ -437,16 +439,14 @@ export default function AgentsAndTeamsPage() {
       return;
     }
 
-    if (editMembershipAgents.length === 0 && editMembershipGroupIds.length === 0) {
-      setMembershipError("Select at least one agent or team.");
+    if (editMembershipAgents.length === 0 && editMembershipTeamIds.length === 0) {
+      setMembershipError("Select at least one single agent or team.");
       return;
     }
 
     setIsUpdatingMembership(true);
 
     try {
-      // includedGroupIds replaces the template's team list. Dropping a team
-      // only deactivates its link on the server, so no row is ever removed.
       const response = await authenticatedFetch(`${API_BASE}/admin/memberships/${membership.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -455,7 +455,7 @@ export default function AgentsAndTeamsPage() {
           durationDays: editMembershipDurationDays,
           monthlyTokenLimit: editMembershipTokenLimit,
           includedAgents: editMembershipAgents,
-          includedGroupIds: editMembershipGroupIds,
+          includedTeamIds: editMembershipTeamIds,
         }),
       });
 
@@ -474,6 +474,33 @@ export default function AgentsAndTeamsPage() {
     }
   };
 
+  const deleteMembership = async (membership: MembershipTemplate) => {
+    setMembershipError(null);
+    setMembershipMessage(null);
+
+    const confirmed = window.confirm(`Delete "${membership.name}"? Users holding this membership will lose it.`);
+    if (!confirmed) return;
+
+    setDeletingMembershipId(membership.id);
+
+    try {
+      const response = await authenticatedFetch(`${API_BASE}/admin/memberships/${membership.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error(await parseApiError(response));
+      }
+
+      setMemberships(prev => prev.filter(item => item.id !== membership.id));
+      setMembershipMessage(`Deleted "${membership.name}".`);
+    } catch (error) {
+      setMembershipError(error instanceof Error ? error.message : "Unable to delete membership.");
+    } finally {
+      setDeletingMembershipId(null);
+    }
+  };
+
   const deleteTeam = async (team: AgentTeam) => {
     setTeamError(null);
     setTeamMessage(null);
@@ -484,16 +511,25 @@ export default function AgentsAndTeamsPage() {
     setDeletingTeamId(team.id);
 
     try {
-      const response = await authenticatedFetch(`${API_BASE}/admin/groups/${team.id}`, {
+      const response = await authenticatedFetch(`${API_BASE}/admin/teams/${team.id}`, {
         method: "DELETE",
       });
 
       if (!response.ok) {
-        const detail = await response.text();
-        throw new Error(detail || "Unable to delete team.");
+        throw new Error(await parseApiError(response));
       }
 
       setTeams(prev => prev.filter(item => item.id !== team.id));
+      // The team link cascades server-side; drop it from membership cards and pickers too.
+      setMembershipTeamIds(prev => prev.filter(id => id !== team.id));
+      setEditMembershipTeamIds(prev => prev.filter(id => id !== team.id));
+      setMemberships(prev =>
+        prev.map(membership => ({
+          ...membership,
+          includedTeams: membership.includedTeams?.filter(item => item.id !== team.id),
+          includedTeamIds: membership.includedTeamIds?.filter(id => id !== team.id),
+        })),
+      );
       setTeamMessage(`Deleted "${team.name}".`);
     } catch (error) {
       setTeamError(error instanceof Error ? error.message : "Unable to delete team.");
@@ -516,48 +552,64 @@ export default function AgentsAndTeamsPage() {
       return;
     }
 
+    const tokenLimit = parseTokenLimitInput(editTeamTokenLimit);
+    if (tokenLimit === undefined) {
+      setTeamError("Token limit must be a non-negative integer (leave blank for access only).");
+      return;
+    }
+
     setIsUpdatingTeam(true);
 
     try {
-      const groupResponse = await authenticatedFetch(`${API_BASE}/admin/groups/${team.id}`, {
+      // One PATCH covers name, description, token limit and the full agent list.
+      const response = await authenticatedFetch(`${API_BASE}/admin/teams/${team.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: editTeamName.trim(),
-          description: editTeamDescription.trim() || undefined,
+          description: editTeamDescription.trim() || editTeamName.trim(),
           isActive: true,
+          agents: editTeamAgents,
+          // null clears the allowance on the API side.
+          tokenLimit,
         }),
       });
 
-      if (!groupResponse.ok) {
-        const detail = await groupResponse.text();
-        throw new Error(detail || "Unable to update team.");
+      if (!response.ok) {
+        throw new Error(await parseApiError(response));
       }
 
-      const agentsResponse = await authenticatedFetch(`${API_BASE}/admin/groups/${team.id}/agents`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agentNames: editTeamAgents }),
-      });
-
-      if (!agentsResponse.ok) {
-        const detail = await agentsResponse.text();
-        throw new Error(detail || "Unable to update team agents.");
-      }
-
-      const updatedGroup = (await groupResponse.json()) as AgentGroupListItem;
+      const updated = (await response.json()) as AgentTeamResponse;
 
       setTeams(prev =>
         prev.map(item =>
           item.id === team.id
             ? {
                 ...item,
-                name: updatedGroup.name,
-                description: updatedGroup.description,
-                agents: editTeamAgents,
+                name: updated.name,
+                description: updated.description,
+                agents: updated.agents ?? editTeamAgents,
+                users: updated.assignmentCount ?? item.users,
+                tokenLimit: updated.tokenLimit ?? tokenLimit,
               }
             : item,
         ),
+      );
+      // Keep the team chips on membership cards current without a refetch.
+      setMemberships(prev =>
+        prev.map(membership => ({
+          ...membership,
+          includedTeams: membership.includedTeams?.map(item =>
+            item.id === team.id
+              ? {
+                  ...item,
+                  name: updated.name,
+                  agents: updated.agents ?? editTeamAgents,
+                  isActive: updated.isActive ?? item.isActive,
+                }
+              : item,
+          ),
+        })),
       );
       setTeamMessage(`Updated "${editTeamName.trim()}".`);
       cancelEditingTeam();
@@ -642,6 +694,21 @@ export default function AgentsAndTeamsPage() {
                       placeholder="Optional team description"
                       className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-indigo-400/60"
                     />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs text-white/50">Token limit (per agent)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={teamTokenLimit}
+                      onChange={(event) => setTeamTokenLimit(event.target.value)}
+                      placeholder="Leave blank for access only"
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-indigo-400/60"
+                    />
+                    <p className="mt-1 text-[11px] text-white/35">
+                      Applied per agent: every agent in the team gets this many tokens for each user the team is assigned to.
+                    </p>
                   </div>
                 </div>
 
@@ -729,6 +796,18 @@ export default function AgentsAndTeamsPage() {
                             className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-indigo-400/60"
                           />
                         </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs text-white/45">Token limit (per agent)</label>
+                          <input
+                            type="number"
+                            min={0}
+                            step={1}
+                            value={editTeamTokenLimit}
+                            onChange={(event) => setEditTeamTokenLimit(event.target.value)}
+                            placeholder="Leave blank for access only"
+                            className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-indigo-400/60"
+                          />
+                        </div>
                       </div>
 
                       <div>
@@ -807,9 +886,15 @@ export default function AgentsAndTeamsPage() {
                           </span>
                         ))}
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-white/40">
-                        <Users size={14} />
-                        {typeof team.users === "number" ? `${team.users} active user` : "Assigned users managed by email"}
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-white/40">
+                        <span className="flex items-center gap-2">
+                          <Users size={14} />
+                          {typeof team.users === "number" ? `${team.users} active user` : "Assigned users managed by email"}
+                        </span>
+                        <span className="flex items-center gap-2" title="Token allowance each agent gets per assigned user">
+                          <Coins size={14} />
+                          {formatTokenLimit(team.tokenLimit)}
+                        </span>
                       </div>
                     </>
                   )}
@@ -863,7 +948,7 @@ export default function AgentsAndTeamsPage() {
                     />
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-xs text-white/50">Tokens per month</label>
+                    <label className="mb-1.5 block text-xs text-white/50">Tokens per month (shared)</label>
                     <input
                       type="number"
                       min={0}
@@ -871,11 +956,12 @@ export default function AgentsAndTeamsPage() {
                       onChange={(event) => setMembershipTokenLimit(Number(event.target.value))}
                       className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-emerald-400/60"
                     />
+                    <p className="mt-1 text-[11px] text-white/35">One pool for every agent in the membership, not per agent.</p>
                   </div>
                 </div>
 
                 <div className="mt-4">
-                  <label className="mb-2 block text-xs text-white/50">Included agents</label>
+                  <label className="mb-2 block text-xs text-white/50">Single agents</label>
                   <div className="flex flex-wrap gap-2">
                     {SINGLE_AGENTS.map(agent => {
                       const isSelected = membershipAgents.includes(agent);
@@ -898,29 +984,37 @@ export default function AgentsAndTeamsPage() {
                 </div>
 
                 <div className="mt-4">
-                  <label className="mb-2 block text-xs text-white/50">Included teams</label>
-                  <div className="flex flex-wrap gap-2">
-                    {teams.length === 0 && (
-                      <span className="text-xs text-white/35">No teams available.</span>
-                    )}
-                    {teams.map(team => {
-                      const isSelected = membershipGroupIds.includes(team.id);
-                      return (
-                        <button
-                          key={team.id}
-                          type="button"
-                          onClick={() => toggleMembershipGroup(team.id)}
-                          className={`rounded-lg border px-2.5 py-1.5 text-xs transition ${
-                            isSelected
-                              ? "border-sky-400/60 bg-sky-500/20 text-sky-200"
-                              : "border-white/10 bg-white/5 text-white/55 hover:border-white/20 hover:text-white/80"
-                          }`}
-                        >
-                          {team.name}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <label className="mb-2 block text-xs text-white/50">Teams</label>
+                  {isLoadingTeams ? (
+                    <p className="text-xs text-white/35">Loading teams...</p>
+                  ) : teams.length === 0 ? (
+                    <p className="text-xs text-white/35">
+                      No agent teams yet. Create one in the Agent Teams section above.
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {teams.map(team => {
+                        const isSelected = membershipTeamIds.includes(team.id);
+                        return (
+                          <button
+                            key={team.id}
+                            type="button"
+                            onClick={() => toggleMembershipTeamId(team.id)}
+                            title={team.agents.join(", ")}
+                            className={`rounded-lg border px-2.5 py-1.5 text-xs transition ${
+                              isSelected
+                                ? "border-violet-400/60 bg-violet-500/20 text-violet-200"
+                                : "border-white/10 bg-white/5 text-white/55 hover:border-white/20 hover:text-white/80"
+                            }`}
+                          >
+                            <Users size={11} className="mr-1 inline-block" />
+                            {team.name}
+                            <span className="ml-1 text-white/35">({team.agents.length})</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-4 flex justify-end">
@@ -963,10 +1057,7 @@ export default function AgentsAndTeamsPage() {
               )}
 
               {!isLoadingMemberships && memberships.map(membership => {
-                const chips = [
-                  ...(membership.includedAgents ?? []),
-                  ...(membership.includedGroupIds ?? []).map(groupId => teams.find(team => team.id === groupId)?.name ?? groupId),
-                ];
+                const chips = membership.includedAgents ?? [];
 
                 if (editingMembershipId === membership.id) {
                   return (
@@ -994,7 +1085,7 @@ export default function AgentsAndTeamsPage() {
                           />
                         </div>
                         <div>
-                          <label className="mb-1.5 block text-xs text-white/50">Tokens per month</label>
+                          <label className="mb-1.5 block text-xs text-white/50">Tokens per month (shared)</label>
                           <input
                             type="number"
                             min={0}
@@ -1002,11 +1093,12 @@ export default function AgentsAndTeamsPage() {
                             onChange={(event) => setEditMembershipTokenLimit(Number(event.target.value))}
                             className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-emerald-400/60"
                           />
+                          <p className="mt-1 text-[11px] text-white/35">One pool for every agent in the membership, not per agent.</p>
                         </div>
                       </div>
 
                       <div className="mt-4">
-                        <label className="mb-2 block text-xs text-white/50">Included agents</label>
+                        <label className="mb-2 block text-xs text-white/50">Single agents</label>
                         <div className="flex flex-wrap gap-2">
                           {SINGLE_AGENTS.map(agent => {
                             const isSelected = editMembershipAgents.includes(agent);
@@ -1029,29 +1121,33 @@ export default function AgentsAndTeamsPage() {
                       </div>
 
                       <div className="mt-4">
-                        <label className="mb-2 block text-xs text-white/50">Included teams</label>
-                        <div className="flex flex-wrap gap-2">
-                          {teams.length === 0 && (
-                            <span className="text-xs text-white/35">No teams available.</span>
-                          )}
-                          {teams.map(team => {
-                            const isSelected = editMembershipGroupIds.includes(team.id);
-                            return (
-                              <button
-                                key={team.id}
-                                type="button"
-                                onClick={() => toggleEditMembershipGroup(team.id)}
-                                className={`rounded-lg border px-2.5 py-1.5 text-xs transition ${
-                                  isSelected
-                                    ? "border-sky-400/60 bg-sky-500/20 text-sky-200"
-                                    : "border-white/10 bg-white/5 text-white/55 hover:border-white/20 hover:text-white/80"
-                                }`}
-                              >
-                                {team.name}
-                              </button>
-                            );
-                          })}
-                        </div>
+                        <label className="mb-2 block text-xs text-white/50">Teams</label>
+                        {teams.length === 0 ? (
+                          <p className="text-xs text-white/35">No agent teams yet.</p>
+                        ) : (
+                          <div className="flex flex-wrap gap-2">
+                            {teams.map(team => {
+                              const isSelected = editMembershipTeamIds.includes(team.id);
+                              return (
+                                <button
+                                  key={team.id}
+                                  type="button"
+                                  onClick={() => toggleEditMembershipTeamId(team.id)}
+                                  title={team.agents.join(", ")}
+                                  className={`rounded-lg border px-2.5 py-1.5 text-xs transition ${
+                                    isSelected
+                                      ? "border-violet-400/60 bg-violet-500/20 text-violet-200"
+                                      : "border-white/10 bg-white/5 text-white/55 hover:border-white/20 hover:text-white/80"
+                                  }`}
+                                >
+                                  <Users size={11} className="mr-1 inline-block" />
+                                  {team.name}
+                                  <span className="ml-1 text-white/35">({team.agents.length})</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
 
                       <div className="mt-4 flex justify-end gap-2">
@@ -1077,17 +1173,48 @@ export default function AgentsAndTeamsPage() {
                   );
                 }
 
+                const teamChips = membership.includedTeams ?? [];
+
                 return (
-                  <div key={membership.id} className="flex items-center justify-between rounded-xl border border-white/5 bg-white/5 p-4">
-                    <div>
+                  <div key={membership.id} className="flex items-start justify-between gap-4 rounded-xl border border-white/5 bg-white/5 p-4">
+                    <div className="min-w-0">
                       <h3 className="font-semibold text-white/90">{membership.name}</h3>
                       <div className="mt-1 flex items-center gap-3 text-xs text-white/50">
                         <span>{membership.durationDays} Days</span>
                         <span>-</span>
-                        <span>{(membership.monthlyTokenLimit / 1000).toFixed(0)}k Tokens/mo</span>
+                        <span title="Shared by every agent in the membership">{(membership.monthlyTokenLimit / 1000).toFixed(0)}k Tokens/mo shared</span>
+                      </div>
+                      <div className="mt-3 space-y-2">
+                        <div className="flex flex-wrap items-center gap-1">
+                          <span className="mr-1 text-[10px] uppercase tracking-wide text-white/35">Agents</span>
+                          {chips.length === 0 && <span className="text-[10px] text-white/25">none</span>}
+                          {chips.map(item => (
+                            <span key={item} className="rounded bg-sky-500/20 px-2 py-0.5 text-[10px] text-sky-300">
+                              {item}
+                            </span>
+                          ))}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-1">
+                          <span className="mr-1 text-[10px] uppercase tracking-wide text-white/35">Teams</span>
+                          {teamChips.length === 0 && <span className="text-[10px] text-white/25">none</span>}
+                          {teamChips.map(team => (
+                            <span
+                              key={team.id}
+                              title={team.agents.join(", ")}
+                              className={`rounded px-2 py-0.5 text-[10px] ${
+                                team.isActive
+                                  ? "bg-violet-500/20 text-violet-300"
+                                  : "bg-white/10 text-white/40 line-through"
+                              }`}
+                            >
+                              <Users size={10} className="mr-1 inline-block" />
+                              {team.name} ({team.agents.length})
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                    <div className="flex flex-col items-end gap-2">
+                    <div className="flex shrink-0 items-center gap-1">
                       <button
                         onClick={() => startEditingMembership(membership)}
                         title="Edit membership"
@@ -1095,134 +1222,22 @@ export default function AgentsAndTeamsPage() {
                       >
                         <Pencil size={15} />
                       </button>
-                      <div className="flex flex-wrap justify-end gap-1">
-                        {chips.map(item => (
-                          <span key={item} className="rounded bg-sky-500/20 px-2 py-0.5 text-[10px] text-sky-300">
-                            {item}
-                          </span>
-                        ))}
-                      </div>
+                      <button
+                        onClick={() => deleteMembership(membership)}
+                        disabled={deletingMembershipId === membership.id}
+                        title="Delete membership"
+                        className="rounded-lg p-1.5 text-white/35 transition hover:bg-red-500/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {deletingMembershipId === membership.id ? (
+                          <Loader2 size={15} className="animate-spin" />
+                        ) : (
+                          <Trash2 size={15} />
+                        )}
+                      </button>
                     </div>
                   </div>
                 );
               })}
-
-              {MOCK_MEMBERSHIPS.map(membership => (
-                <div key={membership.id} className="flex items-center justify-between rounded-xl border border-white/5 bg-white/5 p-4">
-                  <div>
-                    <h3 className="font-semibold text-white/90">{membership.name}</h3>
-                    <div className="text-xs text-white/50 mt-1 flex items-center gap-3">
-                      <span>{membership.durationDays} Days</span>
-                      <span>•</span>
-                      <span>{(membership.tokens / 1000).toFixed(0)}k Tokens/mo</span>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <button className="text-white/40 hover:text-white"><MoreVertical size={16} /></button>
-                    <div className="flex gap-1">
-                       {membership.items.map(item => (
-                        <span key={item} className="rounded bg-sky-500/20 px-2 py-0.5 text-[10px] text-sky-300">
-                          {item}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* ──────── CONVERSATION TOKEN LIMITS ──────── */}
-          <section className="rounded-2xl border border-white/10 bg-[#0F172A] p-6">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <Zap size={20} className="text-amber-400" /> Conversation Token Limits
-              </h2>
-            </div>
-            <p className="text-xs text-white/40 mb-6">
-              Set the maximum number of tokens a single conversation can reach before the user is forced to start a new one.
-            </p>
-
-            {/* Global / Per-Agent Toggle */}
-            <div className="flex items-center gap-4 mb-6 p-4 rounded-xl bg-white/[0.03] border border-white/5">
-              <button
-                onClick={() => setGlobalMode(!globalMode)}
-                className="flex items-center gap-2 text-sm font-medium transition"
-              >
-                {globalMode ? (
-                  <ToggleRight size={28} className="text-sky-400" />
-                ) : (
-                  <ToggleLeft size={28} className="text-white/30" />
-                )}
-              </button>
-              <div>
-                <p className="text-sm font-medium text-white/90">
-                  {globalMode ? "Same limit for all agents" : "Per-agent limits"}
-                </p>
-                <p className="text-[11px] text-white/40">
-                  {globalMode
-                    ? "A single token limit applies to every agent conversation."
-                    : "Each agent can have its own conversation token limit."}
-                </p>
-              </div>
-            </div>
-
-            {/* Global Limit Input */}
-            {globalMode ? (
-              <div className="space-y-4">
-                <div>
-                  <label className="text-xs text-white/50 mb-1.5 block">Max Tokens per Conversation (All Agents)</label>
-                  <div className="relative max-w-xs">
-                    <Zap size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400/60" />
-                    <input
-                      type="number"
-                      value={globalLimit}
-                      onChange={(e) => setGlobalLimit(Number(e.target.value))}
-                      className="w-full rounded-xl border border-white/10 bg-white/5 p-3 pl-9 text-sm text-white outline-none focus:border-amber-500/50 transition"
-                    />
-                  </div>
-                  <p className="text-[11px] text-white/30 mt-2">
-                    Equivalent to ~{(globalLimit / 750).toFixed(0)} pages of text or ~{(globalLimit / 4).toFixed(0)} words.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              /* Per-Agent Limits Table */
-              <div className="space-y-2 max-h-[420px] overflow-y-auto pr-2 custom-scrollbar">
-                <div className="grid grid-cols-[1fr_140px_100px] gap-3 px-3 py-2 text-[10px] uppercase tracking-wider text-white/30 sticky top-0 bg-[#0F172A] z-10">
-                  <span>Agent</span>
-                  <span>Max Tokens</span>
-                  <span className="text-right">~Words</span>
-                </div>
-                {SINGLE_AGENTS.map(agent => (
-                  <div
-                    key={agent}
-                    className="grid grid-cols-[1fr_140px_100px] gap-3 items-center rounded-lg bg-white/[0.03] px-3 py-2.5 border border-white/5 hover:border-white/10 transition"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-md bg-sky-500/15 text-sky-400">
-                        <Bot size={13} />
-                      </div>
-                      <span className="text-sm font-medium text-white/80">{agent}</span>
-                    </div>
-                    <input
-                      type="number"
-                      value={perAgentLimits[agent] || 8000}
-                      onChange={(e) => updateAgentLimit(agent, Number(e.target.value))}
-                      className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white outline-none focus:border-amber-500/50 transition text-center"
-                    />
-                    <span className="text-xs text-white/30 font-mono text-right">
-                      {((perAgentLimits[agent] || 8000) / 4).toLocaleString()}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="flex justify-end mt-6">
-              <button className="flex items-center gap-2 rounded-xl bg-amber-600/90 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-500 shadow-lg shadow-amber-500/15">
-                <Save size={14} /> Save Limits
-              </button>
             </div>
           </section>
 

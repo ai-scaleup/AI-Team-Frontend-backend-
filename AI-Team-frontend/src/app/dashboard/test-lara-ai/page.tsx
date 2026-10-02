@@ -34,6 +34,7 @@ import {
   Menu,
   Home,
 } from "lucide-react"
+import { CompactionNotice } from "@/components/ui/CompactionNotice"
 
 // --- TYPES ---
 interface Message {
@@ -339,7 +340,7 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const CURRENT_NAMESPACE = useRef("")
 
-  const N8N_ENDPOINT = process.env.NEXT_PUBLIC_TEST_LARA_AI_N8N_ENDPOINT || "https://n8n-c2lq.onrender.com/webhook/375630aa-9de9-4884-858f-d9a552f0de45/chat?action=sendMessage"
+  const N8N_ENDPOINT = "/api/n8n-proxy?agent=test-lara-ai"
 
   // --- INITIALIZATION ---
   useEffect(() => {
@@ -743,8 +744,10 @@ export default function App() {
     setMessages((prev) => [...prev, aiResponsePlaceholder])
 
     try {
-      const sessionId = localStorage.getItem("lara-ai-session-id") || "session_" + Date.now()
-      if (!currentChatIdForSend) throw new Error("currentChatIdForSend is null") // Should not happen
+      // One session per chat, derived from the chat id itself: stable across
+      // reloads, unique per conversation, and nothing to store anywhere.
+      if (!currentChatIdForSend) throw new Error("currentChatIdForSend is null")
+      const sessionId = `session_${currentChatIdForSend}`
 
       const response = await fetch(N8N_ENDPOINT, {
         method: "POST",
@@ -1494,6 +1497,13 @@ export default function App() {
 
           <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 custom-scrollbar">
             <div className="max-w-6xl mx-auto space-y-6">
+              <CompactionNotice
+                sessionId={currentChatId ? `session_${currentChatId}` : null}
+                agent="test-lara-ai"
+                chatId={currentChatId}
+                refreshKey={isLoading ? -1 : messages.length}
+              />
+
               {messages.map((msg, idx) => (
                 <div
                   key={idx}

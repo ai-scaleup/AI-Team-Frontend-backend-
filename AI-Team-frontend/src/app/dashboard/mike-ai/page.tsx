@@ -2,6 +2,7 @@
 
 import { API_BASE } from "@/lib/apiBase"
 import { authenticatedFetch } from "@/lib/authenticatedFetch";
+import { resolveAgentTokenSource, TOKEN_TYPE_LABELS, type AgentTokenSource } from "@/lib/agentTokenSource";
 
 export const dynamic = "force-dynamic"
 
@@ -39,8 +40,10 @@ import {
   Home,
   BookOpen,
 } from "lucide-react"
+import { CompactionNotice } from "@/components/ui/CompactionNotice"
 import { useUser } from "@clerk/nextjs"
 import { conversationService } from "@/services/conversationService"
+import { useConversationCache } from "@/hooks/use-conversation-cache"
 import { extractFileContent } from "@/utils/fileExtraction"
 import { getDevUserEmail } from "@/lib/devToken"
 
@@ -51,6 +54,19 @@ interface Message {
   time: string
   files?: string[]
   raw?: string
+  // Set only on the in-flight AI placeholder, so streaming updates find it by id.
+  pendingId?: string
+}
+
+// Writes `update` into the placeholder tagged `pendingId`. If the list was
+// replaced while the reply streamed in (e.g. saved chats finished loading),
+// the reply is appended instead of overwriting whatever message is last.
+const replacePending = (messages: Message[], pendingId: string, update: Message): Message[] => {
+  const idx = messages.findIndex((m) => m.pendingId === pendingId)
+  if (idx === -1) return [...messages, update]
+  const next = [...messages]
+  next[idx] = update
+  return next
 }
 
 interface ChatSession {
@@ -532,6 +548,8 @@ export default function App() {
     totalTokenLimit: number
     totalTokensLeft: number
   } | null>(null)
+  // Tier paying for the next chat: single-agent grant first, then team, then membership.
+  const [tokenSource, setTokenSource] = useState<AgentTokenSource | null>(null)
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [sidebarVisible, setSidebarVisible] = useState(true)
@@ -575,19 +593,37 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const CURRENT_NAMESPACE = useRef("")
   const prevMessageCountRef = useRef(0)
+  // True once the user starts a chat here, so a late conversation load
+  // does not replace the chat on screen.
+  const chatStartedRef = useRef(false)
 
-  const N8N_ENDPOINT = process.env.NEXT_PUBLIC_MIKE_AI_N8N_ENDPOINT || "https://n8n-c2lq.onrender.com/webhook/66f3ee04-7d9b-4ae4-9e13-0af7a4cdde77/chat?action=sendMessage"
+  const N8N_ENDPOINT = "/api/n8n-proxy?agent=mike-ai"
+
+  // Picks the tier that pays for the next chat and shows that tier's balance.
+  // A user holding only access-only grants gets no bar and is never blocked.
+  const refreshTokenSource = async (): Promise<AgentTokenSource | null> => {
+    if (!userEmail) return null
+    try {
+      const source = await resolveAgentTokenSource(userEmail, "MIKE")
+      setTokenSource(source)
+      setTokenUsage(
+        source.hasLimitedGrant
+          ? {
+              totalUsedTokens: source.usedTokens,
+              totalTokenLimit: source.tokenLimit,
+              totalTokensLeft: source.tokensLeft,
+            }
+          : null,
+      )
+      return source
+    } catch (err) {
+      console.error("Mike AI: Failed to resolve token source:", err)
+      return null
+    }
+  }
 
   useEffect(() => {
-    if (!userEmail) return
-
-    const userIdentifier = encodeURIComponent(userEmail)
-    authenticatedFetch(`${API_BASE}/token-usage/${userIdentifier}/MIKE`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data) { /* token usage UI disabled */ }
-      })
-      .catch(() => {})
+    refreshTokenSource()
   }, [userEmail])
 
   // --- INITIALIZATION ---
@@ -613,62 +649,78 @@ export default function App() {
     }
   }, [])
 
-  // Load conversations from API when user is available
+  const conversationCache = useConversationCache(user?.id, "mike-ai", chats, currentChatId)
+
+  // Load conversations when user is available: the copy cached on this device
+  // shows at once, then the API's list replaces it. UserSync in the dashboard
+  // layout creates the user; getConversations waits for it only when needed.
   useEffect(() => {
     if (!user?.id) return
+    let cancelled = false
+
+    const showChats = (chatsRecord: Record<string, ChatSession>) => {
+      setChats(chatsRecord)
+
+      const sorted = Object.entries(chatsRecord).sort(
+        ([, a], [, b]) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime(),
+      )
+      const recentChatId = sorted[0][0]
+      setCurrentChatId(recentChatId)
+      setMessages(chatsRecord[recentChatId].messages || [])
+      if (chatsRecord[recentChatId].agentId) {
+        setActiveAgentId(chatsRecord[recentChatId].agentId)
+      }
+      return recentChatId
+    }
+
+    const cached = conversationCache.read()
+    if (cached) conversationCache.markShown(cached, showChats(cached))
 
     const loadConversations = async () => {
       try {
-        // Ensure user exists in DB (handles cases where Clerk webhook didn't fire)
-        const email = user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress
-        if (email) {
-          await authenticatedFetch(`${API_BASE}/users/sync`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ oauthId: user.id, email, username: user.username ?? undefined }),
-          })
-        }
-
         console.log("📡 Mike AI: Fetching conversations from API for user:", user.id)
         const conversations = await conversationService.getConversations(user.id, "mike-ai")
+        if (cancelled) return
 
-        if (conversations && conversations.length > 0) {
-          const chatsRecord: Record<string, ChatSession> = {}
-          conversations.forEach((conv) => {
-            chatsRecord[conv.id] = {
-              id: conv.id,
-              messages: conv.messages || [],
-              title: conv.title,
-              lastUpdated: conv.lastUpdated,
-              folderId: conv.folderId || null,
-              archived: conv.archived || false,
-              agentId: conv.agentId,
-            }
-          })
-
-          setChats(chatsRecord)
-
-          const sorted = Object.entries(chatsRecord).sort(
-            ([, a], [, b]) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime(),
-          )
-          const recentChatId = sorted[0][0]
-          setCurrentChatId(recentChatId)
-          setMessages(chatsRecord[recentChatId].messages || [])
-          if (chatsRecord[recentChatId].agentId) {
-            setActiveAgentId(chatsRecord[recentChatId].agentId)
+        const chatsRecord: Record<string, ChatSession> = {}
+        conversations.forEach((conv) => {
+          chatsRecord[conv.id] = {
+            id: conv.id,
+            messages: conv.messages || [],
+            title: conv.title,
+            lastUpdated: conv.lastUpdated,
+            folderId: conv.folderId || null,
+            archived: conv.archived || false,
+            agentId: conv.agentId,
           }
+        })
+
+        // The user is already working in the cached chats: fold the list in.
+        const merged = conversationCache.reconcile(chatsRecord)
+        if (merged) {
+          setChats(merged)
+        } else if (chatStartedRef.current) {
+          // The user sent a message before the load finished: keep that chat
+          // open and only add the saved ones to the sidebar.
+          setChats((prev) => ({ ...chatsRecord, ...prev }))
+        } else if (conversations.length > 0) {
+          showChats(chatsRecord)
           console.log("✅ Mike AI: Loaded", conversations.length, "conversations from API")
         } else {
           console.log("📝 Mike AI: No conversations found, creating new chat")
+          setChats({})
           await initNewChatForAgent(currentAgent)
         }
       } catch (error) {
         console.error("❌ Mike AI: Failed to load conversations from API:", error)
-        await initNewChatForAgent(currentAgent)
+        if (!cancelled && !cached && !chatStartedRef.current) await initNewChatForAgent(currentAgent)
       }
     }
 
     loadConversations()
+    return () => {
+      cancelled = true
+    }
   }, [user?.id])
 
   useEffect(() => {
@@ -1007,6 +1059,7 @@ export default function App() {
     if (isTokenLimitReached) return
 
     setIsLoading(true)
+    chatStartedRef.current = true
 
     const userMessage: Message = {
       text: inputValue,
@@ -1046,8 +1099,7 @@ export default function App() {
         sessionId: newSessionId,
       }
 
-      const updatedChatsState = { ...chats, [newChatId]: newChat }
-      setChats(updatedChatsState)
+      setChats((prev) => ({ ...prev, [newChatId]: newChat }))
       setCurrentChatId(newChatId)
       currentChatIdForSend = newChatId
       currentMessages = [welcomeMsg, userMessage]
@@ -1068,14 +1120,16 @@ export default function App() {
         }
       }
     } else {
-      const updatedChatSession = {
-        ...chats[currentChatIdForSend],
-        messages: currentMessages,
-        lastUpdated: new Date().toISOString(),
-        title: chats[currentChatIdForSend]?.title || inputValue.slice(0, 30) || "Nuova Missione",
-      }
-      const updatedChatsState = { ...chats, [currentChatIdForSend]: updatedChatSession }
-      setChats(updatedChatsState)
+      const chatId = currentChatIdForSend
+      setChats((prev) => ({
+        ...prev,
+        [chatId]: {
+          ...prev[chatId],
+          messages: currentMessages,
+          lastUpdated: new Date().toISOString(),
+          title: prev[chatId]?.title || capturedInput.slice(0, 30) || "Nuova Missione",
+        },
+      }))
       setMessages(currentMessages)
 
       if (user?.id) {
@@ -1112,12 +1166,20 @@ export default function App() {
       setPendingFileContents([])
     }
 
-    const aiResponsePlaceholder: Message = { text: "...", sender: "ai", time: "", raw: "" }
+    const pendingId = "pending_" + Date.now()
+    const aiResponsePlaceholder: Message = { text: "...", sender: "ai", time: "", raw: "", pendingId }
     setMessages((prev) => [...prev, aiResponsePlaceholder])
 
     try {
       const sessionId = chats[currentChatIdForSend!]?.sessionId || "session_" + Date.now()
       if (!currentChatIdForSend) throw new Error("currentChatIdForSend is null")
+
+      // Re-read the tiers right before sending: the previous chat may have
+      // used up the one shown, so n8n is told the tier that pays for this one.
+      const source = (await refreshTokenSource()) ?? tokenSource
+      if (source?.hasLimitedGrant && !source.tokenType) {
+        throw new Error("Token limit reached on every tier")
+      }
 
       const response = await authenticatedFetch(N8N_ENDPOINT, {
         method: "POST",
@@ -1127,7 +1189,19 @@ export default function App() {
             capturedInput + (capturedFiles.length ? ` [Attached: ${capturedFiles.map((f) => f.name).join(", ")}]` : ""),
           sessionId: sessionId,
           useMemory: useMemory,
-          metadata: { namespace: CURRENT_NAMESPACE.current, source: activeAgentId, email: userEmail },
+          metadata: {
+            namespace: CURRENT_NAMESPACE.current,
+            source: activeAgentId,
+            email: userEmail,
+            tokenType: source?.tokenType ?? null,
+            // Read by the token-usage tracker to charge the user's grant for this agent.
+            agentName: "MIKE",
+            agentType: source?.tokenType ?? null,
+            // Team tier only: which team grant the tracker charges.
+            teamId: source?.teamId ?? null,
+            // Membership tier only: the assigned-membership id whose pool is charged.
+            membershipAssignmentId: source?.tokenType === "membership" ? source.grantId : null,
+          },
           chatId: currentChatIdForSend,
         }),
       })
@@ -1152,12 +1226,7 @@ export default function App() {
       let typewriterTimer: ReturnType<typeof setTimeout> | null = null
 
       const renderStreaming = (text: string) => {
-        setMessages((prev) => {
-          const newMsgs = [...prev]
-          const last = newMsgs[newMsgs.length - 1]
-          newMsgs[newMsgs.length - 1] = { ...last, text }
-          return newMsgs
-        })
+        setMessages((prev) => replacePending(prev, pendingId, { ...aiResponsePlaceholder, text }))
       }
 
       const typewriterDone = new Promise<void>((resolve) => {
@@ -1233,16 +1302,13 @@ export default function App() {
         raw: rawText,
       }
 
+      const chatId = currentChatIdForSend
       setMessages((prev) => {
-        const newMsgs = [...prev]
-        newMsgs[newMsgs.length - 1] = finalAiMessage
-        const updatedChatSession = {
-          ...chats[currentChatIdForSend!],
-          messages: newMsgs,
-          lastUpdated: new Date().toISOString(),
-        }
-        const updatedChatsState = { ...chats, [currentChatIdForSend!]: updatedChatSession }
-        setChats(updatedChatsState)
+        const newMsgs = replacePending(prev, pendingId, finalAiMessage)
+        setChats((prevChats) => ({
+          ...prevChats,
+          [chatId]: { ...prevChats[chatId], messages: newMsgs, lastUpdated: new Date().toISOString() },
+        }))
         return newMsgs
       })
 
@@ -1261,39 +1327,9 @@ export default function App() {
         }
       }
 
-      const userIdentifier = userEmail ? encodeURIComponent(userEmail) : ""
-      try {
-        if (userIdentifier) {
-          const [inputCount, outputCount] = await Promise.all([
-            authenticatedFetch(`${API_BASE}/token-usage/count`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ text: userMessage.text }),
-            }).then((r) => (r.ok ? r.json() : null)),
-            authenticatedFetch(`${API_BASE}/token-usage/count`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ text: finalAiMessage.text }),
-            }).then((r) => (r.ok ? r.json() : null)),
-          ])
-
-          const totalUsedInputTokens = inputCount?.totalUsedInputTokens ?? 0
-          const totalUsedOutputTokens = outputCount?.totalUsedInputTokens ?? 0
-
-          await authenticatedFetch(`${API_BASE}/token-usage/${userIdentifier}/MIKE/usage`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ totalUsedInputTokens, totalUsedOutputTokens }),
-          })
-
-          const updated = await authenticatedFetch(`${API_BASE}/token-usage/${userIdentifier}/MIKE`).then((r) =>
-            r.ok ? r.json() : null,
-          )
-          if (updated) { /* token usage UI disabled */ }
-        }
-      } catch (err) {
-        console.error("Mike AI: Failed to update token usage:", err)
-      }
+      // Usage is no longer recorded from here: n8n charges what the chat cost
+      // to the tier named in metadata.tokenType. Pick up the new balance.
+      await refreshTokenSource()
 
       // Upsert conversation to Pinecone directly
       if (CURRENT_NAMESPACE.current && currentChatIdForSend) {
@@ -1311,12 +1347,8 @@ export default function App() {
         }
       }
     } catch (error) {
-      setMessages((prev) => {
-        const newMsgs = [...prev]
-        newMsgs[newMsgs.length - 1].text =
-          `Errore: Impossibile inviare il messaggio. ${error instanceof Error ? error.message : String(error)}`
-        return newMsgs
-      })
+      const errorText = `Errore: Impossibile inviare il messaggio. ${error instanceof Error ? error.message : String(error)}`
+      setMessages((prev) => replacePending(prev, pendingId, { ...aiResponsePlaceholder, text: errorText, pendingId: undefined }))
     } finally {
       setIsLoading(false)
 
@@ -1962,7 +1994,7 @@ export default function App() {
                       <div className="flex items-center justify-between gap-3">
                         <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
                           <Zap size={12} className="text-sky-400" />
-                          Token Usati
+                          {tokenSource?.tokenType ? `Token ${TOKEN_TYPE_LABELS[tokenSource.tokenType]}` : "Token Usati"}
                         </span>
                         <span className="text-xs font-bold text-slate-900 dark:text-white tabular-nums">
                           {tokenUsage.totalUsedTokens.toLocaleString("it-IT")}
@@ -2017,6 +2049,13 @@ export default function App() {
           {/* Messages Area */}
           <div className="flex-1 overflow-y-auto px-2 sm:px-4 md:px-8 py-4 sm:py-6 neural-grid">
             <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
+              <CompactionNotice
+                sessionId={currentChatId ? (chats[currentChatId]?.sessionId ?? null) : null}
+                agent="mike-ai"
+                chatId={currentChatId}
+                refreshKey={isLoading ? -1 : messages.length}
+              />
+
               {messages.map((msg, idx) => (
                 <div
                   key={idx}

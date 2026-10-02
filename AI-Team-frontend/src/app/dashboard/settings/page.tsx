@@ -131,14 +131,18 @@ export default function SettingsPage() {
 
         console.log('💾 [Settings] Data payload:', JSON.stringify(dataToSave, null, 2));
 
-        const result = await userPreferenceService.upsert(userEmail, "JIM", dataToSave)
+        const { data, error } = await userPreferenceService.upsertWithResult(
+            userEmail,
+            "JIM",
+            dataToSave,
+        )
 
-        if (result) {
-            setPreferences(result)
+        if (data) {
+            setPreferences(data)
             setSaveSuccess(true)
             setTimeout(() => setSaveSuccess(false), 3000)
         } else {
-            setSaveError("Errore durante il salvataggio. Riprova.")
+            setSaveError(error ?? "Errore durante il salvataggio. Riprova.")
         }
 
         setIsSaving(false)

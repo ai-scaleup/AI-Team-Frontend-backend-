@@ -34,6 +34,7 @@ import {
   Menu,
   Home,
 } from "lucide-react"
+import { CompactionNotice } from "@/components/ui/CompactionNotice"
 import * as pdfjsLib from "pdfjs-dist"
 import mammoth from "mammoth"
 import * as XLSX from "xlsx"
@@ -611,7 +612,7 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const CURRENT_NAMESPACE = useRef("")
 
-  const N8N_ENDPOINT = process.env.NEXT_PUBLIC_TEST_MIKE_AI_N8N_ENDPOINT || "https://n8n-c2lq.onrender.com/webhook/b4b91b86-1adc-4e28-8fad-37ce72789cc3/chat?action=sendMessage"
+  const N8N_ENDPOINT = "/api/n8n-proxy?agent=test-mike-ai"
 
   // --- INITIALIZATION ---
   useEffect(() => {
@@ -1031,8 +1032,10 @@ export default function App() {
     setMessages((prev) => [...prev, aiResponsePlaceholder])
 
     try {
-      const sessionId = localStorage.getItem("mike-ai-session-id") || "session_" + Date.now()
+      // One session per chat, derived from the chat id itself: stable across
+      // reloads, unique per conversation, and nothing to store anywhere.
       if (!currentChatIdForSend) throw new Error("currentChatIdForSend is null")
+      const sessionId = `session_${currentChatIdForSend}`
 
       const response = await fetch(N8N_ENDPOINT, {
         method: "POST",
@@ -1795,6 +1798,13 @@ export default function App() {
           {/* Messages Area */}
           <div className="flex-1 overflow-y-auto px-2 sm:px-4 md:px-8 py-4 sm:py-6 neural-grid">
             <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
+              <CompactionNotice
+                sessionId={currentChatId ? `session_${currentChatId}` : null}
+                agent="test-mike-ai"
+                chatId={currentChatId}
+                refreshKey={isLoading ? -1 : messages.length}
+              />
+
               {messages.map((msg, idx) => (
                 <div
                   key={idx}

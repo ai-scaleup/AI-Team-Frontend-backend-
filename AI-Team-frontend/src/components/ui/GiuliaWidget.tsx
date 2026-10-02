@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 
-const N8N_URL = "https://n8n-c2lq.onrender.com/webhook/4e27c666-aa21-4d92-b78a-34229167245b/chat"
+const N8N_URL = "/api/n8n-proxy?agent=giulia-widget"
 const AVATAR = "https://www.ai-scaleup.com/wp-content/uploads/2025/11/Giulia-ai.png"
 const USER_AVATAR = "https://www.shutterstock.com/image-vector/vector-flat-illustration-grayscale-avatar-600nw-2264922221.jpg"
 

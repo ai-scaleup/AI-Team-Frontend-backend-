@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
+import { fetchCompactionContext, reportCompactionTurn } from '@/lib/compactionBridge'
 
 export async function POST(request: NextRequest) {
     try {
@@ -12,7 +13,7 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        const { message, conversationHistory = [] } = await request.json()
+        const { message, conversationHistory = [], sessionId, chatId } = await request.json()
 
         if (!message) {
             return NextResponse.json(
@@ -23,6 +24,12 @@ export async function POST(request: NextRequest) {
 
         const openai = new OpenAI({ apiKey })
 
+        // Unlike the n8n agents, this route builds its own messages array, so the
+        // summary of the older turns goes where it belongs: in the system prompt.
+        const compaction = sessionId
+            ? await fetchCompactionContext({ sessionId, agent: 'luca-ai', chatId })
+            : null
+
         // Build messages array for OpenAI
         const messages: any[] = [
             {
@@ -30,7 +37,9 @@ export async function POST(request: NextRequest) {
                 content: `Sei Luca AI, un assistente virtuale professionale e amichevole che parla italiano. 
 Sei parte di un team di AI specializzati che aiutano le aziende con marketing, vendite e strategia.
 Rispondi in modo chiaro, conciso e utile. Mantieni un tono professionale ma cordiale.
-Le tue risposte devono essere brevi (2-3 frasi) per facilitare la conversazione vocale.`
+Le tue risposte devono essere brevi (2-3 frasi) per facilitare la conversazione vocale.${compaction?.memoryBlock ? `
+
+${compaction.memoryBlock}` : ''}`
             },
             ...conversationHistory,
             {
@@ -48,6 +57,19 @@ Le tue risposte devono essere brevi (2-3 frasi) per facilitare la conversazione 
         })
 
         const aiResponse = completion.choices[0]?.message?.content || 'Mi dispiace, non ho capito.'
+
+        if (sessionId) {
+            void reportCompactionTurn({
+                sessionId,
+                agent: 'luca-ai',
+                chatId,
+                userText: message,
+                aiText: aiResponse,
+                promptTokens: completion.usage?.prompt_tokens,
+                completionTokens: completion.usage?.completion_tokens,
+                totalTokens: completion.usage?.total_tokens,
+            })
+        }
 
         return NextResponse.json({
             response: aiResponse,

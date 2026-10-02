@@ -7,11 +7,11 @@ import { use, useState, useRef, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   ArrowLeft, User as UserIcon, Calendar, Activity, CreditCard,
-  Bot, Clock, ChevronDown, OctagonAlert, Shield, Mail, Hash,
-  DollarSign, Euro
+  Bot, ChevronDown, OctagonAlert, Shield, Mail, Hash,
+  DollarSign, Euro, X, Loader2, AlertTriangle, Users, RefreshCw, Pencil, Check
 } from "lucide-react";
 import {
-  Area, Line, PieChart, Pie, Cell,
+  Bar, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   ComposedChart
 } from "recharts";
@@ -32,30 +32,6 @@ const getClaudeSonnet46Usd = (
     inputTokens * SONNET_4_6_INPUT_USD_PER_TOKEN +
     outputTokens * SONNET_4_6_OUTPUT_USD_PER_TOKEN
   );
-};
-
-const formatTokensAsCost = (
-  tokens: number,
-  currency: CurrencyMode,
-  inputTokens?: number,
-  outputTokens?: number,
-): string => {
-  if (tokens === 0) return "0";
-  if (currency === "tokens") {
-    if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)}M`;
-    return `${(tokens / 1000).toFixed(1)}k`;
-  }
-  if (inputTokens === undefined || outputTokens === undefined) return "—";
-  const usd = getClaudeSonnet46Usd(inputTokens, outputTokens);
-  if (currency === "EUR") {
-    const eur = usd * EUR_RATE;
-    if (eur >= 1000) return `€${(eur / 1000).toFixed(1)}k`;
-    if (eur >= 1) return `€${eur.toFixed(2)}`;
-    return `€${eur.toFixed(3)}`;
-  }
-  if (usd >= 1000) return `$${(usd / 1000).toFixed(1)}k`;
-  if (usd >= 1) return `$${usd.toFixed(2)}`;
-  return `$${usd.toFixed(3)}`;
 };
 
 const formatAxisValue = (value: number, currency: CurrencyMode): string => {
@@ -79,12 +55,14 @@ const SortedTooltip = ({
   active, payload, label, currency,
 }: {
   active?: boolean;
-  payload?: ReadonlyArray<{ name: string; value: number; color: string; stroke?: string }>;
+  // Loose on purpose: Recharts passes entries whose name/value may be undefined.
+  payload?: ReadonlyArray<{ name?: unknown; value?: unknown; color?: string; stroke?: string }>;
   label?: string | number;
   currency: CurrencyMode;
 }) => {
   if (!active || !payload || payload.length === 0) return null;
-  const sorted = [...payload]
+  const sorted = payload
+    .map((entry) => ({ ...entry, name: String(entry.name ?? ""), value: Number(entry.value) }))
     .filter((entry) => !EXCLUDED_TOOLTIP_KEYS.has(entry.name) && Number(entry.value) > 0)
     .sort((a, b) => b.value - a.value);
   if (sorted.length === 0) return null;
@@ -146,11 +124,19 @@ function CurrencyToggle({
 /* ─────────────────── MOCK DATA ─────────────────── */
 
 type ApiAssignment = {
+  id?: string;
   agentName?: string;
   startsAt?: string | null;
   expiresAt?: string | null;
   durationDays?: number | null;
   monthlyTokenLimit?: number | null;
+  tokenLimit?: number | null;
+  // Per-grant rollup kept on the assignment row itself (see
+  // SingleAssignedAgent / AssignedTeam in the schema).
+  usedTokens?: number | null;
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  tokensLeft?: number | null;
   isActive?: boolean;
 };
 
@@ -161,15 +147,58 @@ type ApiGroupAssignment = Omit<ApiAssignment, "agentName"> & {
   } | null;
 };
 
+// Per-agent slice of a team grant (AssignedTeamAgent): the team's tokenLimit
+// is what EACH agent gets, and every agent tracks its own spend.
+type ApiTeamAgentGrant = {
+  id?: string;
+  agentName?: string;
+  tokenLimit?: number | null;
+  usedTokens?: number | null;
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  tokensLeft?: number | null;
+};
+
+type ApiTeamAssignment = Omit<ApiAssignment, "agentName"> & {
+  teamId?: string;
+  /** Per-agent allowance (not a shared pool). */
+  tokenLimit?: number | null;
+  agents?: ApiTeamAgentGrant[] | null;
+  team?: {
+    id?: string;
+    name?: string | null;
+    agents?: { agentName?: string }[];
+  } | null;
+};
+
+// A membership grant carries ONE pool shared by every agent it reaches
+// (AssignedMembership): whichever agent chats, the same counters move.
 type ApiMembershipAssignment = {
+  id?: string;
+  monthlyTokenLimit?: number | null;
   startsAt?: string | null;
   expiresAt?: string | null;
   isActive?: boolean;
+  /** Start of the 30-day cycle the pool counters belong to. */
+  cycleStartsAt?: string | null;
+  /** Combined spend of all the membership's agents this cycle. */
+  usedTokens?: number | null;
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  tokensLeft?: number | null;
   template?: {
     name?: string | null;
     durationDays?: number | null;
     monthlyTokenLimit?: number | null;
     includedAgents?: string[] | null;
+    includedTeams?: {
+      team?: {
+        id?: string;
+        name?: string | null;
+        agents?: { agentName?: string }[] | null;
+        isActive?: boolean;
+      } | null;
+    }[] | null;
   } | null;
 };
 
@@ -180,6 +209,23 @@ type ApiTokenUsage = {
   totalUsedInputTokens?: number | null;
   totalUsedOutputTokens?: number | null;
   totalUsedTokens?: number | null;
+};
+
+// The balance the server enforces: allowance minus what the agent spent inside
+// its current 30-day cycle. The tokenUsage counters are lifetime totals and
+// cannot answer this on their own.
+type ApiAgentQuota = {
+  agentName?: string;
+  limit?: number | null;
+  /** The agent's own allowance (direct grant + team slices). */
+  agentLimit?: number | null;
+  /** Membership pool shared with the membership's other agents. */
+  poolLimit?: number | null;
+  poolUsed?: number | null;
+  poolLeft?: number | null;
+  cycleStart?: string | null;
+  cycleUsedTokens?: number | null;
+  tokensLeft?: number | null;
 };
 
 type ApiDailyUsage = {
@@ -198,25 +244,68 @@ type ApiUserDetails = {
     createdAt?: string | null;
     agents?: ApiAssignment[];
     groups?: ApiGroupAssignment[];
+    teams?: ApiTeamAssignment[];
     memberships?: ApiMembershipAssignment[];
     tokenUsage?: ApiTokenUsage[];
     stopLogs?: unknown[];
   };
   dailyUsage?: ApiDailyUsage[];
+  // Team and single-agent spend by day. Charts only: those tiers stay out of
+  // dailyUsage, which the agent tables read as quota usage.
+  grantDailyUsage?: ApiDailyUsage[];
+  agentQuotas?: ApiAgentQuota[];
 };
 
-type DisplaySubscription = {
-  plan: string;
-  duration: number;
-  startsAt: string;
-  expiration: string;
-  monthlyLimit: number;
-  usedThisCycle: number;
-  usedThisCycleInput: number;
-  usedThisCycleOutput: number;
-  status: "Active" | "Expired";
-  agents: string[];
+// Everything spent in the range, whatever tier billed it -- what the charts plot.
+const collectChartUsageRows = (details: ApiUserDetails | null): ApiDailyUsage[] => [
+  ...(details?.dailyUsage ?? []),
+  ...(details?.grantDailyUsage ?? []),
+];
+
+type PendingRemoval = {
+  kind: "membership" | "team" | "agent";
+  id: string;
+  name: string;
 };
+
+const REMOVAL_COPY: Record<PendingRemoval["kind"], { title: string; note: string; action: string }> = {
+  membership: {
+    title: "Remove membership",
+    note: "Its agents and teams stop being reachable through this plan. Usage records are kept, and the membership can be assigned again later.",
+    action: "Remove membership",
+  },
+  team: {
+    title: "Remove team access",
+    note: "Its agents stop being reachable through this team. Usage records are kept, and the team can be assigned again later.",
+    action: "Remove team",
+  },
+  agent: {
+    title: "Remove agent access",
+    note: "Past usage and token records are kept, and the agent can be assigned again later.",
+    action: "Remove agent",
+  },
+};
+
+type RemoveButtonProps = {
+  label: string;
+  busy: boolean;
+  disabled: boolean;
+  onClick: () => void;
+  className?: string;
+};
+
+const RemoveButton = ({ label, busy, disabled, onClick, className = "" }: RemoveButtonProps) => (
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={disabled}
+    title={label}
+    aria-label={label}
+    className={`shrink-0 rounded p-1 transition hover:bg-red-500/20 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-40 ${className}`}
+  >
+    {busy ? <Loader2 size={12} className="animate-spin" /> : <X size={12} />}
+  </button>
+);
 
 const formatDate = (value?: string | null) => {
   if (!value) return "No expiry";
@@ -235,75 +324,37 @@ const isActiveAssignment = (item?: { isActive?: boolean; expiresAt?: string | nu
 const collectAssignedAgentNames = (details: ApiUserDetails | null): string[] => {
   const activeMemberships = (details?.user.memberships ?? []).filter(isActiveAssignment);
   const activeGroups = (details?.user.groups ?? []).filter(isActiveAssignment);
+  const activeTeams = (details?.user.teams ?? []).filter(isActiveAssignment);
   const activeAgents = (details?.user.agents ?? []).filter(isActiveAssignment);
   const assignedAgents = new Set<string>();
 
   activeAgents.forEach((agent) => agent.agentName && assignedAgents.add(agent.agentName));
+  activeTeams.forEach((assignment) => {
+    assignment.team?.agents?.forEach((item) => item.agentName && assignedAgents.add(item.agentName));
+  });
   activeGroups.forEach((assignment) => {
     assignment.group?.items?.forEach((item) => item.agentName && assignedAgents.add(item.agentName));
   });
   activeMemberships.forEach((assignment) => {
     assignment.template?.includedAgents?.forEach((agentName) => assignedAgents.add(agentName));
+    // Agents reached through the membership's active agent teams.
+    assignment.template?.includedTeams?.forEach((link) => {
+      if (link.team?.isActive === false) return;
+      link.team?.agents?.forEach((item) => item.agentName && assignedAgents.add(item.agentName));
+    });
   });
 
   return Array.from(assignedAgents);
 };
 
-const buildSubscription = (details: ApiUserDetails | null): DisplaySubscription => {
-  const activeMemberships = (details?.user.memberships ?? []).filter(isActiveAssignment);
-  const activeGroups = (details?.user.groups ?? []).filter(isActiveAssignment);
-  const activeAgents = (details?.user.agents ?? []).filter(isActiveAssignment);
-  const primaryMembership = activeMemberships[0];
-  const primaryGroup = activeGroups[0];
-  const primaryAgent = activeAgents[0];
-  const assignedAgents = collectAssignedAgentNames(details);
+// Only a direct AssignedAgent record can be removed one agent at a time. Agents
+// inherited from a group or a membership template go away with that assignment.
+const collectDirectAgentNames = (details: ApiUserDetails | null): string[] =>
+  (details?.user.agents ?? [])
+    .filter(isActiveAssignment)
+    .map((agent) => agent.agentName)
+    .filter((name): name is string => Boolean(name));
 
-  const legacyTokenLimit = (details?.user.tokenUsage ?? []).reduce(
-    (sum, item) => sum + (item.totalTokenLimit ?? 0),
-    0,
-  );
-  const legacyTokenUsage = (details?.user.tokenUsage ?? []).reduce(
-    (sum, item) => sum + (item.totalUsedTokens ?? 0),
-    0,
-  );
-  const usedThisCycle = Array.isArray(details?.dailyUsage)
-    ? details.dailyUsage.reduce((sum, item) => sum + (item.totalTokens ?? 0), 0)
-    : legacyTokenUsage;
-  const usedThisCycleInput = Array.isArray(details?.dailyUsage)
-    ? details.dailyUsage.reduce((sum, item) => sum + (item.inputTokens ?? 0), 0)
-    : (details?.user.tokenUsage ?? []).reduce((sum, item) => sum + (item.totalUsedInputTokens ?? 0), 0);
-  const usedThisCycleOutput = Array.isArray(details?.dailyUsage)
-    ? details.dailyUsage.reduce((sum, item) => sum + (item.outputTokens ?? 0), 0)
-    : (details?.user.tokenUsage ?? []).reduce((sum, item) => sum + (item.totalUsedOutputTokens ?? 0), 0);
-
-  const assignmentMonthlyLimit =
-    primaryMembership?.template?.monthlyTokenLimit ||
-    primaryGroup?.monthlyTokenLimit ||
-    primaryAgent?.monthlyTokenLimit ||
-    0;
-
-  return {
-    plan:
-      primaryMembership?.template?.name ??
-      primaryGroup?.group?.name ??
-      (activeAgents.length > 0
-        ? activeAgents.map((agent) => agent.agentName).filter(Boolean).join(" & ")
-        : "No active plan"),
-    duration:
-      primaryMembership?.template?.durationDays ??
-      primaryGroup?.durationDays ??
-      primaryAgent?.durationDays ??
-      0,
-    startsAt: formatDate(primaryMembership?.startsAt ?? primaryGroup?.startsAt ?? primaryAgent?.startsAt),
-    expiration: formatDate(primaryMembership?.expiresAt ?? primaryGroup?.expiresAt ?? primaryAgent?.expiresAt),
-    monthlyLimit: assignmentMonthlyLimit || legacyTokenLimit,
-    usedThisCycle,
-    usedThisCycleInput,
-    usedThisCycleOutput,
-    status: primaryMembership || primaryGroup || primaryAgent ? "Active" : "Expired",
-    agents: assignedAgents,
-  };
-};
 
 // A series must be colored by agent name, not its position in an API response.
 const AGENT_USAGE_COLORS: Record<string, string> = {
@@ -327,6 +378,7 @@ type AgentTokenUsageRow = {
   limit: number;
   used: number;
   left: number;
+  cycleUsed: number;
   input: number;
   output: number;
   color: string;
@@ -385,13 +437,22 @@ const buildAgentTokenUsage = (details: ApiUserDetails | null): AgentTokenUsageRo
     });
   }
 
+  const quotaByAgent = new Map<string, ApiAgentQuota>();
+  (details?.agentQuotas ?? []).forEach((quota) => {
+    if (quota.agentName) quotaByAgent.set(quota.agentName, quota);
+  });
+
   const tokenRows = rows
     .map((item) => {
-      const limit = item.totalTokenLimit ?? 0;
-      const cumulativeUsed = item.totalUsedTokens ?? 0;
       const name = item.agentName ?? "UNKNOWN_AGENT";
+      const quota = quotaByAgent.get(name);
+      const cumulativeUsed = item.totalUsedTokens ?? 0;
+      // The allowance the server actually enforces, which comes from the live
+      // assignment; the stored totalTokenLimit is only its legacy fallback.
+      const limit = quota?.limit ?? item.totalTokenLimit ?? 0;
+      const cycleUsed = quota?.cycleUsedTokens ?? cumulativeUsed;
       const used = hasDailyUsagePayload ? dailyUsedByAgent.get(name) ?? 0 : cumulativeUsed;
-      const left = item.totalTokensLeft ?? Math.max(0, limit - cumulativeUsed);
+      const left = quota?.tokensLeft ?? Math.max(0, limit - cycleUsed);
       seenAgents.add(name);
 
       return {
@@ -399,6 +460,7 @@ const buildAgentTokenUsage = (details: ApiUserDetails | null): AgentTokenUsageRo
         limit,
         used,
         left,
+        cycleUsed,
         input: hasDailyUsagePayload ? dailyInputByAgent.get(name) ?? 0 : item.totalUsedInputTokens ?? 0,
         output: hasDailyUsagePayload ? dailyOutputByAgent.get(name) ?? 0 : item.totalUsedOutputTokens ?? 0,
         color: getAgentUsageColor(name),
@@ -408,11 +470,13 @@ const buildAgentTokenUsage = (details: ApiUserDetails | null): AgentTokenUsageRo
 
   assignedAgents.forEach((name) => {
     if (!seenAgents.has(name)) {
+      const quota = quotaByAgent.get(name);
       tokenRows.push({
         name,
-        limit: 0,
+        limit: quota?.limit ?? 0,
         used: 0,
-        left: 0,
+        left: quota?.tokensLeft ?? 0,
+        cycleUsed: quota?.cycleUsedTokens ?? 0,
         input: 0,
         output: 0,
         color: getAgentUsageColor(name),
@@ -422,11 +486,13 @@ const buildAgentTokenUsage = (details: ApiUserDetails | null): AgentTokenUsageRo
 
   dailyUsedByAgent.forEach((used, name) => {
     if (!seenAgents.has(name)) {
+      const quota = quotaByAgent.get(name);
       tokenRows.push({
         name,
-        limit: 0,
+        limit: quota?.limit ?? 0,
         used,
-        left: 0,
+        left: quota?.tokensLeft ?? 0,
+        cycleUsed: quota?.cycleUsedTokens ?? 0,
         input: dailyInputByAgent.get(name) ?? 0,
         output: dailyOutputByAgent.get(name) ?? 0,
         color: getAgentUsageColor(name),
@@ -435,6 +501,620 @@ const buildAgentTokenUsage = (details: ApiUserDetails | null): AgentTokenUsageRo
   });
 
   return tokenRows.sort((a, b) => b.used - a.used);
+};
+
+/* ─────────── TOKEN USAGE SPLIT BY TIER (single / team / membership) ─────────── */
+
+// Usage the agent produced in the selected range, regardless of which tier
+// granted it. The allowance itself lives on the tier, so it is not in here.
+type AgentRangeUsage = {
+  name: string;
+  used: number;
+  input: number;
+  output: number;
+  color: string;
+};
+
+type SingleAgentUsageRow = AgentRangeUsage & {
+  assignmentId?: string;
+  limit: number;
+  left: number;
+  grantUsed: number;
+};
+
+// Range usage plus, for a team, the agent's own slice of the grant: the
+// team's limit is applied to EACH agent, so limit / used / left are tracked
+// per agent (AssignedTeamAgent). Memberships still share one allowance and
+// leave these unset.
+type GroupAgentUsage = AgentRangeUsage & {
+  limit?: number | null;
+  grantUsed?: number;
+  /** Teams only: input / output split of grantUsed on the agent's grant row. */
+  grantInput?: number;
+  grantOutput?: number;
+  left?: number | null;
+};
+
+// One team or membership grant and the agents it reaches. For a membership
+// the allowance is shared and sits on the group; for a team `limit` is the
+// per-agent allowance and `used` / `left` are the sums across its agents.
+type GroupUsageSection = {
+  id: string;
+  name: string;
+  /** The AgentTeam behind a team grant; what the per-agent usage endpoint is keyed on. */
+  teamId?: string;
+  limit: number | null;
+  used: number;
+  left: number | null;
+  /** Shared pools only: start of the 30-day cycle the figures belong to. */
+  cycleStartsAt?: string | null;
+  agents: GroupAgentUsage[];
+  /** True when limit / used / left are tracked per agent (teams). */
+  perAgent: boolean;
+};
+
+const emptyRangeUsage = (name: string): AgentRangeUsage => ({
+  name,
+  used: 0,
+  input: 0,
+  output: 0,
+  color: getAgentUsageColor(name),
+});
+
+const toRangeUsage = (
+  name: string,
+  usageByAgent: Map<string, AgentTokenUsageRow>,
+): AgentRangeUsage => {
+  const row = usageByAgent.get(name);
+  return row
+    ? { name, used: row.used, input: row.input, output: row.output, color: row.color }
+    : emptyRangeUsage(name);
+};
+
+const buildSingleAgentUsage = (
+  details: ApiUserDetails | null,
+  usageByAgent: Map<string, AgentTokenUsageRow>,
+): SingleAgentUsageRow[] => {
+  const quotaByAgent = new Map<string, ApiAgentQuota>();
+  (details?.agentQuotas ?? []).forEach((quota) => {
+    if (quota.agentName) quotaByAgent.set(quota.agentName, quota);
+  });
+
+  return (details?.user.agents ?? [])
+    .filter(isActiveAssignment)
+    .filter((grant): grant is ApiAssignment & { agentName: string } => Boolean(grant.agentName))
+    .map((grant) => {
+      const quota = quotaByAgent.get(grant.agentName);
+      // The grant's own allowance wins; the cycle quota is the fallback for
+      // grants created before tokenLimit existed on the row.
+      const limit = grant.tokenLimit ?? quota?.limit ?? 0;
+      const grantUsed = grant.usedTokens ?? quota?.cycleUsedTokens ?? 0;
+      const left = grant.tokensLeft ?? quota?.tokensLeft ?? Math.max(0, limit - grantUsed);
+      const range = toRangeUsage(grant.agentName, usageByAgent);
+      // Like team agents, usage / input / output come from the grant row that
+      // the chat tracker updates; the range log is only a fallback for grants
+      // that predate the per-grant rollup.
+      return {
+        ...range,
+        used: grant.usedTokens ?? range.used,
+        input: grant.inputTokens ?? range.input,
+        output: grant.outputTokens ?? range.output,
+        assignmentId: grant.id,
+        limit,
+        left,
+        grantUsed,
+      };
+    })
+    .sort((a, b) => b.used - a.used);
+};
+
+const buildTeamUsage = (
+  details: ApiUserDetails | null,
+  usageByAgent: Map<string, AgentTokenUsageRow>,
+): GroupUsageSection[] =>
+  (details?.user.teams ?? [])
+    .filter(isActiveAssignment)
+    .map((grant, index) => {
+      const agentNames = (grant.team?.agents ?? [])
+        .map((item) => item.agentName)
+        .filter((name): name is string => Boolean(name));
+      // The grant's per-agent rows carry each agent's own limit and spend.
+      const grantByAgent = new Map<string, ApiTeamAgentGrant>();
+      (grant.agents ?? []).forEach((row) => {
+        if (row.agentName) grantByAgent.set(row.agentName, row);
+      });
+      // Every agent in the team gets the grant's tokenLimit; an agent row
+      // written by the server wins, the grant figure covers rows that
+      // predate the per-agent split.
+      const perAgentLimit = grant.tokenLimit ?? null;
+
+      const agents: GroupAgentUsage[] = agentNames.map((name) => {
+        const row = grantByAgent.get(name);
+        const limit = row?.tokenLimit ?? perAgentLimit;
+        const grantUsed = row?.usedTokens ?? 0;
+        const left = row?.tokensLeft ?? (limit === null ? null : Math.max(0, limit - grantUsed));
+        return {
+          ...toRangeUsage(name, usageByAgent),
+          limit,
+          grantUsed,
+          grantInput: row?.inputTokens ?? 0,
+          grantOutput: row?.outputTokens ?? 0,
+          left,
+        };
+      });
+
+      const used = agents.reduce((sum, agent) => sum + (agent.grantUsed ?? 0), 0);
+      const lefts = agents.map((agent) => agent.left).filter((v): v is number => typeof v === "number");
+      const left = lefts.length === 0 ? null : lefts.reduce((sum, v) => sum + v, 0);
+      return {
+        id: grant.id ?? `team-${index}`,
+        name: grant.team?.name ?? "Team",
+        teamId: grant.teamId ?? grant.team?.id,
+        limit: perAgentLimit,
+        used,
+        left,
+        agents: agents.sort((a, b) => b.used - a.used),
+        perAgent: true,
+      };
+    });
+
+const buildMembershipUsage = (
+  details: ApiUserDetails | null,
+  usageByAgent: Map<string, AgentTokenUsageRow>,
+): GroupUsageSection[] =>
+  (details?.user.memberships ?? [])
+    .filter(isActiveAssignment)
+    .map((grant, index) => {
+      const names = new Set<string>();
+      grant.template?.includedAgents?.forEach((name) => names.add(name));
+      grant.template?.includedTeams?.forEach((link) => {
+        if (link.team?.isActive === false) return;
+        link.team?.agents?.forEach((item) => item.agentName && names.add(item.agentName));
+      });
+      const agents = Array.from(names).map((name) => toRangeUsage(name, usageByAgent));
+      const limit = grant.monthlyTokenLimit ?? grant.template?.monthlyTokenLimit ?? null;
+      // The grant's shared pool is what the server enforces: one rollup that
+      // every agent's chat moves, for the current 30-day cycle. The sum of
+      // the range usage is only the fallback for a grant written before the
+      // pool existed.
+      const used = grant.usedTokens ?? agents.reduce((sum, agent) => sum + agent.used, 0);
+      const left = grant.tokensLeft ?? (limit === null ? null : Math.max(0, limit - used));
+      return {
+        id: grant.id ?? `membership-${index}`,
+        name: grant.template?.name ?? "Membership",
+        limit,
+        used,
+        left,
+        cycleStartsAt: grant.cycleStartsAt ?? null,
+        agents: agents.sort((a, b) => b.used - a.used),
+        perAgent: false,
+      };
+    });
+
+type GroupUsageBlockProps = {
+  icon: React.ReactNode;
+  label: string;
+  accent: "violet" | "emerald";
+  emptyText: string;
+  limitLabel: string;
+  sections: GroupUsageSection[];
+  activeLabel: string;
+  /**
+   * Per-agent sections only: replaces the "Used (grant)" cell so the page can
+   * put an inline usage editor next to the figure. Memberships have no
+   * per-agent grant to edit and never call it.
+   */
+  renderGrantUsedCell?: (section: GroupUsageSection, agent: GroupAgentUsage) => React.ReactNode;
+};
+
+const GROUP_ACCENT = {
+  violet: { heading: "text-violet-300/70", count: "bg-violet-500/10 text-violet-300/60", name: "text-violet-300", bar: "bg-violet-500" },
+  emerald: { heading: "text-emerald-300/70", count: "bg-emerald-500/10 text-emerald-300/60", name: "text-emerald-300", bar: "bg-emerald-500" },
+} as const;
+
+type UsedTokensDrawerProps = {
+  open: boolean;
+  section: GroupUsageSection | null;
+  accent: keyof typeof GROUP_ACCENT;
+  limitLabel: string;
+  activeLabel: string;
+  onClose: () => void;
+};
+
+// Side panel breaking a team / membership's used tokens down by agent. Teams
+// show each agent's spend on its own grant slice; memberships have one pool,
+// so the per-agent split comes from the selected range's usage instead.
+const UsedTokensDrawer = ({ open, section, accent, limitLabel, activeLabel, onClose }: UsedTokensDrawerProps) => {
+  const tone = GROUP_ACCENT[accent];
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  const rows = (section?.agents ?? [])
+    .map((agent) => ({
+      agent,
+      used: section?.perAgent ? agent.grantUsed ?? 0 : agent.used,
+      input: section?.perAgent ? agent.grantInput ?? 0 : agent.input,
+      output: section?.perAgent ? agent.grantOutput ?? 0 : agent.output,
+    }))
+    .sort((a, b) => b.used - a.used);
+  const active = rows.filter((row) => row.used > 0);
+  const idle = rows.filter((row) => row.used <= 0);
+  const agentsTotal = rows.reduce((sum, row) => sum + row.used, 0);
+  const inputTotal = rows.reduce((sum, row) => sum + row.input, 0);
+  const outputTotal = rows.reduce((sum, row) => sum + row.output, 0);
+  const ioTotal = inputTotal + outputTotal;
+  const inputShare = ioTotal > 0 ? (inputTotal / ioTotal) * 100 : 0;
+
+  const poolLimit =
+    !section || section.limit === null
+      ? null
+      : section.perAgent
+        ? section.limit * section.agents.length
+        : section.limit;
+  const percent =
+    section && poolLimit && poolLimit > 0 ? Math.min(100, (section.used / poolLimit) * 100) : 0;
+  const scopeLabel = section?.perAgent ? "on this grant" : activeLabel;
+
+  return (
+    <div className={`fixed inset-0 z-50 ${open ? "" : "pointer-events-none"}`} aria-hidden={!open}>
+      <div
+        className={`absolute inset-0 bg-black/60 transition-opacity duration-300 ${open ? "opacity-100" : "opacity-0"}`}
+        onClick={onClose}
+      />
+      <aside
+        role="dialog"
+        aria-modal="true"
+        aria-label={section ? `Used tokens for ${section.name}` : "Used tokens"}
+        className={`absolute inset-y-0 right-0 flex w-full max-w-md flex-col border-l border-white/10 bg-slate-950 shadow-2xl transition-transform duration-300 ease-out ${open ? "translate-x-0" : "translate-x-full"}`}
+      >
+        {section && (
+          <>
+            <div className="flex items-start justify-between gap-3 border-b border-white/10 px-5 py-4">
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-white/40">Used tokens</p>
+                <p className={`mt-0.5 text-lg font-semibold ${tone.name}`}>{section.name}</p>
+                <p className="mt-0.5 text-[11px] text-white/40">
+                  {section.perAgent ? "Team" : "Membership"} · {section.agents.length} agents
+                  {!section.perAgent && section.cycleStartsAt && <> · cycle from {formatDate(section.cycleStartsAt)}</>}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close used tokens panel"
+                className="rounded-md p-1.5 text-white/40 transition hover:bg-white/5 hover:text-white"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="flex-1 space-y-5 overflow-y-auto px-5 py-4">
+              {/* Totals */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="rounded-lg border border-white/5 bg-white/3 px-3 py-2.5">
+                  <p className="text-[10px] uppercase tracking-wider text-white/40">Used</p>
+                  <p className="mt-1 font-mono text-base text-white">{section.used.toLocaleString()}</p>
+                </div>
+                <div className="rounded-lg border border-white/5 bg-white/3 px-3 py-2.5">
+                  <p className="text-[10px] uppercase tracking-wider text-white/40">
+                    {section.perAgent ? "Total limit" : limitLabel}
+                  </p>
+                  <p className="mt-1 font-mono text-base text-white/80">
+                    {poolLimit === null ? "—" : poolLimit.toLocaleString()}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-emerald-400/10 bg-emerald-400/4 px-3 py-2.5">
+                  <p className="text-[10px] uppercase tracking-wider text-white/40">Left</p>
+                  <p className="mt-1 font-mono text-base text-emerald-300">
+                    {section.left === null ? "—" : section.left.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="h-2 flex-1 overflow-hidden rounded-full bg-white/5">
+                  <span className={`block h-full rounded-full ${tone.bar}`} style={{ width: `${percent}%` }} />
+                </span>
+                <span className="text-[11px] text-white/40">{percent.toFixed(1)}% of limit used</span>
+              </div>
+
+              {/* Input vs output */}
+              <div>
+                <p className="mb-2 text-[10px] uppercase tracking-wider text-white/40">
+                  Input vs output <span className="normal-case text-white/25">({scopeLabel})</span>
+                </p>
+                <div className="flex h-2 overflow-hidden rounded-full bg-white/5">
+                  <span className="h-full bg-sky-400" style={{ width: `${inputShare}%` }} />
+                  <span className="h-full bg-amber-400" style={{ width: `${ioTotal > 0 ? 100 - inputShare : 0}%` }} />
+                </div>
+                <div className="mt-2 flex justify-between text-xs">
+                  <span className="flex items-center gap-1.5 text-white/50">
+                    <span className="h-2 w-2 rounded-full bg-sky-400" /> Input
+                    <span className="font-mono text-white">{inputTotal.toLocaleString()}</span>
+                  </span>
+                  <span className="flex items-center gap-1.5 text-white/50">
+                    <span className="h-2 w-2 rounded-full bg-amber-400" /> Output
+                    <span className="font-mono text-white">{outputTotal.toLocaleString()}</span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Per agent */}
+              <div>
+                <p className="mb-2 text-[10px] uppercase tracking-wider text-white/40">
+                  Used by agent <span className="normal-case text-white/25">({scopeLabel})</span>
+                </p>
+                {active.length === 0 ? (
+                  <p className="rounded-lg border border-dashed border-white/10 px-3 py-4 text-center text-xs text-white/35">
+                    No agent has used tokens yet
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {active.map(({ agent, used, input, output }) => {
+                      const shareOfTotal = agentsTotal > 0 ? (used / agentsTotal) * 100 : 0;
+                      const agentLimit = section.perAgent ? agent.limit ?? null : null;
+                      const limitShare =
+                        agentLimit && agentLimit > 0 ? Math.min(100, (used / agentLimit) * 100) : null;
+                      return (
+                        <li key={agent.name} className="rounded-lg border border-white/5 bg-white/3 px-3 py-2.5">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="inline-flex items-center gap-2 text-sm font-semibold text-sky-300">
+                              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: agent.color }} />
+                              {agent.name}
+                            </span>
+                            <span className="font-mono text-sm text-white">{used.toLocaleString()}</span>
+                          </div>
+                          <div className="mt-2 flex items-center gap-2">
+                            <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/5">
+                              <span
+                                className="block h-full rounded-full"
+                                style={{ width: `${shareOfTotal}%`, backgroundColor: agent.color }}
+                              />
+                            </span>
+                            <span className="w-12 text-right text-[11px] text-white/40">{shareOfTotal.toFixed(1)}%</span>
+                          </div>
+                          <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-[11px] text-white/40">
+                            <span>In <span className="font-mono text-white/70">{input.toLocaleString()}</span></span>
+                            <span>Out <span className="font-mono text-white/70">{output.toLocaleString()}</span></span>
+                            {limitShare !== null && agentLimit !== null && (
+                              <span>
+                                {limitShare.toFixed(1)}% of its {agentLimit.toLocaleString()} limit
+                              </span>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+
+              {idle.length > 0 && (
+                <div>
+                  <p className="mb-2 text-[10px] uppercase tracking-wider text-white/40">
+                    Not used yet <span className="normal-case text-white/25">({idle.length})</span>
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {idle.map(({ agent }) => (
+                      <span
+                        key={agent.name}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-white/5 bg-white/3 px-2 py-1 text-[11px] text-white/50"
+                      >
+                        <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: agent.color }} />
+                        {agent.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </aside>
+    </div>
+  );
+};
+
+// Memberships share one allowance across their agents, so the limit / left
+// figures sit on the group header and agent rows carry only what each agent
+// spent in the selected range. Teams apply their limit to EACH agent: the
+// header shows the per-agent limit and the sums, and every agent row gets
+// its own limit / used / left columns.
+const GroupUsageBlock = ({ icon, label, accent, emptyText, limitLabel, sections, activeLabel, renderGrantUsedCell }: GroupUsageBlockProps) => {
+  const tone = GROUP_ACCENT[accent];
+  // The section id outlives closing so the panel keeps its content while it
+  // slides out.
+  const [drawerSectionId, setDrawerSectionId] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const drawerSection = sections.find((section) => section.id === drawerSectionId) ?? null;
+  const openDrawer = (id: string) => {
+    setDrawerSectionId(id);
+    setDrawerOpen(true);
+  };
+
+  return (
+    <div>
+      <UsedTokensDrawer
+        open={drawerOpen && drawerSection !== null}
+        section={drawerSection}
+        accent={accent}
+        limitLabel={limitLabel}
+        activeLabel={activeLabel}
+        onClose={() => setDrawerOpen(false)}
+      />
+      <p className={`mb-2 flex items-center gap-1.5 text-[10px] uppercase tracking-wider ${tone.heading}`}>
+        {icon} {label}
+        <span className={`rounded px-1.5 py-0.5 text-[10px] ${tone.count}`}>{sections.length}</span>
+      </p>
+      {sections.length === 0 ? (
+        <span className="text-xs text-white/30">{emptyText}</span>
+      ) : (
+        <div className="space-y-3">
+          {sections.map((section) => {
+            // For a team the pool is limit × agents, since each agent owns
+            // the full limit.
+            const poolLimit =
+              section.limit === null
+                ? null
+                : section.perAgent
+                  ? section.limit * section.agents.length
+                  : section.limit;
+            const percent =
+              poolLimit && poolLimit > 0 ? Math.min(100, (section.used / poolLimit) * 100) : 0;
+            return (
+              <div key={section.id} className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                  <button
+                    type="button"
+                    onClick={() => openDrawer(section.id)}
+                    title="Show used tokens breakdown"
+                    className={`text-sm font-semibold ${tone.name} underline-offset-4 hover:underline`}
+                  >
+                    {section.name}
+                  </button>
+                  {!section.perAgent && section.cycleStartsAt && (
+                    <span className="text-[11px] text-white/40">
+                      Cycle from{" "}
+                      <span className="font-mono text-white/70">{formatDate(section.cycleStartsAt)}</span>
+                    </span>
+                  )}
+                </div>
+                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="rounded-lg border border-white/5 bg-white/3 px-4 py-3">
+                    <p className="text-[10px] uppercase tracking-wider text-white/40">
+                      {section.perAgent ? `${limitLabel} (per agent)` : `${limitLabel} (shared)`}
+                    </p>
+                    <p className="mt-1 font-mono text-lg text-white">
+                      {section.limit === null ? "Access only" : section.limit.toLocaleString()}
+                    </p>
+                    {section.perAgent && poolLimit !== null && (
+                      <p className="mt-0.5 text-[11px] text-white/35">
+                        {section.agents.length} agents × {section.limit?.toLocaleString()} = {poolLimit.toLocaleString()}
+                      </p>
+                    )}
+                    {!section.perAgent && section.agents.length > 0 && (
+                      <p className="mt-0.5 text-[11px] text-white/35">
+                        One pool for all {section.agents.length} agents
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => openDrawer(section.id)}
+                    title="Show used tokens breakdown"
+                    className="group rounded-lg border border-white/5 bg-white/3 px-4 py-3 text-left transition hover:border-white/15 hover:bg-white/5"
+                  >
+                    <p className="flex items-center justify-between text-[10px] uppercase tracking-wider text-white/40">
+                      Used
+                      <span className="normal-case tracking-normal text-white/30 transition group-hover:text-white/60">
+                        View breakdown →
+                      </span>
+                    </p>
+                    <p className="mt-1 font-mono text-lg text-white">{section.used.toLocaleString()}</p>
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/5">
+                        <span className={`block h-full rounded-full ${tone.bar}`} style={{ width: `${percent}%` }} />
+                      </span>
+                      <span className="text-[11px] text-white/35">{percent.toFixed(1)}%</span>
+                    </div>
+                  </button>
+                  <div className="rounded-lg border border-emerald-400/10 bg-emerald-400/4 px-4 py-3">
+                    <p className="text-[10px] uppercase tracking-wider text-white/40">Tokens left</p>
+                    <p className="mt-1 font-mono text-lg text-emerald-300">
+                      {section.left === null ? "—" : section.left.toLocaleString()}
+                    </p>
+                    {poolLimit !== null && section.left !== null && (
+                      <p className="mt-0.5 text-[11px] text-white/35">
+                        of {poolLimit.toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                {section.agents.length === 0 ? (
+                  <span className="mt-2 block text-[11px] text-white/25">No agents in this {label.toLowerCase().replace(/s$/, "")}</span>
+                ) : (
+                  <div className="mt-3 overflow-x-auto">
+                    <table className={`w-full ${section.perAgent ? "min-w-[900px]" : "min-w-[560px]"} text-left text-sm`}>
+                      <thead>
+                        <tr className="border-b border-white/10 text-[10px] uppercase tracking-wider text-white/35">
+                          <th className="pb-2 font-medium">Agent Name</th>
+                          <th className="pb-2 font-medium">Usage ({activeLabel})</th>
+                          <th className="pb-2 font-medium">Input ({activeLabel})</th>
+                          <th className="pb-2 font-medium">Output ({activeLabel})</th>
+                          {section.perAgent && (
+                            <>
+                              <th className="pb-2 font-medium">Token Limit</th>
+                              <th className="pb-2 font-medium">Used (grant)</th>
+                              <th className="pb-2 font-medium">Tokens Left</th>
+                              <th className="pb-2 font-medium">Limit used</th>
+                            </>
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {section.agents.map((agent) => {
+                          // Teams: how much of the agent's OWN limit is gone.
+                          // Memberships have one shared pool, shown on the header.
+                          const agentLimit = agent.limit ?? null;
+                          const grantUsed = agent.grantUsed ?? 0;
+                          const share =
+                            agentLimit && agentLimit > 0
+                              ? Math.min(100, (grantUsed / agentLimit) * 100)
+                              : 0;
+                          const barColor =
+                            share >= 90 ? "#f87171" : share >= 70 ? "#fbbf24" : agent.color;
+                          return (
+                            <tr key={agent.name} className="border-b border-white/5 last:border-0">
+                              <td className="py-2.5">
+                                <span className="inline-flex items-center gap-2 font-semibold text-sky-300">
+                                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: agent.color }} />
+                                  {agent.name}
+                                </span>
+                              </td>
+                              <td className="py-2.5 font-mono text-white">{agent.used.toLocaleString()}</td>
+                              <td className="py-2.5 font-mono text-white/60">{agent.input.toLocaleString()}</td>
+                              <td className="py-2.5 font-mono text-white/60">{agent.output.toLocaleString()}</td>
+                              {section.perAgent && (
+                                <>
+                                  <td className="py-2.5 font-mono text-white/80">
+                                    {agentLimit === null ? <span className="text-white/35">Access only</span> : agentLimit.toLocaleString()}
+                                  </td>
+                                  <td className="py-2.5 font-mono text-white">
+                                    {renderGrantUsedCell ? renderGrantUsedCell(section, agent) : grantUsed.toLocaleString()}
+                                  </td>
+                                  <td className="py-2.5 font-mono text-emerald-300">
+                                    {agent.left === null || agent.left === undefined ? "—" : agent.left.toLocaleString()}
+                                  </td>
+                                  <td className="py-2.5">
+                                    <div className="flex items-center gap-3">
+                                      <div className="h-1.5 w-24 overflow-hidden rounded-full bg-white/5">
+                                        <div className="h-full rounded-full" style={{ width: `${share}%`, backgroundColor: barColor }} />
+                                      </div>
+                                      <span className="text-[11px] text-white/35">{share.toFixed(1)}%</span>
+                                    </div>
+                                  </td>
+                                </>
+                              )}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 };
 
 const generateDailyData = () => {
@@ -482,7 +1162,7 @@ const buildUsedAgentSeries = (
     agentNames.add(agent.name);
   });
 
-  (details?.dailyUsage ?? []).forEach((item) => {
+  collectChartUsageRows(details).forEach((item) => {
     if (item.agentName) {
       agentNames.add(item.agentName);
     }
@@ -503,7 +1183,7 @@ const buildDailyUsageData = (
   usageRange?: UsageDateRange,
 ): DailyUsagePoint[] => {
   const seriesNames = new Set(series.map((item) => item.name));
-  const rows = (details?.dailyUsage ?? []).filter(
+  const rows = collectChartUsageRows(details).filter(
     (item) => item.agentName && seriesNames.has(item.agentName),
   );
   const buildEmptyPoint = (dateKey: string): DailyUsagePoint => {
@@ -601,9 +1281,11 @@ const buildWeeklyUsageData = (
   if (!series.length) return MOCK_WEEKLY_USAGE;
 
   const grouped = new Map<number, DailyUsagePoint>();
+  const weekDays = new Map<number, DailyUsagePoint[]>();
 
   dailyUsage.forEach((day, index) => {
     const weekIndex = Math.floor(index / 7);
+    weekDays.set(weekIndex, [...(weekDays.get(weekIndex) ?? []), day]);
     const current = grouped.get(weekIndex) ?? {
       date: `Week ${weekIndex + 1}`,
       week: `Week ${weekIndex + 1}`,
@@ -622,6 +1304,18 @@ const buildWeeklyUsageData = (
     current.total = Number(current.total) + Number(day.total ?? 0);
     current.stops = Number(current.stops) + Number(day.stops ?? 0);
     grouped.set(weekIndex, current);
+  });
+
+  // Weeks are 7-day buckets from the range start, so name each by its real
+  // dates ("Sep 1 – Sep 7"); a bare "Week N" hides which days it covers.
+  grouped.forEach((point, weekIndex) => {
+    const days = (weekDays.get(weekIndex) ?? []).filter((day) => day.dateKey);
+    if (!days.length) return;
+    const first = String(days[0].date);
+    const last = String(days[days.length - 1].date);
+    const label = first === last ? first : `${first} – ${last}`;
+    point.date = label;
+    point.week = label;
   });
 
   return Array.from(grouped.values());
@@ -793,6 +1487,28 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [userError, setUserError] = useState<string | null>(null);
   const [visibleAgents, setVisibleAgents] = useState<string[]>([]);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [removing, setRemoving] = useState<PendingRemoval | null>(null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
+  const [pendingRemoval, setPendingRemoval] = useState<PendingRemoval | null>(null);
+  const [editingTokenLimit, setEditingTokenLimit] = useState<{
+    assignmentId: string;
+    agentName: string;
+    value: string;
+  } | null>(null);
+  const [savingTokenLimit, setSavingTokenLimit] = useState(false);
+  const [tokenLimitError, setTokenLimitError] = useState<string | null>(null);
+  // Inline editor on a team agent row: records a chat's input/output tokens
+  // against that one agent of the team grant.
+  const [editingTeamUsage, setEditingTeamUsage] = useState<{
+    teamId: string;
+    teamName: string;
+    agentName: string;
+    inputTokens: string;
+    outputTokens: string;
+  } | null>(null);
+  const [savingTeamUsage, setSavingTeamUsage] = useState(false);
+  const [teamUsageError, setTeamUsageError] = useState<string | null>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
   const usageRange = useMemo(
     () => resolveUsageRange(selectedPreset, appliedCustomDays, appliedCustomFrom, appliedCustomTo),
@@ -808,6 +1524,16 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  // Escape closes the remove dialog, but not while the request is in flight.
+  useEffect(() => {
+    if (!pendingRemoval) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !removing) setPendingRemoval(null);
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [pendingRemoval, removing]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -843,7 +1569,7 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
 
     loadUserDetails();
     return () => controller.abort();
-  }, [resolvedParams.id, usageRange]);
+  }, [resolvedParams.id, usageRange, reloadKey]);
 
   const activeLabel = usageRange.label;
 
@@ -882,8 +1608,16 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
     }
   };
 
-  const subscription = useMemo(() => buildSubscription(details), [details]);
   const agentTokenUsage = useMemo(() => buildAgentTokenUsage(details), [details]);
+  // Per-tier views of the same range usage: each grant is shown under the
+  // tier that carries its allowance, so an agent reached two ways appears twice.
+  const usageByAgent = useMemo(
+    () => new Map(agentTokenUsage.map((row) => [row.name, row])),
+    [agentTokenUsage],
+  );
+  const singleAgentUsage = useMemo(() => buildSingleAgentUsage(details, usageByAgent), [details, usageByAgent]);
+  const teamUsage = useMemo(() => buildTeamUsage(details, usageByAgent), [details, usageByAgent]);
+  const membershipUsage = useMemo(() => buildMembershipUsage(details, usageByAgent), [details, usageByAgent]);
   const usageSeries = useMemo(
     () => buildUsedAgentSeries(details, agentTokenUsage),
     [details, agentTokenUsage],
@@ -908,14 +1642,15 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
     () => buildDisplayUsageData(weeklyUsageData, usageSeries, currency),
     [weeklyUsageData, usageSeries, currency],
   );
-  const tokenUsageChartData = agentTokenUsage.map((agent) => ({
-    name: agent.name,
-    value:
-      currency === "tokens"
-        ? agent.used
-        : getClaudeSonnet46Usd(agent.input, agent.output) * (currency === "EUR" ? EUR_RATE : 1),
-    color: agent.color,
-  }));
+  // Summed from the same points the day chart plots, so team and single-agent
+  // spend is in the donut too and the two always agree.
+  const tokenUsageChartData = usageSeries
+    .map((agent) => ({
+      name: agent.name,
+      value: displayDailyUsageData.reduce((sum, point) => sum + Number(point[agent.name] ?? 0), 0),
+      color: agent.color,
+    }))
+    .filter((agent) => agent.value > 0);
 
   useEffect(() => {
     setVisibleAgents(usageSeries.map((agent) => agent.name));
@@ -960,14 +1695,175 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
   const displayEmail = details?.user.email ?? "";
   const displayOauthId = details?.user.oauthId ?? "";
   const joinedDate = formatDate(details?.user.createdAt);
-  const usagePercent = subscription.monthlyLimit > 0
-    ? (subscription.usedThisCycle / subscription.monthlyLimit) * 100
-    : 0;
-  const expiryTime = new Date(subscription.expiration).getTime();
-  const daysRemaining = Number.isNaN(expiryTime)
-    ? 0
-    : Math.max(0, Math.ceil((expiryTime - Date.now()) / (1000 * 60 * 60 * 24)));
   const stopCount = details?.user.stopLogs?.length ?? totalStops;
+  const directAgents = collectDirectAgentNames(details);
+  // Per-tier lists for the assignment cards. Expired/inactive grants are hidden.
+  const activeMemberships = (details?.user.memberships ?? []).filter(isActiveAssignment);
+  const activeTeams = (details?.user.teams ?? []).filter(isActiveAssignment);
+  const activeAgents = (details?.user.agents ?? []).filter(isActiveAssignment);
+
+  const beginTokenLimitEdit = (agentName: string, displayedLimit: number) => {
+    const assignment = activeAgents.find(
+      (item) => item.agentName === agentName && Boolean(item.id),
+    );
+    if (!assignment?.id) return;
+
+    setTokenLimitError(null);
+    setEditingTokenLimit({
+      assignmentId: assignment.id,
+      agentName,
+      value: String(assignment.tokenLimit ?? displayedLimit),
+    });
+  };
+
+  const saveTokenLimit = async () => {
+    if (!editingTokenLimit || savingTokenLimit) return;
+
+    const tokenLimit = Number(editingTokenLimit.value.trim());
+    if (
+      editingTokenLimit.value.trim() === "" ||
+      !Number.isInteger(tokenLimit) ||
+      tokenLimit < 0
+    ) {
+      setTokenLimitError("Token limit must be a non-negative integer.");
+      return;
+    }
+
+    setSavingTokenLimit(true);
+    setTokenLimitError(null);
+    try {
+      // The /token-limit route now records per-chat spend keyed on email +
+      // agent. Setting an allowance goes through the assignment itself, which
+      // re-derives tokensLeft from usedTokens the same way.
+      const response = await authenticatedFetch(
+        `${API_BASE}/admin/single-agent-assignments/${editingTokenLimit.assignmentId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tokenLimit }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`Updating ${editingTokenLimit.agentName} failed with ${response.status}`);
+      }
+
+      setEditingTokenLimit(null);
+      setReloadKey((key) => key + 1);
+    } catch (err) {
+      setTokenLimitError((err as Error).message || "Failed to update token limit.");
+    } finally {
+      setSavingTokenLimit(false);
+    }
+  };
+
+  const beginTeamUsageEdit = (section: GroupUsageSection, agentName: string) => {
+    if (!section.teamId) return;
+    setTeamUsageError(null);
+    setEditingTeamUsage({
+      teamId: section.teamId,
+      teamName: section.name,
+      agentName,
+      inputTokens: "",
+      outputTokens: "",
+    });
+  };
+
+  const saveTeamUsage = async () => {
+    if (!editingTeamUsage || savingTeamUsage || !displayEmail) return;
+
+    // Both are signed deltas: a negative figure hands the allowance back.
+    const parse = (raw: string) => (raw.trim() === "" ? 0 : Number(raw.trim()));
+    const inputTokens = parse(editingTeamUsage.inputTokens);
+    const outputTokens = parse(editingTeamUsage.outputTokens);
+    if (!Number.isInteger(inputTokens) || !Number.isInteger(outputTokens)) {
+      setTeamUsageError("Input and output tokens must be whole numbers.");
+      return;
+    }
+    if (inputTokens === 0 && outputTokens === 0) {
+      setTeamUsageError("Enter the input and/or output tokens to record.");
+      return;
+    }
+
+    setSavingTeamUsage(true);
+    setTeamUsageError(null);
+    try {
+      const response = await authenticatedFetch(
+        `${API_BASE}/admin/team-assignments/${encodeURIComponent(displayEmail)}/${editingTeamUsage.teamId}/${editingTeamUsage.agentName}/token-usage`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ inputTokens, outputTokens }),
+        },
+      );
+
+      if (!response.ok) {
+        let detail = "";
+        try {
+          const payload = await response.json();
+          if (typeof payload?.message === "string") detail = payload.message;
+        } catch {
+          /* body was not JSON */
+        }
+        throw new Error(
+          detail || `Recording usage for ${editingTeamUsage.agentName} in ${editingTeamUsage.teamName} failed with ${response.status}`,
+        );
+      }
+
+      setEditingTeamUsage(null);
+      setReloadKey((key) => key + 1);
+    } catch (err) {
+      setTeamUsageError((err as Error).message || "Failed to record team token usage.");
+    } finally {
+      setSavingTeamUsage(false);
+    }
+  };
+
+  const requestRemoval = (item: PendingRemoval) => {
+    if (!displayEmail || removing) return;
+    setRemoveError(null);
+    setPendingRemoval(item);
+  };
+
+  const confirmRemoval = async () => {
+    const item = pendingRemoval;
+    if (!displayEmail || !item || removing) return;
+
+    setRemoving(item);
+    setRemoveError(null);
+    try {
+      // Every kind is deactivated rather than deleted so usage history survives.
+      let response: Response;
+      if (item.kind === "agent") {
+        // Direct grants are rows in SingleAssignedAgent, which only
+        // /admin/single-agent-assignments may change; flip the row instead of deleting it.
+        response = await authenticatedFetch(`${API_BASE}/admin/single-agent-assignments/${item.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isActive: false }),
+        });
+      } else if (item.kind === "team") {
+        response = await authenticatedFetch(`${API_BASE}/admin/team-assignments/${item.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isActive: false }),
+        });
+      } else {
+        response = await authenticatedFetch(`${API_BASE}/admin/memberships/assignments/${item.id}`, {
+          method: "DELETE",
+        });
+      }
+      if (!response.ok) {
+        throw new Error(`Removing ${item.name} failed with ${response.status}`);
+      }
+      setReloadKey((key) => key + 1);
+    } catch (err) {
+      setRemoveError((err as Error).message || `Failed to remove ${item.name}`);
+    } finally {
+      setRemoving(null);
+      setPendingRemoval(null);
+    }
+  };
 
   return (
     <div className="p-8 max-w-[1600px] mx-auto">
@@ -998,7 +1894,18 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
 
-        {/* ──────── TIMEFRAME SELECTOR ──────── */}
+        {/* ──────── REFRESH + TIMEFRAME SELECTOR ──────── */}
+        <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setReloadKey((key) => key + 1)}
+          disabled={isLoadingUser}
+          title="Refresh"
+          aria-label="Refresh user data"
+          className="flex h-[42px] w-[42px] items-center justify-center rounded-xl border border-white/10 bg-[#0F172A] text-sky-400 transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <RefreshCw size={15} className={isLoadingUser ? "animate-spin" : ""} />
+        </button>
         <div className="relative" ref={pickerRef}>
           <button
             onClick={() => setShowPicker(!showPicker)}
@@ -1055,125 +1962,467 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
             </div>
           )}
         </div>
-      </div>
-
-      {/* ──────── SUBSCRIPTION DETAILS ──────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-        {/* Plan */}
-        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-          <p className="text-[10px] uppercase tracking-wider text-white/35 mb-1.5 flex items-center gap-1"><CreditCard size={11} /> Active Plan</p>
-          <p className="font-semibold text-sm leading-snug">{subscription.plan}</p>
-          <span className={`mt-2 inline-block rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
-            subscription.status === "Active" ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
-          }`}>
-            {subscription.status}
-          </span>
-        </div>
-
-        {/* Duration */}
-        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-          <p className="text-[10px] uppercase tracking-wider text-white/35 mb-1.5 flex items-center gap-1"><Clock size={11} /> Duration</p>
-          <p className="font-semibold text-sm">{subscription.duration} days</p>
-          <p className="text-[11px] text-white/40 mt-1">{subscription.startsAt} → {subscription.expiration}</p>
-        </div>
-
-        {/* Expiration */}
-        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-          <p className="text-[10px] uppercase tracking-wider text-white/35 mb-1.5 flex items-center gap-1"><Calendar size={11} /> Expiration</p>
-          <p className="font-semibold text-sm">{subscription.expiration}</p>
-          <p className="text-[11px] text-amber-400/70 mt-1">{daysRemaining} days remaining</p>
-        </div>
-
-        {/* Monthly limit */}
-        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-          <p className="text-[10px] uppercase tracking-wider text-white/35 mb-1.5">Monthly Limit</p>
-          <p className="font-mono text-lg text-sky-400">
-            {formatTokensAsCost(subscription.monthlyLimit, currency)}
-          </p>
-          <div className="mt-2 h-1.5 rounded-full bg-white/5 overflow-hidden">
-            <div className="h-full rounded-full bg-sky-500 transition-all" style={{ width: `${Math.min(usagePercent, 100)}%` }} />
-          </div>
-        </div>
-
-        {/* Used this cycle */}
-        <div className={`rounded-xl border p-4 ${usagePercent >= 90 ? "border-red-500/30 bg-red-500/[0.04]" : "border-white/10 bg-white/[0.03]"}`}>
-          <p className={`text-[10px] uppercase tracking-wider mb-1.5 ${usagePercent >= 90 ? "text-red-400/60" : "text-white/35"}`}>Used This Cycle</p>
-          <p className={`font-mono text-lg ${usagePercent >= 90 ? "text-red-400" : "text-white"}`}>
-            {formatTokensAsCost(
-              subscription.usedThisCycle,
-              currency,
-              subscription.usedThisCycleInput,
-              subscription.usedThisCycleOutput,
-            )}
-          </p>
-          <p className={`text-[10px] mt-1 uppercase tracking-wider ${usagePercent >= 90 ? "text-red-400/50" : "text-white/30"}`}>
-            {usagePercent.toFixed(1)}% used · {stopCount} stops
-          </p>
         </div>
       </div>
 
-      {/* ──────── ASSIGNED AGENTS CHIPS ──────── */}
-      <div className="mb-8 rounded-xl border border-white/10 bg-white/[0.03] p-4">
-        <p className="text-[10px] uppercase tracking-wider text-white/35 mb-3 flex items-center gap-1"><Shield size={11} /> Assigned Agents</p>
-        <div className="flex flex-wrap gap-2">
-          {subscription.agents.length > 0 ? subscription.agents.map((a) => (
-            <span key={a} className="flex items-center gap-1.5 rounded-lg bg-sky-500/10 px-3 py-1.5 text-xs font-medium text-sky-400 ring-1 ring-sky-500/20">
-              <Bot size={13} /> {a}
-            </span>
-          )) : <span className="text-xs text-white/35">No assigned agents</span>}
-        </div>
-      </div>
-
-      {/* Agent token usage from backend records */}
-      <div className="mb-8 rounded-xl border border-white/10 bg-white/[0.03] p-4">
-        <p className="text-[10px] uppercase tracking-wider text-white/35 mb-3 flex items-center gap-1"><Bot size={11} /> Agent Token Usage</p>
-        {agentTokenUsage.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-white/10 text-[10px] uppercase tracking-wider text-white/35">
-                  <th className="pb-3 font-medium">Agent Name</th>
-                  <th className="pb-3 font-medium">Total Limit</th>
-                  <th className="pb-3 font-medium">Total Usage</th>
-                  <th className="pb-3 font-medium">Tokens Left</th>
-                  <th className="pb-3 font-medium">Input</th>
-                  <th className="pb-3 font-medium">Output</th>
-                </tr>
-              </thead>
-              <tbody>
-                {agentTokenUsage.map((agent) => {
-                  const percent = agent.limit > 0 ? Math.min(100, (agent.used / agent.limit) * 100) : 0;
-
-                  return (
-                    <tr key={agent.name} className="border-b border-white/5 last:border-0">
-                      <td className="py-3">
-                        <span className="inline-flex items-center gap-2 font-semibold text-sky-300">
-                          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: agent.color }} />
-                          {agent.name}
-                        </span>
-                      </td>
-                      <td className="py-3 font-mono text-white/80">{agent.limit.toLocaleString()}</td>
-                      <td className="py-3">
-                        <div className="flex items-center gap-3">
-                          <span className="min-w-[90px] font-mono text-white">{agent.used.toLocaleString()}</span>
-                          <div className="h-1.5 w-28 overflow-hidden rounded-full bg-white/5">
-                            <div className="h-full rounded-full bg-sky-500" style={{ width: `${percent}%` }} />
-                          </div>
-                          <span className="text-[11px] text-white/35">{percent.toFixed(1)}%</span>
+      {/* ──────── ASSIGNMENTS BY TIER ──────── */}
+      {/* One card per tier -- membership, team, single agent -- so an admin can
+          see which grant an agent comes from. Each card can revoke its grant. */}
+      <div className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {/* Memberships */}
+        <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/[0.03] p-4">
+          <p className="text-[10px] uppercase tracking-wider text-white/35 mb-3 flex items-center gap-1">
+            <CreditCard size={11} /> Memberships
+            <span className="ml-auto rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-white/40">{activeMemberships.length}</span>
+          </p>
+          {activeMemberships.length === 0 ? (
+            <span className="text-xs text-white/35">No active membership</span>
+          ) : (
+            <div className="space-y-3">
+              {activeMemberships.map((assignment, index) => {
+                const template = assignment.template;
+                const singleAgents = template?.includedAgents ?? [];
+                const memberTeams = (template?.includedTeams ?? [])
+                  .map((link) => link.team)
+                  .filter((team): team is NonNullable<typeof team> => Boolean(team));
+                const limit = assignment.monthlyTokenLimit ?? template?.monthlyTokenLimit ?? null;
+                // One pool for every agent the membership reaches.
+                const poolUsed = assignment.usedTokens ?? 0;
+                const poolLeft = assignment.tokensLeft ?? (limit === null ? null : Math.max(0, limit - poolUsed));
+                const poolPercent = limit && limit > 0 ? Math.min(100, (poolUsed / limit) * 100) : 0;
+                return (
+                  <div key={assignment.id ?? `${template?.name ?? "membership"}-${index}`} className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-semibold text-emerald-300">{template?.name ?? "Membership"}</p>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        {limit !== null && (
+                          <span className="font-mono text-[10px] text-white/45" title="Shared by every agent in the membership">
+                            {limit.toLocaleString()} tok/mo shared
+                          </span>
+                        )}
+                        {assignment.id && (
+                          <RemoveButton
+                            label={`Remove membership ${template?.name ?? ""}`}
+                            busy={removing?.kind === "membership" && removing.id === assignment.id}
+                            disabled={Boolean(removing)}
+                            onClick={() => requestRemoval({ kind: "membership", id: assignment.id!, name: template?.name ?? "Membership" })}
+                            className="text-emerald-400/60"
+                          />
+                        )}
+                      </div>
+                    </div>
+                    <p className="mt-0.5 text-[10px] text-white/40">
+                      {formatDate(assignment.startsAt)} → {formatDate(assignment.expiresAt)}
+                    </p>
+                    {limit !== null && (
+                      <div className="mt-2 rounded-md border border-emerald-500/10 bg-emerald-500/[0.04] px-2 py-1.5">
+                        <div className="flex items-center justify-between gap-2 text-[10px]">
+                          <span className="text-white/40">
+                            Pool used <span className="font-mono text-white">{poolUsed.toLocaleString()}</span>
+                            <span className="text-white/30"> / {limit.toLocaleString()}</span>
+                          </span>
+                          <span className="text-white/40">
+                            Left{" "}
+                            <span className="font-mono text-emerald-300">
+                              {poolLeft === null ? "—" : poolLeft.toLocaleString()}
+                            </span>
+                          </span>
                         </div>
-                      </td>
-                      <td className="py-3 font-mono text-emerald-300">{agent.left.toLocaleString()}</td>
-                      <td className="py-3 font-mono text-white/60">{agent.input.toLocaleString()}</td>
-                      <td className="py-3 font-mono text-white/60">{agent.output.toLocaleString()}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        ) : (
+                        <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-white/5">
+                          <div
+                            className={`h-full rounded-full ${poolPercent >= 90 ? "bg-red-400" : poolPercent >= 70 ? "bg-amber-400" : "bg-emerald-500"}`}
+                            style={{ width: `${poolPercent}%` }}
+                          />
+                        </div>
+                        {assignment.cycleStartsAt && (
+                          <p className="mt-1 text-[10px] text-white/30">Cycle from {formatDate(assignment.cycleStartsAt)} · all agents share this pool</p>
+                        )}
+                      </div>
+                    )}
+                    <div className="mt-2 space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-1">
+                        <span className="mr-1 text-[10px] uppercase tracking-wide text-white/30">Agents</span>
+                        {singleAgents.length === 0 && <span className="text-[10px] text-white/25">none</span>}
+                        {singleAgents.map((a) => (
+                          <span key={a} className="inline-flex items-center gap-1 rounded bg-sky-500/10 px-2 py-0.5 text-[10px] font-medium text-sky-400 ring-1 ring-sky-500/20">
+                            <Bot size={10} /> {a}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1">
+                        <span className="mr-1 text-[10px] uppercase tracking-wide text-white/30">Teams</span>
+                        {memberTeams.length === 0 && <span className="text-[10px] text-white/25">none</span>}
+                        {memberTeams.map((team, teamIndex) => {
+                          const agentNames = (team.agents ?? [])
+                            .map((item) => item.agentName)
+                            .filter((name): name is string => Boolean(name));
+                          return (
+                            <span
+                              key={team.id ?? `${team.name ?? "team"}-${teamIndex}`}
+                              title={agentNames.join(", ")}
+                              className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium ring-1 ${
+                                team.isActive === false
+                                  ? "bg-white/5 text-white/35 ring-white/10 line-through"
+                                  : "bg-violet-500/10 text-violet-300 ring-violet-500/20"
+                              }`}
+                            >
+                              <Users size={10} /> {team.name ?? "Team"} ({agentNames.length})
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Teams */}
+        <div className="rounded-xl border border-violet-500/15 bg-violet-500/[0.03] p-4">
+          <p className="text-[10px] uppercase tracking-wider text-white/35 mb-3 flex items-center gap-1">
+            <Users size={11} /> Teams
+            <span className="ml-auto rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-white/40">{activeTeams.length}</span>
+          </p>
+          {activeTeams.length === 0 ? (
+            <span className="text-xs text-white/35">No active team assignment</span>
+          ) : (
+            <div className="space-y-3">
+              {activeTeams.map((assignment, index) => {
+                const agentNames = (assignment.team?.agents ?? [])
+                  .map((item) => item.agentName)
+                  .filter((name): name is string => Boolean(name));
+                return (
+                  <div key={assignment.id ?? `${assignment.team?.name ?? "team"}-${index}`} className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-semibold text-violet-300">{assignment.team?.name ?? "Team"}</p>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        {typeof assignment.tokenLimit === "number" && (
+                          <span className="font-mono text-[10px] text-white/45">{assignment.tokenLimit.toLocaleString()} tok</span>
+                        )}
+                        {assignment.id && (
+                          <RemoveButton
+                            label={`Remove team ${assignment.team?.name ?? ""}`}
+                            busy={removing?.kind === "team" && removing.id === assignment.id}
+                            disabled={Boolean(removing)}
+                            onClick={() => requestRemoval({ kind: "team", id: assignment.id!, name: assignment.team?.name ?? "Team" })}
+                            className="text-violet-400/60"
+                          />
+                        )}
+                      </div>
+                    </div>
+                    <p className="mt-0.5 text-[10px] text-white/40">
+                      {formatDate(assignment.startsAt)} → {formatDate(assignment.expiresAt)}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {agentNames.length === 0 && <span className="text-[10px] text-white/25">no agents</span>}
+                      {agentNames.map((a) => (
+                        <span key={a} className="inline-flex items-center gap-1 rounded bg-sky-500/10 px-2 py-0.5 text-[10px] font-medium text-sky-400 ring-1 ring-sky-500/20">
+                          <Bot size={10} /> {a}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Single agents */}
+        <div className="rounded-xl border border-sky-500/15 bg-sky-500/[0.03] p-4">
+          <p className="text-[10px] uppercase tracking-wider text-white/35 mb-3 flex items-center gap-1">
+            <Shield size={11} /> Single Agents
+            <span className="ml-auto rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-white/40">{activeAgents.length}</span>
+          </p>
+          {activeAgents.length === 0 ? (
+            <span className="text-xs text-white/35">No directly assigned agents</span>
+          ) : (
+            <div className="space-y-2">
+              {activeAgents.map((assignment, index) => {
+                const name = assignment.agentName ?? "";
+                const isRemoving = removing?.kind === "agent" && removing.id === assignment.id;
+                return (
+                  <div key={assignment.id ?? `${name}-${index}`} className="flex items-center justify-between gap-2 rounded-lg border border-white/5 bg-white/[0.02] px-3 py-2">
+                    <div className="min-w-0">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-sky-400">
+                        <Bot size={13} /> {name}
+                      </span>
+                      <p className="mt-0.5 text-[10px] text-white/40">
+                        {formatDate(assignment.startsAt)} → {formatDate(assignment.expiresAt)}
+                        {typeof assignment.monthlyTokenLimit === "number" && (
+                          <span className="ml-2 font-mono">{assignment.monthlyTokenLimit.toLocaleString()} tok</span>
+                        )}
+                      </p>
+                    </div>
+                    {name && assignment.id && directAgents.includes(name) && (
+                      <RemoveButton
+                        label={`Remove ${name}`}
+                        busy={isRemoving}
+                        disabled={Boolean(removing)}
+                        onClick={() => requestRemoval({ kind: "agent", id: assignment.id!, name })}
+                        className="text-sky-400/60"
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+      {removeError && <p className="-mt-4 mb-6 text-xs text-red-400">{removeError}</p>}
+
+      {/* Agent token usage, split by the tier that carries the allowance */}
+      <div className="mb-8 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <p className="text-[10px] uppercase tracking-wider text-white/35 flex items-center gap-1"><Bot size={11} /> Agent Token Usage</p>
+          <p className="text-[10px] text-white/25">Usage, input and output cover {activeLabel} · limit and tokens left belong to each assignment</p>
+        </div>
+
+        {singleAgentUsage.length === 0 && teamUsage.length === 0 && membershipUsage.length === 0 ? (
           <span className="text-xs text-white/35">No token usage records found for this user.</span>
+        ) : (
+          <div className="space-y-6">
+            {/* ── Single agents: one allowance per agent ── */}
+            <div>
+              <p className="mb-2 flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-sky-300/70">
+                <Bot size={11} /> Single Agents
+                <span className="rounded bg-sky-500/10 px-1.5 py-0.5 text-[10px] text-sky-300/60">{singleAgentUsage.length}</span>
+              </p>
+              {singleAgentUsage.length === 0 ? (
+                <span className="text-xs text-white/30">No directly assigned agents</span>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[720px] text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-white/10 text-[10px] uppercase tracking-wider text-white/35">
+                        <th className="pb-2 font-medium">Agent Name</th>
+                        <th className="pb-2 font-medium">Total Limit</th>
+                        <th className="pb-2 font-medium">Usage</th>
+                        <th className="pb-2 font-medium">Tokens Left</th>
+                        <th className="pb-2 font-medium">Input</th>
+                        <th className="pb-2 font-medium">Output</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {singleAgentUsage.map((agent) => {
+                        const percent = agent.limit > 0 ? Math.min(100, (agent.used / agent.limit) * 100) : 0;
+                        const isEditing = editingTokenLimit?.agentName === agent.name;
+
+                        return (
+                          <tr key={agent.assignmentId ?? agent.name} className="border-b border-white/5 last:border-0">
+                            <td className="py-3">
+                              <span className="inline-flex items-center gap-2 font-semibold text-sky-300">
+                                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: agent.color }} />
+                                {agent.name}
+                              </span>
+                            </td>
+                            <td className="py-3">
+                              {isEditing ? (
+                                <form
+                                  className="flex items-center gap-1.5"
+                                  onSubmit={(event) => {
+                                    event.preventDefault();
+                                    void saveTokenLimit();
+                                  }}
+                                >
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    step={1}
+                                    autoFocus
+                                    aria-label={`Token limit for ${agent.name}`}
+                                    value={editingTokenLimit.value}
+                                    onChange={(event) =>
+                                      setEditingTokenLimit((current) =>
+                                        current ? { ...current, value: event.target.value } : current,
+                                      )
+                                    }
+                                    disabled={savingTokenLimit}
+                                    className="w-28 rounded-md border border-sky-400/40 bg-slate-950 px-2 py-1 font-mono text-xs text-white outline-none focus:border-sky-400 disabled:opacity-50"
+                                  />
+                                  <button
+                                    type="submit"
+                                    disabled={savingTokenLimit}
+                                    aria-label={`Save token limit for ${agent.name}`}
+                                    title="Save token limit"
+                                    className="rounded-md p-1.5 text-emerald-300 transition hover:bg-emerald-500/15 disabled:opacity-50"
+                                  >
+                                    {savingTokenLimit ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={savingTokenLimit}
+                                    onClick={() => {
+                                      setEditingTokenLimit(null);
+                                      setTokenLimitError(null);
+                                    }}
+                                    aria-label="Cancel token limit edit"
+                                    title="Cancel"
+                                    className="rounded-md p-1.5 text-white/40 transition hover:bg-white/5 hover:text-white disabled:opacity-50"
+                                  >
+                                    <X size={13} />
+                                  </button>
+                                </form>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono text-white/80">{agent.limit.toLocaleString()}</span>
+                                  {agent.assignmentId && (
+                                    <button
+                                      type="button"
+                                      onClick={() => beginTokenLimitEdit(agent.name, agent.limit)}
+                                      aria-label={`Edit token limit for ${agent.name}`}
+                                      title="Edit direct-agent token limit"
+                                      className="rounded-md p-1 text-white/30 transition hover:bg-sky-500/15 hover:text-sky-300"
+                                    >
+                                      <Pencil size={12} />
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                            <td className="py-3">
+                              <div className="flex items-center gap-3">
+                                <span className="min-w-[90px] font-mono text-white">{agent.used.toLocaleString()}</span>
+                                <div className="h-1.5 w-28 overflow-hidden rounded-full bg-white/5">
+                                  <div className="h-full rounded-full bg-sky-500" style={{ width: `${percent}%` }} />
+                                </div>
+                                <span className="text-[11px] text-white/35">{percent.toFixed(1)}%</span>
+                              </div>
+                            </td>
+                            <td className="py-3">
+                              <span className="font-mono text-emerald-300">{agent.left.toLocaleString()}</span>
+                              {agent.limit > 0 && (
+                                <span className="ml-2 text-[10px] text-white/30">{agent.grantUsed.toLocaleString()} used on this grant</span>
+                              )}
+                            </td>
+                            <td className="py-3 font-mono text-white/60">{agent.input.toLocaleString()}</td>
+                            <td className="py-3 font-mono text-white/60">{agent.output.toLocaleString()}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* ── Teams: the team limit is applied to EACH agent, tracked per agent ── */}
+            <GroupUsageBlock
+              icon={<Users size={11} />}
+              label="Teams"
+              accent="violet"
+              emptyText="No active team assignment"
+              limitLabel="Limit"
+              sections={teamUsage}
+              activeLabel={activeLabel}
+              renderGrantUsedCell={(section, agent) => {
+                const grantUsed = agent.grantUsed ?? 0;
+                const isEditing =
+                  editingTeamUsage?.teamId === section.teamId && editingTeamUsage?.agentName === agent.name;
+
+                if (isEditing) {
+                  return (
+                    <form
+                      className="flex items-center gap-1.5"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        void saveTeamUsage();
+                      }}
+                    >
+                      <input
+                        type="number"
+                        step={1}
+                        autoFocus
+                        placeholder="Input"
+                        aria-label={`Input tokens for ${agent.name} in ${section.name}`}
+                        value={editingTeamUsage.inputTokens}
+                        onChange={(event) =>
+                          setEditingTeamUsage((current) =>
+                            current ? { ...current, inputTokens: event.target.value } : current,
+                          )
+                        }
+                        disabled={savingTeamUsage}
+                        className="w-20 rounded-md border border-violet-400/40 bg-slate-950 px-2 py-1 font-mono text-xs text-white outline-none placeholder:text-white/25 focus:border-violet-400 disabled:opacity-50"
+                      />
+                      <input
+                        type="number"
+                        step={1}
+                        placeholder="Output"
+                        aria-label={`Output tokens for ${agent.name} in ${section.name}`}
+                        value={editingTeamUsage.outputTokens}
+                        onChange={(event) =>
+                          setEditingTeamUsage((current) =>
+                            current ? { ...current, outputTokens: event.target.value } : current,
+                          )
+                        }
+                        disabled={savingTeamUsage}
+                        className="w-20 rounded-md border border-violet-400/40 bg-slate-950 px-2 py-1 font-mono text-xs text-white outline-none placeholder:text-white/25 focus:border-violet-400 disabled:opacity-50"
+                      />
+                      <button
+                        type="submit"
+                        disabled={savingTeamUsage}
+                        aria-label={`Record usage for ${agent.name} in ${section.name}`}
+                        title="Record usage (negative values refund)"
+                        className="rounded-md p-1.5 text-emerald-300 transition hover:bg-emerald-500/15 disabled:opacity-50"
+                      >
+                        {savingTeamUsage ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={savingTeamUsage}
+                        onClick={() => {
+                          setEditingTeamUsage(null);
+                          setTeamUsageError(null);
+                        }}
+                        aria-label="Cancel usage entry"
+                        title="Cancel"
+                        className="rounded-md p-1.5 text-white/40 transition hover:bg-white/5 hover:text-white disabled:opacity-50"
+                      >
+                        <X size={13} />
+                      </button>
+                    </form>
+                  );
+                }
+
+                return (
+                  <div className="flex items-center gap-2">
+                    <span>{grantUsed.toLocaleString()}</span>
+                    {section.teamId && (
+                      <button
+                        type="button"
+                        onClick={() => beginTeamUsageEdit(section, agent.name)}
+                        aria-label={`Record token usage for ${agent.name} in ${section.name}`}
+                        title="Record input/output tokens on this team grant"
+                        className="rounded-md p-1 text-white/30 transition hover:bg-violet-500/15 hover:text-violet-300"
+                      >
+                        <Pencil size={12} />
+                      </button>
+                    )}
+                  </div>
+                );
+              }}
+            />
+
+            {/* ── Memberships: ONE monthly pool shared by all the plan's agents.
+                Used / left come from the grant's stored rollup, which every
+                covered agent's chat moves; the agent rows only split the
+                selected range's usage between them. ── */}
+            <GroupUsageBlock
+              icon={<CreditCard size={11} />}
+              label="Memberships"
+              accent="emerald"
+              emptyText="No active membership"
+              limitLabel="Monthly pool"
+              sections={membershipUsage}
+              activeLabel={activeLabel}
+            />
+          </div>
         )}
+        {tokenLimitError && <p className="mt-3 text-xs text-red-400">{tokenLimitError}</p>}
+        {teamUsageError && <p className="mt-3 text-xs text-red-400">{teamUsageError}</p>}
       </div>
 
       {/* ──────── ANALYTICS SECTION HEADER ──────── */}
@@ -1197,28 +2446,21 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
 
         <div className="h-[320px] w-full">
           <ResponsiveContainer width="100%" height="100%">
+            {/* Stacked bars, not smoothed areas: each day is a discrete ledger
+                row, and a curve would spread one day's spend onto its neighbours. */}
             <ComposedChart data={displayDailyUsageData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <defs>
-                {visibleUsageSeries.map((agent, index) => (
-                  <linearGradient key={agent.name} id={`gradDay${index}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={agent.color} stopOpacity={0.24} />
-                    <stop offset="95%" stopColor={agent.color} stopOpacity={0.02} />
-                  </linearGradient>
-                ))}
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
-              <XAxis dataKey="date" stroke="#ffffff40" fontSize={10} tickMargin={8} interval={2} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" vertical={false} />
+              <XAxis dataKey="date" stroke="#ffffff40" fontSize={10} tickMargin={8} interval="preserveStartEnd" minTickGap={16} />
               <YAxis stroke="#ffffff40" fontSize={10} tickFormatter={(v) => formatAxisValue(v, currency)} />
-              <Tooltip content={(props) => <SortedTooltip {...props} currency={currency} />} />
-              {visibleUsageSeries.map((agent, index) => (
-                <Area
+              <Tooltip cursor={{ fill: "#ffffff08" }} content={(props) => <SortedTooltip {...props} currency={currency} />} />
+              {visibleUsageSeries.map((agent) => (
+                <Bar
                   key={agent.name}
-                  type="monotone"
+                  stackId="usage"
                   dataKey={agent.name}
-                  stroke={agent.color}
-                  strokeWidth={1.5}
-                  fill={`url(#gradDay${index})`}
-                  dot={false}
+                  fill={agent.color}
+                  fillOpacity={0.85}
+                  maxBarSize={28}
                 />
               ))}
 
@@ -1260,27 +2502,18 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
         <div className="h-[300px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={displayWeeklyUsageData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" vertical={false} />
               <XAxis dataKey="week" stroke="#ffffff40" fontSize={12} tickMargin={10} />
               <YAxis stroke="#ffffff40" fontSize={12} tickFormatter={(v) => formatAxisValue(v, currency)} />
-              <Tooltip content={(props) => <SortedTooltip {...props} currency={currency} />} />
-              <defs>
-                {visibleUsageSeries.map((agent, index) => (
-                  <linearGradient key={agent.name} id={`gradWeek${index}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={agent.color} stopOpacity={0.24} />
-                    <stop offset="95%" stopColor={agent.color} stopOpacity={0.02} />
-                  </linearGradient>
-                ))}
-              </defs>
-              {visibleUsageSeries.map((agent, index) => (
-                <Area
+              <Tooltip cursor={{ fill: "#ffffff08" }} content={(props) => <SortedTooltip {...props} currency={currency} />} />
+              {visibleUsageSeries.map((agent) => (
+                <Bar
                   key={agent.name}
-                  type="monotone"
+                  stackId="usage"
                   dataKey={agent.name}
-                  stroke={agent.color}
-                  strokeWidth={1.5}
-                  fill={`url(#gradWeek${index})`}
-                  dot={false}
+                  fill={agent.color}
+                  fillOpacity={0.85}
+                  maxBarSize={72}
                 />
               ))}
 
@@ -1368,6 +2601,56 @@ export default function SingleUserPage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
       </div>
+
+      {/* ──────── REMOVE CONFIRMATION ──────── */}
+      {pendingRemoval && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          onClick={() => { if (!removing) setPendingRemoval(null); }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="remove-agent-title"
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0B1221] p-6 shadow-2xl shadow-black/50 animate-in fade-in zoom-in-95 duration-150"
+          >
+            <div className="flex items-start gap-4">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-500/10 text-red-400 ring-1 ring-red-500/20">
+                <AlertTriangle size={20} />
+              </div>
+              <div className="min-w-0">
+                <h2 id="remove-agent-title" className="text-base font-semibold text-white">
+                  {REMOVAL_COPY[pendingRemoval.kind].title}
+                </h2>
+                <p className="mt-1.5 text-sm leading-relaxed text-white/50">
+                  <span className="font-medium text-sky-400">{pendingRemoval.name}</span> will no longer be available to{" "}
+                  <span className="font-medium text-white/70">{displayEmail}</span>. {REMOVAL_COPY[pendingRemoval.kind].note}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setPendingRemoval(null)}
+                disabled={Boolean(removing)}
+                className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-white/70 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmRemoval}
+                disabled={Boolean(removing)}
+                className="flex items-center gap-2 rounded-lg bg-red-500/15 px-4 py-2 text-xs font-semibold text-red-400 ring-1 ring-red-500/30 transition hover:bg-red-500/25 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {removing ? <><Loader2 size={13} className="animate-spin" /> Removing...</> : <><X size={13} /> {REMOVAL_COPY[pendingRemoval.kind].action}</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

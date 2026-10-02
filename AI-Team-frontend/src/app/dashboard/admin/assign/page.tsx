@@ -3,9 +3,9 @@
 import { API_BASE } from "@/lib/apiBase"
 import { authenticatedFetch } from "@/lib/authenticatedFetch";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from "recharts";
 import {
   UserPlus, Calendar, CreditCard, Activity, TrendingUp, Search,
@@ -69,19 +69,13 @@ type AgentTeam = {
   id: string;
   name: string;
   agents: string[];
+  isActive?: boolean;
+  /** Per-agent allowance every agent in the team gets when assigned; null = access only. */
+  tokenLimit?: number | null;
 };
 
-type AgentGroupListItem = {
-  id: string;
-  name: string;
-};
-
-type AgentGroupListResponse = {
-  data?: AgentGroupListItem[];
-};
-
-type AgentGroupDetails = AgentGroupListItem & {
-  agents?: string[];
+type AgentTeamListResponse = {
+  data?: AgentTeam[];
 };
 
 type MembershipTemplate = {
@@ -89,8 +83,12 @@ type MembershipTemplate = {
   name: string;
   durationDays: number;
   monthlyTokenLimit: number;
+  /** Single agents bundled into the membership. */
   includedAgents?: string[];
-  includedGroupIds?: string[];
+  /** Agent teams (from /admin/teams) bundled into the membership. */
+  includedTeams?: { id: string; name: string; agents: string[]; isActive: boolean }[];
+  /** Union of single agents and every active team's agents: all share one pool. */
+  effectiveAgents?: string[];
 };
 
 type DashboardUser = {
@@ -183,13 +181,15 @@ const SortedTooltip = ({
   active, payload, label, currency, colorMap,
 }: {
   active?: boolean;
-  payload?: ReadonlyArray<{ name: string; value: number; color: string; stroke?: string }>;
+  // Loose on purpose: Recharts passes entries whose name/value may be undefined.
+  payload?: ReadonlyArray<{ name?: unknown; value?: unknown; color?: string; stroke?: string }>;
   label?: string | number;
   currency: CurrencyMode;
   colorMap?: Record<string, string>;
 }) => {
   if (!active || !payload || payload.length === 0) return null;
-  const sorted = [...payload]
+  const sorted = payload
+    .map((entry) => ({ ...entry, name: String(entry.name ?? ""), value: Number(entry.value) }))
     .filter((entry) => Number(entry.value) > 0)
     .sort((a, b) => b.value - a.value);
   if (sorted.length === 0) return null;
@@ -295,10 +295,20 @@ function CurrencyToggle({
 
 export default function AssignAndMetricsPage() {
   const [assignType, setAssignType] = useState<"membership" | "team" | "agent">("membership");
+  // The loaders below finish after mount and must not clobber a selection made
+  // for a different type in the meantime, so they read the live type/selection
+  // from refs instead of the values captured when the request started.
+  const assignTypeRef = useRef(assignType);
   const [userEmail, setUserEmail] = useState("");
   const [selectedAssignment, setSelectedAssignment] = useState("");
+  const selectedAssignmentRef = useRef(selectedAssignment);
+  assignTypeRef.current = assignType;
+  selectedAssignmentRef.current = selectedAssignment;
   const [durationDays, setDurationDays] = useState(30);
-  const [monthlyTokenLimit, setMonthlyTokenLimit] = useState(100000);
+  // Held as a string so the box can actually be empty. With a number state,
+  // clearing it ran through Number("") === 0 and snapped the field back to "0",
+  // which then sat in front of whatever the admin typed next ("05000").
+  const [monthlyTokenLimit, setMonthlyTokenLimit] = useState("100000");
   const [memberships, setMemberships] = useState<MembershipTemplate[]>([]);
   const [isLoadingMemberships, setIsLoadingMemberships] = useState(false);
   const [teams, setTeams] = useState<AgentTeam[]>([]);
@@ -341,7 +351,7 @@ export default function AssignAndMetricsPage() {
 
     setSelectedAssignment(selected.id);
     setDurationDays(selected.durationDays);
-    setMonthlyTokenLimit(selected.monthlyTokenLimit);
+    setMonthlyTokenLimit(String(selected.monthlyTokenLimit));
   };
 
   const loadMemberships = async () => {
@@ -358,7 +368,10 @@ export default function AssignAndMetricsPage() {
 
       const templates = (await response.json()) as MembershipTemplate[];
       setMemberships(templates);
-      if (assignType === "membership" && !templates.some((template) => template.id === selectedAssignment)) {
+      if (
+        assignTypeRef.current === "membership" &&
+        !templates.some((template) => template.id === selectedAssignmentRef.current)
+      ) {
         syncMembershipSelection(templates);
       }
     } catch (error) {
@@ -376,38 +389,30 @@ export default function AssignAndMetricsPage() {
     setIsLoadingTeams(true);
 
     try {
-      const response = await authenticatedFetch(`${API_BASE}/admin/groups?limit=100&sortBy=createdAt&sortOrder=desc`, {
-        cache: "no-store",
-      });
+      // /admin/teams returns each team's agent list inline, so one request is enough.
+      const response = await authenticatedFetch(
+        `${API_BASE}/admin/teams?limit=100&isActive=true&sortBy=name&sortOrder=asc`,
+        { cache: "no-store" },
+      );
 
       if (!response.ok) {
         throw new Error(await parseApiError(response));
       }
 
-      const payload = (await response.json()) as AgentGroupListResponse | AgentGroupListItem[];
-      const groups = Array.isArray(payload) ? payload : payload.data ?? [];
-      const details = await Promise.all(
-        groups.map(async (group) => {
-          const detailResponse = await authenticatedFetch(`${API_BASE}/admin/groups/${group.id}`, {
-            cache: "no-store",
-          });
-
-          if (!detailResponse.ok) {
-            return { ...group, agents: [] };
-          }
-
-          return (await detailResponse.json()) as AgentGroupDetails;
-        }),
-      );
-
-      const loadedTeams = details.map((group) => ({
-        id: group.id,
-        name: group.name,
-        agents: group.agents ?? [],
+      const payload = (await response.json()) as AgentTeamListResponse | AgentTeam[];
+      const loadedTeams = (Array.isArray(payload) ? payload : payload.data ?? []).map((team) => ({
+        id: team.id,
+        name: team.name,
+        agents: team.agents ?? [],
+        isActive: team.isActive,
+        tokenLimit: typeof team.tokenLimit === "number" ? team.tokenLimit : null,
       }));
 
       setTeams(loadedTeams);
-      if (assignType === "team" && !loadedTeams.some((team) => team.id === selectedAssignment)) {
+      if (
+        assignTypeRef.current === "team" &&
+        !loadedTeams.some((team) => team.id === selectedAssignmentRef.current)
+      ) {
         setSelectedAssignment(loadedTeams[0]?.id ?? "");
       }
     } catch (error) {
@@ -506,7 +511,7 @@ export default function AssignAndMetricsPage() {
 
     setSelectedAssignment(ALL_AGENTS[0]);
     setDurationDays(30);
-    setMonthlyTokenLimit(100000);
+    setMonthlyTokenLimit("100000");
   };
 
   const handleAssignmentChange = (value: string) => {
@@ -516,7 +521,7 @@ export default function AssignAndMetricsPage() {
       const membership = memberships.find((item) => item.id === value);
       if (membership) {
         setDurationDays(membership.durationDays);
-        setMonthlyTokenLimit(membership.monthlyTokenLimit);
+        setMonthlyTokenLimit(String(membership.monthlyTokenLimit));
       }
     }
   };
@@ -539,6 +544,21 @@ export default function AssignAndMetricsPage() {
     }
 
     return user.id;
+  };
+
+  /** Id of the user's active direct grant for the agent, if any. */
+  const findActiveAgentAssignmentId = async (email: string, agentName: string) => {
+    const params = new URLSearchParams({ email, agentName, isActive: "true", limit: "1" });
+    const response = await authenticatedFetch(`${API_BASE}/admin/single-agent-assignments?${params}`, {
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      throw new Error(await parseApiError(response));
+    }
+
+    const { data } = (await response.json()) as { data: { id: string }[] };
+    return data[0]?.id ?? null;
   };
 
   const applyAssignment = async () => {
@@ -565,6 +585,12 @@ export default function AssignAndMetricsPage() {
       return;
     }
 
+    // Never send anything but a real agent name to /admin/single-agent-assignments.
+    if (assignType === "agent" && !ALL_AGENTS.includes(selectedAssignment)) {
+      setAssignmentMessage({ type: "error", text: "Select an agent to assign." });
+      return;
+    }
+
     if (!Number.isInteger(durationDays) || durationDays < 1) {
       setAssignmentMessage({
         type: "error",
@@ -573,7 +599,15 @@ export default function AssignAndMetricsPage() {
       return;
     }
 
-    if (assignType === "agent" && (!Number.isInteger(monthlyTokenLimit) || monthlyTokenLimit < 0)) {
+    // An empty box parses to NaN here, so leaving it blank is rejected with the
+    // same message rather than silently assigning zero tokens.
+    const tokenLimitValue = Number(monthlyTokenLimit.trim());
+    if (
+      assignType === "agent" &&
+      (monthlyTokenLimit.trim() === "" ||
+        !Number.isInteger(tokenLimitValue) ||
+        tokenLimitValue < 0)
+    ) {
       setAssignmentMessage({
         type: "error",
         text: "Token assignment must be a non-negative integer.",
@@ -587,15 +621,14 @@ export default function AssignAndMetricsPage() {
     try {
       if (assignType === "team") {
         const selectedTeam = teams.find((team) => team.id === selectedAssignment);
-        const response = await authenticatedFetch(`${API_BASE}/admin/group-assignments`, {
+        const response = await authenticatedFetch(`${API_BASE}/admin/team-assignments`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             email,
-            selector: { groupId: selectedAssignment },
+            teamId: selectedAssignment,
             durationDays,
             isActive: true,
-            alsoAssignAgents: true,
           }),
         });
 
@@ -603,9 +636,16 @@ export default function AssignAndMetricsPage() {
           throw new Error(await parseApiError(response));
         }
 
+        // The server seeds every agent in the team with the team's own
+        // per-agent limit, so echo that back rather than a shared figure.
+        const perAgentLimit = selectedTeam?.tokenLimit ?? null;
+        const agentCount = selectedTeam?.agents.length ?? 0;
         setAssignmentMessage({
           type: "success",
-          text: `${selectedTeam?.name ?? "Team"} assigned to ${email} for ${durationDays} days.`,
+          text:
+            perAgentLimit === null
+              ? `${selectedTeam?.name ?? "Team"} assigned to ${email} for ${durationDays} days (access only, no token limit).`
+              : `${selectedTeam?.name ?? "Team"} assigned to ${email} for ${durationDays} days with ${perAgentLimit.toLocaleString()} tokens per agent (${agentCount} agent${agentCount === 1 ? "" : "s"}).`,
         });
         await loadRecentAssignments();
         await loadAgentMetrics();
@@ -613,39 +653,41 @@ export default function AssignAndMetricsPage() {
       }
 
       if (assignType === "agent") {
-        // 1) Grant the user access to this single agent (upserts AssignedAgent).
-        const accessResponse = await authenticatedFetch(`${API_BASE}/admin/assign/agent`, {
+        // Grant the user access to this single agent. SingleAssignedAgent
+        // rows are only ever written through /admin/single-agent-assignments; the
+        // row carries the token allowance (the quota engine reads it directly),
+        // and a 409 means the user already holds an active grant, so renew it:
+        // resetUsage zeroes its spend so the new allowance is available in full.
+        const grant = { durationDays, isActive: true, tokenLimit: tokenLimitValue };
+        const accessResponse = await authenticatedFetch(`${API_BASE}/admin/single-agent-assignments`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email,
-            agentName: selectedAssignment,
-            durationDays,
-            isActive: true,
-          }),
+          body: JSON.stringify({ email, agentName: selectedAssignment, ...grant }),
         });
 
-        if (!accessResponse.ok) {
+        if (accessResponse.status === 409) {
+          const existingId = await findActiveAgentAssignmentId(email, selectedAssignment);
+          if (!existingId) {
+            throw new Error(await parseApiError(accessResponse));
+          }
+          const patchResponse = await authenticatedFetch(
+            `${API_BASE}/admin/single-agent-assignments/${existingId}`,
+            {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...grant, resetUsage: true }),
+            },
+          );
+          if (!patchResponse.ok) {
+            throw new Error(await parseApiError(patchResponse));
+          }
+        } else if (!accessResponse.ok) {
           throw new Error(await parseApiError(accessResponse));
-        }
-
-        // 2) Apply the token allowance for that agent.
-        const response = await authenticatedFetch(
-          `${API_BASE}/token-usage/${encodeURIComponent(email)}/${encodeURIComponent(selectedAssignment)}/limit`,
-          {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ totalTokenLimit: monthlyTokenLimit }),
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error(await parseApiError(response));
         }
 
         setAssignmentMessage({
           type: "success",
-          text: `${selectedAssignment} assigned to ${email} for ${durationDays} days with ${monthlyTokenLimit.toLocaleString()} tokens.`,
+          text: `${selectedAssignment} assigned to ${email} for ${durationDays} days with ${tokenLimitValue.toLocaleString()} tokens.`,
         });
         await loadRecentAssignments();
         await loadAgentMetrics();
@@ -782,7 +824,16 @@ export default function AssignAndMetricsPage() {
                   isLoadingMemberships
                     ? <option value="">Loading memberships...</option>
                     : memberships.length > 0
-                      ? memberships.map((m) => <option key={m.id} value={m.id}>{m.name} - {m.durationDays}d / {(m.monthlyTokenLimit / 1000).toFixed(0)}k tokens</option>)
+                      ? memberships.map((m) => {
+                          const agentCount = m.includedAgents?.length ?? 0;
+                          const teamCount = m.includedTeams?.length ?? 0;
+                          return (
+                            <option key={m.id} value={m.id}>
+                              {m.name} - {m.durationDays}d / {(m.monthlyTokenLimit / 1000).toFixed(0)}k tokens
+                              {" "}({agentCount} agent{agentCount === 1 ? "" : "s"}, {teamCount} team{teamCount === 1 ? "" : "s"})
+                            </option>
+                          );
+                        })
                       : <option value="">No memberships available</option>
                 )}
                 {assignType === "team" && (
@@ -797,7 +848,7 @@ export default function AssignAndMetricsPage() {
             </div>
 
             {/* Duration & Token Limit */}
-            <div className={`grid gap-4 ${assignType === "team" ? "grid-cols-1" : "grid-cols-2"}`}>
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-white/50 mb-1.5 block">Duration (Days)</label>
                 <div className="relative">
@@ -810,9 +861,37 @@ export default function AssignAndMetricsPage() {
                   />
                 </div>
               </div>
+              {assignType === "team" && (() => {
+                // Read-only: the limit belongs to the team (set on the Agents
+                // page) and is applied to EACH agent, not shared between them.
+                const selectedTeam = teams.find((team) => team.id === selectedAssignment);
+                const perAgentLimit = selectedTeam?.tokenLimit ?? null;
+                const agentCount = selectedTeam?.agents.length ?? 0;
+                return (
+                  <div>
+                    <label className="text-xs text-white/50 mb-1.5 block">Token Limit (per agent)</label>
+                    <div className="relative">
+                      <CreditCard size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+                      <input
+                        type="text"
+                        value={perAgentLimit === null ? "Access only" : perAgentLimit.toLocaleString()}
+                        readOnly
+                        className="w-full rounded-xl border border-white/10 bg-white/5 p-3 pl-9 text-sm text-white/60 outline-none"
+                      />
+                    </div>
+                    <p className="mt-1.5 text-[11px] text-white/35">
+                      {perAgentLimit === null
+                        ? "This team has no token limit; its agents get access only."
+                        : `Each of the ${agentCount} agent${agentCount === 1 ? "" : "s"} gets ${perAgentLimit.toLocaleString()} tokens (${(perAgentLimit * agentCount).toLocaleString()} in total).`}
+                    </p>
+                  </div>
+                );
+              })()}
               {assignType !== "team" && (
                 <div>
-                  <label className="text-xs text-white/50 mb-1.5 block">Token Assignment</label>
+                  <label className="text-xs text-white/50 mb-1.5 block">
+                    {assignType === "membership" ? "Token Assignment (shared pool)" : "Token Assignment"}
+                  </label>
                   <div className="relative">
                     <CreditCard size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
                     <input
@@ -820,11 +899,34 @@ export default function AssignAndMetricsPage() {
                       min={0}
                       step={1}
                       value={monthlyTokenLimit}
-                      onChange={(e) => setMonthlyTokenLimit(Number(e.target.value))}
+                      onChange={(e) =>
+                        // Digits only, and drop a leading zero so typing into a
+                        // box showing "0" yields "5000" rather than "05000".
+                        setMonthlyTokenLimit(
+                          e.target.value.replace(/\D/g, "").replace(/^0+(?=\d)/, ""),
+                        )
+                      }
+                      placeholder="e.g. 100000"
                       readOnly={assignType === "membership"}
                       className="w-full rounded-xl border border-white/10 bg-white/5 p-3 pl-9 text-sm text-white outline-none focus:border-indigo-500 transition read-only:text-white/60"
                     />
                   </div>
+                  {assignType === "membership" && (() => {
+                    // The membership's monthly allowance is ONE pool: every
+                    // agent it reaches (single agents and team agents alike)
+                    // spends from the same figure, so a chat with any of them
+                    // draws it down for all of them.
+                    const selectedMembership = memberships.find((item) => item.id === selectedAssignment);
+                    const agentCount = selectedMembership?.effectiveAgents?.length ?? 0;
+                    const pool = Number(monthlyTokenLimit) || 0;
+                    return (
+                      <p className="mt-1.5 text-[11px] text-white/35">
+                        {agentCount > 0
+                          ? `${pool.toLocaleString()} tokens per month shared by all ${agentCount} agent${agentCount === 1 ? "" : "s"} of this membership -- not per agent.`
+                          : "Shared by every agent of this membership -- not per agent."}
+                      </p>
+                    );
+                  })()}
                 </div>
               )}
             </div>
@@ -964,42 +1066,33 @@ export default function AssignAndMetricsPage() {
         )}
         <div className="h-[400px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={displayDailyUsage} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <defs>
-                {metricAgents.map((agent, index) => {
-                  const color = getAgentColor(agent, index);
-                  return (
-                  <linearGradient key={agent} id={`grad-${agent}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={color} stopOpacity={0.24} />
-                    <stop offset="95%" stopColor={color} stopOpacity={0.02} />
-                  </linearGradient>
-                  );
-                })}
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
-              <XAxis dataKey="date" stroke="#ffffff40" fontSize={10} tickMargin={8} interval={2} />
+            {/* Stacked bars, not smoothed areas: a curve would spread one
+                day's spend onto its neighbours. */}
+            <BarChart data={displayDailyUsage} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" vertical={false} />
+              <XAxis dataKey="date" stroke="#ffffff40" fontSize={10} tickMargin={8} interval="preserveStartEnd" minTickGap={16} />
               <YAxis
                 stroke="#ffffff40"
                 fontSize={10}
                 tickFormatter={(v) => formatAxisValue(v, currency)}
               />
-              <Tooltip content={(props) => <SortedTooltip {...props} currency={currency} colorMap={agentColorMap} />} />
+              <Tooltip cursor={{ fill: "#ffffff08" }} content={(props) => <SortedTooltip {...props} currency={currency} colorMap={agentColorMap} />} />
               {metricAgents.map((agent, index) => {
                 const color = getAgentColor(agent, index);
                 return (
                 visibleAgents.includes(agent) ? (
-                  <Area
+                  <Bar
                     key={agent}
-                    type="monotone"
+                    stackId="usage"
                     dataKey={agent}
-                    stroke={color}
-                    fill={`url(#grad-${agent})`}
-                    strokeWidth={1.5}
+                    fill={color}
+                    fillOpacity={0.85}
+                    maxBarSize={28}
                   />
                 ) : null
                 );
               })}
-            </AreaChart>
+            </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
@@ -1039,42 +1132,31 @@ export default function AssignAndMetricsPage() {
 
         <div className="h-[360px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={displayWeeklyUsage} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <defs>
-                {metricAgents.map((agent, index) => {
-                  const color = getAgentColor(agent, index);
-                  return (
-                  <linearGradient key={agent} id={`wgrad-${agent}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor={color} stopOpacity={0.24} />
-                    <stop offset="95%" stopColor={color} stopOpacity={0.02} />
-                  </linearGradient>
-                  );
-                })}
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" />
+            <BarChart data={displayWeeklyUsage} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" vertical={false} />
               <XAxis dataKey="week" stroke="#ffffff40" fontSize={11} tickMargin={8} />
               <YAxis
                 stroke="#ffffff40"
                 fontSize={10}
                 tickFormatter={(v) => formatAxisValue(v, currency)}
               />
-              <Tooltip content={(props) => <SortedTooltip {...props} currency={currency} colorMap={agentColorMap} />} />
+              <Tooltip cursor={{ fill: "#ffffff08" }} content={(props) => <SortedTooltip {...props} currency={currency} colorMap={agentColorMap} />} />
               {metricAgents.map((agent, index) => {
                 const color = getAgentColor(agent, index);
                 return (
                 visibleAgents.includes(agent) ? (
-                  <Area
+                  <Bar
                     key={agent}
-                    type="monotone"
+                    stackId="usage"
                     dataKey={agent}
-                    stroke={color}
-                    fill={`url(#wgrad-${agent})`}
-                    strokeWidth={1.5}
+                    fill={color}
+                    fillOpacity={0.85}
+                    maxBarSize={72}
                   />
                 ) : null
                 );
               })}
-            </AreaChart>
+            </BarChart>
           </ResponsiveContainer>
         </div>
       </div>

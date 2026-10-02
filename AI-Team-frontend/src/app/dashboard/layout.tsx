@@ -1,3 +1,4 @@
+import AgentAccessGuard from '@/components/ui/AgentAccessGuard';
 import GiuliaWidget from '@/components/ui/GiuliaWidget';
 import TokenAlertsAnnouncer from '@/components/ui/TokenAlertsAnnouncer';
 import UserSync from '@/components/ui/UserSync';
@@ -19,7 +20,8 @@ export default function DashboardLayout({
   return (
     <>
       {/* Your existing dashboard shell/header/sidebar goes here */}
-      {children}
+      {/* An agent page only renders for a user the agent is assigned to. */}
+      <AgentAccessGuard>{children}</AgentAccessGuard>
 
       <UserSync />
       <TokenAlertsAnnouncer />

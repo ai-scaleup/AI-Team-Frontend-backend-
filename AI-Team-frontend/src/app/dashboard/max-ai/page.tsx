@@ -34,12 +34,14 @@ import {
   Menu,
   Home,
 } from "lucide-react"
+import { CompactionNotice } from "@/components/ui/CompactionNotice"
 import PreferencesWizard from "@/components/preferences/PreferencesWizard"
 import PreferencesButton from "@/components/preferences/PreferencesButton"
 import { useUser } from "@clerk/nextjs"
 import { UserPreferences, UserPreference, AgentName } from "@/types/preferences"
 import { userPreferenceService } from "@/services/preferenceService"
 import { conversationService } from "@/services/conversationService"
+import { useConversationCache } from "@/hooks/use-conversation-cache"
 import { Conversation, Message as ApiMessage, CreateConversationDto } from "@/types/conversation"
 import { extractFileContent } from "@/utils/fileExtraction"
 import { getDevUserEmail } from "@/lib/devToken"
@@ -397,7 +399,7 @@ export default function App() {
   const CURRENT_NAMESPACE = useRef("")
   const prevMessageCountRef = useRef(0)
 
-  const N8N_ENDPOINT = "https://n8n-c2lq.onrender.com/webhook/f86aa502-abc9-4496-b99b-a2530e12bf6d/chat?action=sendMessage"
+  const N8N_ENDPOINT = "/api/n8n-proxy?agent=max-ai"
 
   // --- INITIALIZATION ---
   useEffect(() => {
@@ -419,49 +421,67 @@ export default function App() {
     }
   }, [])
 
-  // Load conversations from API when user is available
+  const conversationCache = useConversationCache(user?.id, "max-ai", chats, currentChatId)
+
+  // Load conversations when user is available: the copy cached on this device
+  // shows at once, then the API's list replaces it.
   useEffect(() => {
     if (!user?.id) return
+    let cancelled = false
+
+    const showChats = (chatsRecord: Record<string, ChatSession>) => {
+      setChats(chatsRecord)
+
+      const sorted = Object.entries(chatsRecord).sort(
+        ([, a], [, b]) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime(),
+      )
+      const recentChatId = sorted[0][0]
+      setCurrentChatId(recentChatId)
+      setMessages(chatsRecord[recentChatId].messages || [])
+      if (chatsRecord[recentChatId].agentId) {
+        setActiveAgentId(chatsRecord[recentChatId].agentId)
+      }
+      return recentChatId
+    }
+
+    const cached = conversationCache.read()
+    if (cached) conversationCache.markShown(cached, showChats(cached))
 
     const loadConversations = async () => {
       try {
         console.log("📡 Max AI: Fetching conversations from API for user:", user.id)
         const conversations = await conversationService.getConversations(user.id, "max-ai")
+        if (cancelled) return
 
-        if (conversations && conversations.length > 0) {
-          const chatsRecord: Record<string, ChatSession> = {}
-          conversations.forEach((conv) => {
-            chatsRecord[conv.id] = {
-              id: conv.id,
-              messages: conv.messages || [],
-              title: conv.title,
-              lastUpdated: conv.lastUpdated,
-              folderId: conv.folderId || null,
-              archived: conv.archived || false,
-              agentId: conv.agentId,
-              sessionId: conv.sessionId,
-            }
-          })
-
-          setChats(chatsRecord)
-
-          const sorted = Object.entries(chatsRecord).sort(
-            ([, a], [, b]) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime(),
-          )
-          const recentChatId = sorted[0][0]
-          setCurrentChatId(recentChatId)
-          setMessages(chatsRecord[recentChatId].messages || [])
-          if (chatsRecord[recentChatId].agentId) {
-            setActiveAgentId(chatsRecord[recentChatId].agentId)
+        const chatsRecord: Record<string, ChatSession> = {}
+        conversations.forEach((conv) => {
+          chatsRecord[conv.id] = {
+            id: conv.id,
+            messages: conv.messages || [],
+            title: conv.title,
+            lastUpdated: conv.lastUpdated,
+            folderId: conv.folderId || null,
+            archived: conv.archived || false,
+            agentId: conv.agentId,
+            sessionId: conv.sessionId,
           }
+        })
+
+        // The user is already working in the cached chats: fold the list in.
+        const merged = conversationCache.reconcile(chatsRecord)
+        if (merged) {
+          setChats(merged)
+        } else if (conversations.length > 0) {
+          showChats(chatsRecord)
           console.log("✅ Max AI: Loaded", conversations.length, "conversations from API")
         } else {
           console.log("📝 Max AI: No conversations found, creating new chat")
+          setChats({})
           await initNewChatForAgent(currentAgent)
         }
       } catch (error) {
         console.error("❌ Max AI: Failed to load conversations from API:", error)
-        await initNewChatForAgent(currentAgent)
+        if (!cancelled && !cached) await initNewChatForAgent(currentAgent)
       }
     }
 
@@ -472,6 +492,9 @@ export default function App() {
         setUserPrefs(prefs)
       }
       })
+    }
+    return () => {
+      cancelled = true
     }
   }, [user?.id, userEmail])
 
@@ -1735,6 +1758,13 @@ export default function App() {
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 custom-scrollbar">
             <div className="max-w-6xl mx-auto space-y-6">
+              <CompactionNotice
+                sessionId={currentChatId ? (chats[currentChatId]?.sessionId ?? null) : null}
+                agent="max-ai"
+                chatId={currentChatId}
+                refreshKey={isLoading ? -1 : messages.length}
+              />
+
               {messages.map((msg, idx) => (
                 <div
                   key={idx}

@@ -17,6 +17,9 @@ export default function LucaAIPage() {
     const [error, setError] = useState<string>("")
     const [audioLevel, setAudioLevel] = useState(0)
     const [messages, setMessages] = useState<Message[]>([])
+    const [sessionId] = useState(
+        () => `session_luca_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+    )
     const [isAIThinking, setIsAIThinking] = useState(false)
     const [isAISpeaking, setIsAISpeaking] = useState(false)
     const [isTTSEnabled, setIsTTSEnabled] = useState(true)
@@ -179,6 +182,8 @@ export default function LucaAIPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     message: text,
+                    sessionId,
+                    chatId: sessionId,
                     conversationHistory: messages.slice(-6).map(m => ({
                         role: m.role,
                         content: m.text

@@ -34,6 +34,7 @@ import {
   Menu,
   Home,
 } from "lucide-react"
+import { CompactionNotice } from "@/components/ui/CompactionNotice"
 
 // --- TYPES ---
 interface Message {
@@ -339,7 +340,7 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const CURRENT_NAMESPACE = useRef("")
 
-  const N8N_ENDPOINT = process.env.NEXT_PUBLIC_TEST_TONY_AI_N8N_ENDPOINT || "https://n8n-c2lq.onrender.com/webhook/53b24a5e-80c2-4a41-8755-59f37ba751dc/chat?action=sendMessage"
+  const N8N_ENDPOINT = "/api/n8n-proxy?agent=test-tony-ai"
 
   // --- INITIALIZATION ---
   useEffect(() => {
@@ -414,6 +415,7 @@ export default function App() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "auto" })
   }, [messages])
+
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -755,8 +757,10 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
     setMessages((prev) => [...prev, aiResponsePlaceholder])
 
     try {
-      const sessionId = localStorage.getItem("tony-ai-session-id") || "session_" + Date.now()
-      if (!currentChatIdForSend) throw new Error("currentChatIdForSend is null") // Should not happen
+      // One session per chat, derived from the chat id itself: stable across
+      // reloads, unique per conversation, and nothing to store anywhere.
+      if (!currentChatIdForSend) throw new Error("currentChatIdForSend is null")
+      const activeSessionId = `session_${currentChatIdForSend}`
 
       const response = await fetch(N8N_ENDPOINT, {
         method: "POST",
@@ -764,7 +768,7 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
         body: JSON.stringify({
           chatInput:
             inputValue + (selectedFiles.length ? ` [Attached: ${selectedFiles.map((f) => f.name).join(", ")}]` : ""),
-          sessionId: sessionId,
+          sessionId: activeSessionId,
           useMemory: useMemory,
           metadata: { namespace: CURRENT_NAMESPACE.current, source: activeAgentId },
           chatId: currentChatIdForSend,
@@ -836,6 +840,7 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
         setChats(updatedChatsState)
         return newMsgs
       })
+
     } catch (error) {
       console.error("Error sending message:", error)
       setMessages((prev) => {
@@ -1506,6 +1511,12 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
 
           <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 custom-scrollbar">
             <div className="max-w-6xl mx-auto space-y-6">
+
+              <CompactionNotice
+                sessionId={currentChatId ? `session_${currentChatId}` : null}
+                agent="test-tony-ai"
+                chatId={currentChatId}
+              />
               {messages.map((msg, idx) => (
                 <div
                   key={idx}

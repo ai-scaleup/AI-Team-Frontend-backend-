@@ -34,9 +34,12 @@ import {
   Menu,
   Home,
 } from "lucide-react"
+import { CompactionNotice } from "@/components/ui/CompactionNotice"
 import * as pdfjsLib from "pdfjs-dist"
 import mammoth from "mammoth"
 import * as XLSX from "xlsx"
+import { useUser } from "@clerk/nextjs"
+import { getDevUserEmail } from "@/lib/devToken"
 
 // --- Pinecone Vector Type Definition ---
 // This type definition is added to resolve the 'PineconeVector is undeclared' error.
@@ -577,7 +580,13 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const CURRENT_NAMESPACE = useRef("")
 
-  const N8N_ENDPOINT = process.env.NEXT_PUBLIC_TEST_ALEX_AI_N8N_ENDPOINT || "https://n8n-c2lq.onrender.com/webhook/65c03f65-d13c-43c7-967d-708dcceef965/chat?action=sendMessage"
+  const N8N_ENDPOINT = "/api/n8n-proxy?agent=test-alex-ai"
+  // Sent with every chat so the token-usage tracker can charge the user's single-agent grant.
+  const AGENT_NAME = "TEST_ALEX"
+  const AGENT_TYPE = "single"
+
+  const { user } = useUser()
+  const userEmail = user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || getDevUserEmail()
 
 
   useEffect(() => {
@@ -1039,9 +1048,14 @@ export default function App() {
             inputValue + (selectedFiles.length ? ` [Attached: ${selectedFiles.map((f) => f.name).join(", ")}]` : ""),
           sessionId: sessionId,
           useMemory: useMemory,
+          agentName: AGENT_NAME,
+          agentType: AGENT_TYPE,
           metadata: {
             namespace: CURRENT_NAMESPACE.current,
             source: activeAgentId,
+            email: userEmail,
+            agentName: AGENT_NAME,
+            agentType: AGENT_TYPE,
             files: pendingFileContents.map((f) => ({ name: f.fileName, size: f.content.length })),
           },
           chatId: currentChatIdForSend,
@@ -1825,6 +1839,13 @@ export default function App() {
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 custom-scrollbar">
             <div className="max-w-6xl mx-auto space-y-6">
+              <CompactionNotice
+                sessionId={currentChatId ? (chats[currentChatId]?.sessionId ?? null) : null}
+                agent="test-alex-ai"
+                chatId={currentChatId}
+                refreshKey={isLoading ? -1 : messages.length}
+              />
+
               {messages.map((msg, idx) => (
                 <div
                   key={idx}

@@ -76,6 +76,10 @@ export async function authenticatedFetch(
   const headers = new Headers(input instanceof Request ? input.headers : undefined);
   new Headers(init.headers).forEach((value, key) => headers.set(key, value));
 
+  // Backend base may be an ngrok tunnel during local testing; without this
+  // header ngrok's free tier returns an HTML interstitial instead of JSON.
+  headers.set("ngrok-skip-browser-warning", "true");
+
   if (!applyDevAuthHeaders(headers)) {
     const token = await currentClerkToken();
     if (token) {

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 
 // Jennifer AI N8N Endpoint
-const N8N_URL = "https://n8n-c2lq.onrender.com/webhook/98312f59-4090-428e-a131-4149363dddc9/chat"
+const N8N_URL = "/api/n8n-proxy?agent=jennifer-widget"
 // Using Jennifer AI relevant colors
 const PRIMARY_COLOR = "#b12a32" // Red base
 const LIGHT_BG = "#f4f5f9"

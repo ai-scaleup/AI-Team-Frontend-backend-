@@ -15,11 +15,11 @@ import {
 
 // --- CONFIGURATION ---
 // 1. CHAT URL (POST) - Sends new messages to AI
-const N8N_CHAT_URL = "https://n8n-c2lq.onrender.com/webhook/60220da6-592c-4374-8668-602ab37df920";
+const N8N_CHAT_URL = "/api/n8n-proxy?agent=test-valentina-ai";
 
 
 // 2. HISTORY URL (GET) - Fetches conversation history
-const N8N_HISTORY_URL = "https://n8n-c2lq.onrender.com/webhook/99cff9d0-c1ee-4a46-99d7-27f06ed97802";
+const N8N_HISTORY_URL = "/api/n8n-proxy?agent=test-valentina-ai-history";
 
 
 // --- TYPES ---

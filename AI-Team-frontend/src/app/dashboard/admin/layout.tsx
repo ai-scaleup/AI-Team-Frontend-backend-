@@ -12,7 +12,8 @@ import {
   Lock,
   Mail,
   KeyRound,
-  BookOpen
+  BookOpen,
+  Scissors
 } from "lucide-react";
 import { isAdminEmail } from "@/lib/adminAccess";
 
@@ -131,8 +132,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const navItems = [
     { name: "Agents & Teams", href: "/dashboard/admin/agents", icon: Bot },
-    { name: "Assign & Memberships", href: "/dashboard/admin/assign", icon: CreditCard },
+    {
+      name: "Assign & Memberships",
+      href: "/dashboard/admin/assign",
+      icon: CreditCard,
+      relatedPaths: ["/dashboard/admin/assign-tokens"],
+    },
     { name: "Users", href: "/dashboard/admin/users", icon: Users },
+    { name: "Compaction", href: "/dashboard/admin/compaction", icon: Scissors },
     { name: "Knowledgebase", href: "/dashboard/admin/knowledgebase", icon: BookOpen },
   ];
 
@@ -145,16 +152,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
         <nav className="flex flex-col gap-2 p-4">
           {navItems.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive =
+              pathname === item.href ||
+              pathname.startsWith(`${item.href}/`) ||
+              item.relatedPaths?.some(
+                (path) => pathname === path || pathname.startsWith(`${path}/`),
+              );
             const Icon = item.icon;
             return (
               <Link
                 key={item.name}
                 href={item.href}
-                className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all ${
+                aria-current={isActive ? "page" : undefined}
+                className={`relative flex items-center gap-3 overflow-hidden rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
                   isActive
-                    ? "bg-sky-500/10 text-sky-400"
-                    : "text-white/60 hover:bg-white/5 hover:text-white"
+                    ? "border-sky-400/30 bg-gradient-to-r from-sky-500/20 to-indigo-500/10 text-sky-300 shadow-[inset_3px_0_0_#38bdf8]"
+                    : "border-transparent text-white/60 hover:bg-white/5 hover:text-white"
                 }`}
               >
                 <Icon size={18} />

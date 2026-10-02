@@ -43,7 +43,7 @@ import type { ChatSession as SaraSession, ChatMessage as SaraMessage, StatsRespo
 
 // --- CONFIGURATION ---
 // 1. CHAT URL (POST) - Sends new messages to AI
-const N8N_CHAT_URL = "https://n8n-c2lq.onrender.com/webhook/bb5226e9-6615-41cf-95ea-a9bbc4bd3e18";
+const N8N_CHAT_URL = "/api/n8n-proxy?agent=sara-ai";
 
 
 

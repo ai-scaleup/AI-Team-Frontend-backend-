@@ -302,14 +302,20 @@ export default function PreferencesWizard({ onComplete, onClose, isOpen, userId,
         console.log('Wizard Saving:', dataToSave)
 
         // Save for specific agent (defaults to JIM)
-        const result = await userPreferenceService.upsert(userId, agentName, dataToSave)
+        const { data, error } = await userPreferenceService.upsertWithResult(
+            userId,
+            agentName,
+            dataToSave,
+        )
 
         setIsSaving(false)
 
-        if (result) {
+        if (data) {
             handleClose(true)
         } else {
-            alert("Errore durante il salvataggio. Riprova.")
+            // The API says which field it rejected; hiding that behind "Riprova"
+            // leaves the user clicking the same button forever.
+            alert(error ?? "Errore durante il salvataggio. Riprova.")
         }
     }
 

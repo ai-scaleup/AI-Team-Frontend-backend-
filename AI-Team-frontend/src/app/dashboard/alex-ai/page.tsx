@@ -2,6 +2,7 @@
 
 import { API_BASE } from "@/lib/apiBase"
 import { authenticatedFetch } from "@/lib/authenticatedFetch";
+import { resolveAgentTokenSource, TOKEN_TYPE_LABELS, type AgentTokenSource } from "@/lib/agentTokenSource";
 export const dynamic = "force-dynamic"
 
 import type React from "react"
@@ -37,13 +38,17 @@ import {
   Menu,
   Home,
   BookOpen,
+  FoldVertical,
+  Loader2,
 } from "lucide-react"
+import { CompactionNotice } from "@/components/ui/CompactionNotice"
 import PreferencesWizard from "@/components/preferences/PreferencesWizard"
 import PreferencesButton from "@/components/preferences/PreferencesButton"
 import { useUser } from "@clerk/nextjs"
 import { type UserPreference } from "@/types/preferences"
 import { userPreferenceService } from "@/services/preferenceService"
 import { conversationService } from "@/services/conversationService"
+import { useConversationCache } from "@/hooks/use-conversation-cache"
 import { Conversation, Message as ApiMessage, CreateConversationDto } from "@/types/conversation"
 import { extractFileContent } from "@/utils/fileExtraction"
 import { getDevUserEmail } from "@/lib/devToken"
@@ -331,6 +336,18 @@ const TOKEN_ALERT_STYLES: Record<TokenAlertLevel, { wrap: string; icon: string }
   },
 }
 
+// --- CONVERSATION COMPACTION ---
+// The backend folds the older turns of a long chat into a summary and leaves
+// this marker in the transcript; the page shows the same one as soon as the
+// compaction lands, without waiting for a reload.
+const COMPACTION_NOTICE_TEXT = "Conversazione compattata · i messaggi precedenti sono stati riassunti"
+// From this share of the way to the compaction trigger, the user is told one is coming.
+const COMPACTION_WARN_PERCENT = 90
+const COMPACTION_POLL_MS = 3000
+// A compaction of a full conversation takes a few summarising calls; past
+// this the page stops asking and the marker shows on the next load instead.
+const COMPACTION_POLL_ATTEMPTS = 100
+
 // --- AGENT ROSTER LIST ---
 const AI_TEAM_LIST = [
   { id: "mike-ai" },
@@ -368,6 +385,8 @@ export default function App() {
     totalTokenLimit: number
     totalTokensLeft: number
   } | null>(null)
+  // Tier paying for the next chat: single-agent grant first, then team, then membership.
+  const [tokenSource, setTokenSource] = useState<AgentTokenSource | null>(null)
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [sidebarVisible, setSidebarVisible] = useState(true)
@@ -391,6 +410,16 @@ export default function App() {
   const [newFolderName, setNewFolderName] = useState("")
   const [showArchived, setShowArchived] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  // Chat whose older turns the backend is summarising right now.
+  const [compactingChatId, setCompactingChatId] = useState<string | null>(null)
+  // How far a chat is towards the token count at which the backend compacts it (0-100).
+  const [compactionLevel, setCompactionLevel] = useState<{ chatId: string; percent: number } | null>(null)
+  const isNearCompaction = Boolean(
+    compactionLevel &&
+      compactionLevel.chatId === currentChatId &&
+      compactionLevel.percent >= COMPACTION_WARN_PERCENT &&
+      compactingChatId !== currentChatId,
+  )
   const tokenUsagePercent = tokenUsage?.totalTokenLimit
     ? Math.min(100, Math.max(0, (tokenUsage.totalUsedTokens / tokenUsage.totalTokenLimit) * 100))
     : 0
@@ -442,11 +471,15 @@ export default function App() {
   // --- TYPES ---
   interface Message {
     text: string
-    sender: "ai" | "user"
+    // "system" is a marker in the transcript (the conversation was compacted), not a chat bubble.
+    sender: "ai" | "user" | "system"
     time: string
     files?: string[]
     raw?: string
   }
+
+  // A message the page itself writes and saves; markers only come from the server.
+  type ChatMessage = Message & { sender: "ai" | "user" }
 
   interface ChatSession {
     id: string
@@ -475,8 +508,44 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const CURRENT_NAMESPACE = useRef("")
   const prevMessageCountRef = useRef(0)
+  const currentChatIdRef = useRef<string | null>(null)
 
-  const N8N_ENDPOINT = "/api/n8n-proxy?agent=alex-ai"
+  // compactionEvents=1 asks the proxy to say when a reply started a compaction.
+  const N8N_ENDPOINT = "/api/n8n-proxy?agent=alex-ai&compactionEvents=1"
+
+  useEffect(() => {
+    currentChatIdRef.current = currentChatId
+  }, [currentChatId])
+
+  useEffect(() => {
+    if (compactingChatId && compactingChatId === currentChatId) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "auto" })
+    }
+  }, [compactingChatId, currentChatId])
+
+  // A chat opened from the sidebar may already be close to its compaction:
+  // ask where it stands so the warning shows before the next message too.
+  const currentSessionId = currentChatId ? chats[currentChatId]?.sessionId : undefined
+  useEffect(() => {
+    if (!currentChatId || !currentSessionId) return
+    let cancelled = false
+
+    authenticatedFetch("/api/compaction/status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: currentSessionId, agent: "alex-ai", chatId: currentChatId }),
+    })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((status) => {
+        if (cancelled || !status) return
+        setCompactionLevel({ chatId: currentChatId, percent: Number(status.percentOfTrigger) || 0 })
+      })
+      .catch(() => {})
+
+    return () => {
+      cancelled = true
+    }
+  }, [currentChatId, currentSessionId])
 
   // --- Set Pinecone namespace ---
   useEffect(() => {
@@ -487,16 +556,31 @@ export default function App() {
     }
   }, [user?.id])
 
-  useEffect(() => {
-    if (!userEmail) return
+  // Picks the tier that pays for the next chat and shows that tier's balance.
+  // A user holding only access-only grants gets no bar and is never blocked.
+  const refreshTokenSource = async (): Promise<AgentTokenSource | null> => {
+    if (!userEmail) return null
+    try {
+      const source = await resolveAgentTokenSource(userEmail, "ALEX")
+      setTokenSource(source)
+      setTokenUsage(
+        source.hasLimitedGrant
+          ? {
+              totalUsedTokens: source.usedTokens,
+              totalTokenLimit: source.tokenLimit,
+              totalTokensLeft: source.tokensLeft,
+            }
+          : null,
+      )
+      return source
+    } catch (err) {
+      console.error("Alex AI: Failed to resolve token source:", err)
+      return null
+    }
+  }
 
-    const userIdentifier = encodeURIComponent(userEmail)
-    authenticatedFetch(`${API_BASE}/token-usage/${userIdentifier}/ALEX`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data) { /* token usage UI disabled */ }
-      })
-      .catch(() => {})
+  useEffect(() => {
+    refreshTokenSource()
   }, [userEmail])
 
   // --- INITIALIZATION ---
@@ -521,69 +605,68 @@ export default function App() {
     }
   }, [])
 
-  // Load conversations from API when user is available
+  const conversationCache = useConversationCache(user?.id, "alex-ai", chats, currentChatId)
+
+  // Load conversations when user is available: the copy cached on this device
+  // shows at once, then the API's list replaces it. The list already carries
+  // each chat's messages; a chat opened from the sidebar re-reads its own.
   useEffect(() => {
     if (!user?.id) return
+    let cancelled = false
+
+    const showChats = (chatsRecord: Record<string, ChatSession>) => {
+      setChats(chatsRecord)
+
+      const sorted = Object.entries(chatsRecord).sort(
+        ([, a], [, b]) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime(),
+      )
+      const recentChatId = sorted[0][0]
+      setCurrentChatId(recentChatId)
+      setMessages(chatsRecord[recentChatId].messages || [])
+      if (chatsRecord[recentChatId].agentId) {
+        setActiveAgentId(chatsRecord[recentChatId].agentId)
+      }
+      return recentChatId
+    }
+
+    const cached = conversationCache.read()
+    if (cached) conversationCache.markShown(cached, showChats(cached))
 
     const loadConversations = async () => {
       try {
-        await syncUserToBackend()
-
         console.log("📡 Alex AI: Fetching conversations from API for user:", user.id)
         const conversations = await conversationService.getConversations(user.id, "alex-ai")
+        if (cancelled) return
 
-        if (conversations && conversations.length > 0) {
-          const chatsRecord: Record<string, ChatSession> = {}
-
-          // Fetch messages for each conversation if not included
-          for (const conv of conversations) {
-            let messages = conv.messages || []
-
-            // If messages are empty, try fetching them separately
-            if (!messages || messages.length === 0) {
-              try {
-                console.log(`📨 Alex AI: Fetching messages for conversation ${conv.id}...`)
-                const fetchedMessages = await conversationService.getMessages(user.id, conv.id)
-                if (fetchedMessages && fetchedMessages.length > 0) {
-                  messages = fetchedMessages
-                  console.log(`✅ Alex AI: Fetched ${fetchedMessages.length} messages for ${conv.id}`)
-                }
-              } catch (msgError) {
-                console.warn(`⚠️ Alex AI: Could not fetch messages for ${conv.id}:`, msgError)
-              }
-            }
-
-            chatsRecord[conv.id] = {
-              id: conv.id,
-              messages: messages,
-              title: conv.title,
-              lastUpdated: conv.lastUpdated,
-              folderId: conv.folderId || null,
-              archived: conv.archived || false,
-              agentId: conv.agentId,
-              sessionId: conv.sessionId,
-            }
+        const chatsRecord: Record<string, ChatSession> = {}
+        conversations.forEach((conv) => {
+          chatsRecord[conv.id] = {
+            id: conv.id,
+            messages: conv.messages || [],
+            title: conv.title,
+            lastUpdated: conv.lastUpdated,
+            folderId: conv.folderId || null,
+            archived: conv.archived || false,
+            agentId: conv.agentId,
+            sessionId: conv.sessionId,
           }
+        })
 
-          setChats(chatsRecord)
-
-          const sorted = Object.entries(chatsRecord).sort(
-            ([, a], [, b]) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime(),
-          )
-          const recentChatId = sorted[0][0]
-          setCurrentChatId(recentChatId)
-          setMessages(chatsRecord[recentChatId].messages || [])
-          if (chatsRecord[recentChatId].agentId) {
-            setActiveAgentId(chatsRecord[recentChatId].agentId)
-          }
+        // The user is already working in the cached chats: fold the list in.
+        const merged = conversationCache.reconcile(chatsRecord)
+        if (merged) {
+          setChats(merged)
+        } else if (conversations.length > 0) {
+          showChats(chatsRecord)
           console.log("✅ Alex AI: Loaded", conversations.length, "conversations from API")
         } else {
           console.log("📝 Alex AI: No conversations found, creating new chat")
+          setChats({})
           await initNewChatForAgent(currentAgent)
         }
       } catch (error) {
         console.error("❌ Alex AI: Failed to load conversations from API:", error)
-        await initNewChatForAgent(currentAgent)
+        if (!cancelled && !cached) await initNewChatForAgent(currentAgent)
       }
     }
 
@@ -591,26 +674,27 @@ export default function App() {
     if (!userEmail) {
       setUserPrefs(null)
       setIsPreferenceLoading(false)
-      return
-    }
-
-    const loadPreferences = async () => {
-      setIsPreferenceLoading(true)
-      try {
-        await syncUserToBackend()
-        const prefs = await userPreferenceService.getOrCreate(userEmail, "JIM")
-        if (prefs) {
-          setUserPrefs(prefs)
-        } else {
-          setUserPrefs(null)
+    } else {
+      const loadPreferences = async () => {
+        setIsPreferenceLoading(true)
+        try {
+          await syncUserToBackend()
+          const prefs = await userPreferenceService.getOrCreate(userEmail, "JIM")
+          if (prefs) {
+            setUserPrefs(prefs)
+          } else {
+            setUserPrefs(null)
+          }
+        } finally {
+          setIsPreferenceLoading(false)
         }
-      } finally {
-        setIsPreferenceLoading(false)
       }
+
+      loadPreferences()
     }
-
-    loadPreferences()
-
+    return () => {
+      cancelled = true
+    }
   }, [user?.id, userEmail])
 
   useEffect(() => {
@@ -663,7 +747,7 @@ export default function App() {
       messageText = `Ciao! Sono Alex AI, il tuo Cross-Platform Ads Strategist di livello mondiale specializzato nella creazione e ottimizzazione di campagne pubblicitarie integrate. Come posso supportarti oggi?`
     }
 
-    const welcomeMsg: Message = {
+    const welcomeMsg: ChatMessage = {
       text: messageText,
       sender: "ai",
       time: new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }),
@@ -940,6 +1024,58 @@ export default function App() {
     }
   }
 
+  // Follows a compaction the backend started after a reply, then puts the
+  // marker right after that reply (`noticeIndex`) — the user may already have
+  // written again by the time the summary is ready. `before` is where the
+  // chat stood when the compaction started.
+  const watchCompaction = async (
+    chatId: string,
+    sessionId: string,
+    noticeIndex: number,
+    before: { compactionCount: number; summaryVersion: number },
+  ) => {
+    const insertNotice = (list: Message[]) => {
+      const next = [...list]
+      next.splice(Math.min(noticeIndex, next.length), 0, { text: COMPACTION_NOTICE_TEXT, sender: "system", time: "" })
+      return next
+    }
+
+    setCompactingChatId(chatId)
+    try {
+      for (let attempt = 0; attempt < COMPACTION_POLL_ATTEMPTS; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, COMPACTION_POLL_MS))
+
+        const response = await authenticatedFetch("/api/compaction/status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId, agent: "alex-ai", chatId }),
+        })
+        if (!response.ok) continue
+        const status = await response.json()
+
+        if (status.compactionCount > before.compactionCount) {
+          // A compaction that wrote no new summary changed nothing for the agent.
+          if (status.summaryVersion > before.summaryVersion) {
+            setChats((prev) =>
+              prev[chatId]
+                ? { ...prev, [chatId]: { ...prev[chatId], messages: insertNotice(prev[chatId].messages || []) } }
+                : prev,
+            )
+            if (currentChatIdRef.current === chatId) setMessages(insertNotice)
+          }
+          // The chat is back well under the trigger, so the warning goes too.
+          setCompactionLevel({ chatId, percent: Number(status.percentOfTrigger) || 0 })
+          return
+        }
+        if (!status.compacting) return
+      }
+    } catch (error) {
+      console.error("Alex AI: Failed to follow the compaction:", error)
+    } finally {
+      setCompactingChatId((current) => (current === chatId ? null : current))
+    }
+  }
+
   const sendMessage = async () => {
     if (!inputValue.trim() && selectedFiles.length === 0) return
     if (isTokenLimitReached) return
@@ -954,7 +1090,7 @@ export default function App() {
       }
     }
 
-    const userMessage: Message = {
+    const userMessage: ChatMessage = {
       text: inputValue.trim() || (selectedFiles.length > 0 ? `[File: ${selectedFiles.map((f) => f.name).join(", ")}]` : ""),
       sender: "user",
       time: new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }),
@@ -973,7 +1109,7 @@ export default function App() {
       const newSessionId = "session_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9)
       const agent = AGENTS_DB[activeAgentId]
 
-      const welcomeMsg: Message = {
+      const welcomeMsg: ChatMessage = {
         text: `Ciao! Sono **${agent.name}**. ${agent.description} Come posso aiutarti?`,
         sender: "ai",
         time: new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }),
@@ -1027,7 +1163,7 @@ export default function App() {
         try {
           await conversationService.addMessage(user.id, currentChatIdForSend, {
             text: userMessage.text,
-            sender: userMessage.sender,
+            sender: "user",
             time: userMessage.time,
             files: userMessage.files,
           })
@@ -1054,6 +1190,13 @@ export default function App() {
 
       if (!currentChatIdForSend) throw new Error("currentChatIdForSend is null")
 
+      // Re-read the tiers right before sending: the previous chat may have
+      // used up the one shown, so n8n is told the tier that pays for this one.
+      const source = (await refreshTokenSource()) ?? tokenSource
+      if (source?.hasLimitedGrant && !source.tokenType) {
+        throw new Error("Token limit reached on every tier")
+      }
+
       const requestBody = JSON.stringify({
         chatInput:
           inputValue +
@@ -1067,6 +1210,14 @@ export default function App() {
           "agent-memory": `${CURRENT_NAMESPACE.current}-alex-ai`,
           source: "alex-ai",
           email: userEmail,
+          tokenType: source?.tokenType ?? null,
+          // Read by the token-usage tracker to charge the user's grant for this agent.
+          agentName: "ALEX",
+          agentType: source?.tokenType ?? null,
+          // Team tier only: which team grant the tracker charges.
+          teamId: source?.teamId ?? null,
+          // Membership tier only: the assigned-membership id whose pool is charged.
+          membershipAssignmentId: source?.tokenType === "membership" ? source.grantId : null,
         },
         chatId: currentChatIdForSend,
       })
@@ -1085,6 +1236,14 @@ export default function App() {
       let buffer = ""
       let rawText = "" // full text accumulated from the stream so far
       let isFirstChunk = true
+      // Where the chat stands after this reply, as the proxy reports it:
+      // how close it is to a compaction and whether this reply started one.
+      let compactionEvent: {
+        started: boolean
+        percentOfTrigger: number
+        compactionCount: number
+        summaryVersion: number
+      } | null = null
 
       // --- Smooth typewriter reveal ---
       // n8n streams the reply in chunks, but the network often delivers several
@@ -1149,6 +1308,13 @@ export default function App() {
                   rawText += obj.content
                 }
                 // The typewriter loop picks up the new rawText on its next tick.
+              } else if (obj.type === "compaction") {
+                compactionEvent = {
+                  started: obj.status === "started",
+                  percentOfTrigger: Number(obj.percentOfTrigger) || 0,
+                  compactionCount: Number(obj.compactionCount) || 0,
+                  summaryVersion: Number(obj.summaryVersion) || 0,
+                }
               } else if (obj.type === "done" || obj.type === "end") {
                 break
               }
@@ -1199,7 +1365,7 @@ export default function App() {
         try {
           await conversationService.addMessage(user.id, currentChatIdForSend, {
             text: finalAiMessage.text,
-            sender: finalAiMessage.sender,
+            sender: "ai",
             time: finalAiMessage.time,
           })
           console.log("✅ Alex AI: AI message saved to API")
@@ -1208,38 +1374,16 @@ export default function App() {
         }
       }
 
-      const userIdentifier = userEmail ? encodeURIComponent(userEmail) : ""
-      try {
-        if (userIdentifier) {
-          const [inputCount, outputCount] = await Promise.all([
-            authenticatedFetch(`${API_BASE}/token-usage/count`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ text: userMessage.text }),
-            }).then((r) => (r.ok ? r.json() : null)),
-            authenticatedFetch(`${API_BASE}/token-usage/count`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ text: finalAiMessage.text }),
-            }).then((r) => (r.ok ? r.json() : null)),
-          ])
+      // Usage is no longer recorded from here: n8n charges what the chat cost
+      // to the tier named in metadata.tokenType. Pick up the new balance.
+      await refreshTokenSource()
 
-          const totalUsedInputTokens = inputCount?.totalUsedInputTokens ?? 0
-          const totalUsedOutputTokens = outputCount?.totalUsedInputTokens ?? 0
-
-          await authenticatedFetch(`${API_BASE}/token-usage/${userIdentifier}/ALEX/usage`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ totalUsedInputTokens, totalUsedOutputTokens }),
-          })
-
-          const updated = await authenticatedFetch(`${API_BASE}/token-usage/${userIdentifier}/ALEX`).then((r) =>
-            r.ok ? r.json() : null,
-          )
-          if (updated) { /* token usage UI disabled */ }
+      // The marker goes right after this reply: the messages so far plus the reply.
+      if (compactionEvent) {
+        setCompactionLevel({ chatId: currentChatIdForSend, percent: compactionEvent.percentOfTrigger })
+        if (compactionEvent.started) {
+          void watchCompaction(currentChatIdForSend, sessionId, currentMessages.length + 1, compactionEvent)
         }
-      } catch (err) {
-        console.error("Alex AI: Failed to update token usage:", err)
       }
 
       // Upsert pending file contents to Pinecone on send - REMOVED
@@ -1958,7 +2102,7 @@ export default function App() {
                       <div className="flex items-center justify-between gap-3">
                         <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
                           <Zap size={12} className="text-sky-400" />
-                          Token Usati
+                          {tokenSource?.tokenType ? `Token ${TOKEN_TYPE_LABELS[tokenSource.tokenType]}` : "Token Usati"}
                         </span>
                         <span className="text-xs font-bold text-slate-900 dark:text-white tabular-nums">
                           {tokenUsage.totalUsedTokens.toLocaleString("it-IT")}
@@ -2019,9 +2163,29 @@ export default function App() {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 custom-scrollbar">
+          <div className="relative flex-1 overflow-y-auto px-4 md:px-8 py-6 custom-scrollbar">
             <div className="max-w-6xl mx-auto space-y-6">
-              {messages.map((msg, idx) => (
+              <CompactionNotice
+                sessionId={currentChatId ? (chats[currentChatId]?.sessionId ?? null) : null}
+                agent="alex-ai"
+                chatId={currentChatId}
+                refreshKey={isLoading ? -1 : messages.length}
+              />
+
+              {messages.map((msg, idx) => msg.sender === "system" ? (
+                <div
+                  key={idx}
+                  role="status"
+                  className="flex items-center gap-3 text-xs font-semibold text-slate-500 dark:text-slate-400 animate-in fade-in duration-300"
+                >
+                  <div className="h-px flex-1 bg-slate-300 dark:bg-slate-700"></div>
+                  <span className="flex items-center gap-1.5 rounded-full border border-slate-300 dark:border-slate-700 bg-white/70 dark:bg-slate-800/70 px-3 py-1 text-center">
+                    <FoldVertical size={13} className="shrink-0 text-sky-500" />
+                    {msg.text}
+                  </span>
+                  <div className="h-px flex-1 bg-slate-300 dark:bg-slate-700"></div>
+                </div>
+              ) : (
                 <div
                   key={idx}
                   className={`flex gap-3 md:gap-4 ${msg.sender === "user" ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2 duration-300`}
@@ -2106,15 +2270,76 @@ export default function App() {
                 </div>
               ))}
 
+              {compactingChatId !== null && compactingChatId === currentChatId && (
+                <div
+                  role="status"
+                  className="flex items-center justify-center gap-2 text-xs font-semibold text-sky-600 dark:text-sky-400"
+                >
+                  <Loader2 size={14} className="animate-spin" />
+                  Compattazione della conversazione in corso…
+                </div>
+              )}
+
               <div ref={messagesEndRef} />
             </div>
+
+            {!isPreferenceLoading && !isPreferenceReady && !isPrefsOpen && (
+              <div className="absolute inset-0 z-20 flex items-center justify-center p-4 md:p-8 bg-slate-50/70 dark:bg-slate-950/70 backdrop-blur-sm">
+                <div
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="alex-preferences-title"
+                  aria-describedby="alex-preferences-description"
+                  className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-sky-300/70 dark:border-sky-500/30 bg-white/95 dark:bg-slate-900/95 p-7 md:p-9 text-center shadow-[0_24px_80px_rgba(14,165,233,0.25)]"
+                >
+                  <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-sky-400 via-cyan-400 to-violet-500" />
+                  <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-sky-400/30 bg-sky-500/10 shadow-[0_0_30px_rgba(14,165,233,0.18)]">
+                    <User size={30} className="text-sky-500 dark:text-sky-400" />
+                  </div>
+                  <h2
+                    id="alex-preferences-title"
+                    className="text-2xl font-black tracking-tight text-slate-900 dark:text-white"
+                  >
+                    Completa il tuo profilo
+                  </h2>
+                  <p
+                    id="alex-preferences-description"
+                    className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-600 dark:text-slate-300"
+                  >
+                    Prima di iniziare a chattare, configura le tue preferenze. Alex AI userà queste informazioni per personalizzare ogni risposta.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setIsPrefsOpen(true)}
+                    className="mt-7 inline-flex items-center justify-center gap-2 rounded-xl border border-sky-400 bg-gradient-to-r from-sky-500 to-cyan-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-sky-500/30 transition-all hover:scale-[1.02] hover:from-sky-400 hover:to-cyan-400 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900"
+                  >
+                    Configura le preferenze
+                    <ChevronRight size={18} strokeWidth={2.5} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Input Area */}
-          <div
-            className="sticky bottom-0 px-4 md:px-8 pb-4 md:pb-6"
-          >
-            <div className="max-w-6xl mx-auto">
+          {(isPreferenceLoading || isPreferenceReady) && (
+            <div className="sticky bottom-0 px-4 md:px-8 pb-4 md:pb-6">
+              <div className="max-w-6xl mx-auto">
+              {/* Compaction announcer bar */}
+              {isNearCompaction && compactionLevel && (
+                <div
+                  role="status"
+                  className="mb-3 flex items-center gap-2.5 rounded-xl border px-4 py-3 text-sm font-medium bg-sky-500/10 border-sky-400/40 text-sky-700 dark:text-sky-300"
+                >
+                  <FoldVertical size={16} className="shrink-0" />
+                  <span>
+                    Questa conversazione sta per essere compattata ({compactionLevel.percent}% del limite). I messaggi
+                    più vecchi verranno riassunti in automatico: la cronologia resta visibile e puoi continuare a
+                    scrivere.
+                  </span>
+                </div>
+              )}
+
               {/* Token usage announcer bar */}
               {isTokenLimitReached ? (
                 <div className="mb-3 flex items-center gap-2.5 rounded-xl border px-4 py-3 text-sm font-medium bg-rose-500/15 border-rose-500/50 text-rose-700 dark:text-rose-300">
@@ -2154,8 +2379,8 @@ export default function App() {
                 </div>
               )}
 
-              <div className="glass-panel rounded-2xl shadow-2xl border-2 border-sky-200 dark:border-sky-700/50 overflow-hidden">
-                <div className="flex items-end gap-3 p-3 md:p-4">
+                <div className="glass-panel rounded-2xl shadow-2xl border-2 border-sky-200 dark:border-sky-700/50 overflow-hidden">
+                  <div className="flex items-end gap-3 p-3 md:p-4">
 
                   <textarea
                     ref={textareaRef}
@@ -2188,10 +2413,11 @@ export default function App() {
                   >
                     <Send size={20} strokeWidth={2.5} />
                   </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 

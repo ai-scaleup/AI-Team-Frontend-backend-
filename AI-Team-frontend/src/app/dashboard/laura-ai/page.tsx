@@ -36,14 +36,17 @@ import {
     Menu,
     Home,
 } from "lucide-react"
+import { CompactionNotice } from "@/components/ui/CompactionNotice"
 import PreferencesWizard from "@/components/preferences/PreferencesWizard"
 import PreferencesButton from "@/components/preferences/PreferencesButton"
 import { useUser } from "@clerk/nextjs"
 import { type UserPreference, type AgentName } from "@/types/preferences"
 import { userPreferenceService } from "@/services/preferenceService"
 import { conversationService } from "@/services/conversationService"
+import { useConversationCache } from "@/hooks/use-conversation-cache"
 import { extractFileContent } from "@/utils/fileExtraction"
 import { getDevUserEmail } from "@/lib/devToken"
+import { resolveAgentTokenSource, type AgentTokenSource } from "@/lib/agentTokenSource"
 
 // --- TYPES ---
 interface Message {
@@ -80,14 +83,20 @@ const simpleMarkdown = {
     parse: (text: string) => {
         if (!text) return ""
 
+        // Model output is injected with dangerouslySetInnerHTML, so escape raw HTML first.
+        const escapeHtml = (str: string) => str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+
         const formatInline = (str: string) => {
             return str
                 .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-slate-900 dark:text-white">$1</strong>')
                 .replace(/__([\s\S]*?)__/g, '<strong class="font-bold text-slate-900 dark:text-white">$1</strong>')
-                .replace(/\*([\s\S]*?)\*/g, '<em class="italic opacity-90">$1</em>')
-                .replace(/_([\s\S]*?)_/g, '<em class="italic opacity-90">$1</em>')
+                .replace(/\*([^*\s][^*]*?)\*/g, '<em class="italic opacity-90">$1</em>')
+                .replace(/(^|[^\w])_([^_\s][^_]*?)_(?!\w)/g, '$1<em class="italic opacity-90">$2</em>')
                 .replace(/`([^`]+)`/g, '<code class="bg-black/20 px-1 rounded font-mono text-xs">$1</code>')
-                .replace(/\[([^\]]+)\]$$([^)]+)$$/g, '<a href="$2" target="_blank" class="text-sky-400 hover:underline">$1</a>')
+                .replace(
+                    /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
+                    '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-sky-400 hover:underline wrap-break-word">$1</a>',
+                )
         }
 
         const autoBold = (str: string) => {
@@ -101,7 +110,14 @@ const simpleMarkdown = {
         const lines = text.split("\n")
         let output = ""
         let tableBuffer: string[] = []
-        let inList = false
+        let listTag: "ul" | "ol" | null = null
+
+        const closeList = () => {
+            if (listTag) {
+                output += `</${listTag}>`
+                listTag = null
+            }
+        }
 
         const flushTable = () => {
             if (tableBuffer.length === 0) return
@@ -147,35 +163,44 @@ const simpleMarkdown = {
         }
 
         for (let i = 0; i < lines.length; i++) {
-            const line = lines[i].trim()
+            const line = escapeHtml(lines[i].trim())
 
             if (line.startsWith("|") && line.endsWith("|")) {
-                if (inList) {
-                    output += "</ul>"
-                    inList = false
-                }
+                closeList()
                 tableBuffer.push(line)
                 continue
             }
             flushTable()
 
-            if (line.match(/^[-*]\s/)) {
-                if (!inList) {
-                    output += '<ul class="list-disc ml-4 my-2 space-y-1">'
-                    inList = true
+            const bulletMatch = line.match(/^[-*•]\s+(.*)/)
+            const orderedMatch = line.match(/^\d+[.)]\s+(.*)/)
+            const listMatch = bulletMatch || orderedMatch
+            if (listMatch) {
+                const wanted = orderedMatch ? "ol" : "ul"
+                if (listTag !== wanted) {
+                    closeList()
+                    output +=
+                        wanted === "ol"
+                            ? '<ol class="list-decimal ml-5 my-2 space-y-1">'
+                            : '<ul class="list-disc ml-5 my-2 space-y-1">'
+                    listTag = wanted
                 }
-                const content = line.replace(/^[-*]\s+/, "")
-                output += `<li>${autoBold(content)}</li>`
+                output += `<li>${autoBold(listMatch[1])}</li>`
                 continue
             }
 
-            if (inList && line !== "") {
-                output += "</ul>"
-                inList = false
-            }
+            // A blank line between list items must not split the list.
+            if (line === "" && listTag) continue
+            closeList()
 
             if (line === "") {
                 output += '<div class="h-2"></div>'
+            } else if (/^(-{3,}|\*{3,}|_{3,})$/.test(line)) {
+                output += '<hr class="my-4 border-slate-200 dark:border-white/10" />'
+            } else if (line.startsWith("#### ")) {
+                output += `<h4 class="text-base font-bold mt-3 mb-1 text-slate-800 dark:text-white">${formatInline(line.replace(/^####\s/, ""))}</h4>`
+            } else if (line.startsWith("# ")) {
+                output += `<h2 class="text-2xl font-bold mt-4 mb-2 text-slate-800 dark:text-white">${formatInline(line.replace(/^#\s/, ""))}</h2>`
             } else if (line.startsWith("### ")) {
                 output += `<h3 class="text-lg font-bold mt-3 mb-1 text-slate-800 dark:text-white">${formatInline(line.replace(/^###\s/, ""))}</h3>`
             } else if (line.startsWith("## ")) {
@@ -186,7 +211,7 @@ const simpleMarkdown = {
         }
 
         flushTable()
-        if (inList) output += "</ul>"
+        closeList()
 
         return output
     },
@@ -351,6 +376,8 @@ export default function App() {
     // --- USER PREFERENCES STATE ---
     const { user } = useUser()
     const userEmail = user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || getDevUserEmail()
+    // Tier paying for the next chat: single-agent grant first, then team, then membership.
+    const [tokenSource, setTokenSource] = useState<AgentTokenSource | null>(null)
     const [isPrefsOpen, setIsPrefsOpen] = useState(false)
     const [userPrefs, setUserPrefs] = useState<UserPreference | null>(null)
 
@@ -362,6 +389,24 @@ export default function App() {
             console.log("✅ Laura AI: Using user.id for Pinecone namespace:", user.id)
         }
     }, [user?.id])
+
+    // Picks the tier that pays for the next chat.
+    // A user holding only access-only grants is never blocked.
+    const refreshTokenSource = async (): Promise<AgentTokenSource | null> => {
+        if (!userEmail) return null
+        try {
+            const source = await resolveAgentTokenSource(userEmail, "LAURA")
+            setTokenSource(source)
+            return source
+        } catch (err) {
+            console.error("Laura AI: Failed to resolve token source:", err)
+            return null
+        }
+    }
+
+    useEffect(() => {
+        refreshTokenSource()
+    }, [userEmail])
 
     // --- Load Preferences ---
     useEffect(() => {
@@ -402,12 +447,15 @@ export default function App() {
 
     // --- REFS ---
     const messagesEndRef = useRef<HTMLDivElement>(null)
+    const messagesContainerRef = useRef<HTMLDivElement>(null)
+    // True while the user is at (or near) the bottom, so streamed text keeps following.
+    const stickToBottomRef = useRef(true)
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const newFolderInputRef = useRef<HTMLInputElement>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const CURRENT_NAMESPACE = useRef("")
 
-    const N8N_ENDPOINT = process.env.NEXT_PUBLIC_LAURA_AI_N8N_ENDPOINT || "https://n8n-c2lq.onrender.com/webhook/8361e704-eaa4-498a-aaa1-4b32a1912d8b/chat?action=sendMessage"
+    const N8N_ENDPOINT = "/api/n8n-proxy?agent=laura-ai"
 
     // --- INITIALIZATION ---
     useEffect(() => {
@@ -429,55 +477,76 @@ export default function App() {
         }
     }, [])
 
-    // Load conversations from API when user is available
+    const conversationCache = useConversationCache(user?.id, "laura-ai", chats, currentChatId)
+
+    // Load conversations when user is available: the copy cached on this device
+    // shows at once, then the API's list replaces it.
     useEffect(() => {
         if (!user?.id) return
+        let cancelled = false
+
+        const showChats = (chatsRecord: Record<string, ChatSession>) => {
+            setChats(chatsRecord)
+
+            const sorted = Object.entries(chatsRecord).sort(
+                ([, a], [, b]) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime(),
+            )
+            const recentChatId = sorted[0][0]
+            setCurrentChatId(recentChatId)
+            setMessages(chatsRecord[recentChatId].messages || [])
+            if (chatsRecord[recentChatId].agentId) {
+                setActiveAgentId(chatsRecord[recentChatId].agentId)
+            }
+            return recentChatId
+        }
+
+        const cached = conversationCache.read()
+        if (cached) conversationCache.markShown(cached, showChats(cached))
 
         const loadConversations = async () => {
             try {
                 console.log("📡 Laura AI: Fetching conversations from API for user:", user.id)
                 const conversations = await conversationService.getConversations(user.id, "laura-ai")
+                if (cancelled) return
 
-                if (conversations && conversations.length > 0) {
-                    const chatsRecord: Record<string, ChatSession> = {}
-                    conversations.forEach((conv) => {
-                        chatsRecord[conv.id] = {
-                            id: conv.id,
-                            messages: conv.messages || [],
-                            title: conv.title,
-                            lastUpdated: conv.lastUpdated,
-                            folderId: conv.folderId || null,
-                            archived: conv.archived || false,
-                            agentId: conv.agentId,
-                            sessionId: conv.sessionId,
-                        }
-                    })
-
-                    setChats(chatsRecord)
-
-                    const sorted = Object.entries(chatsRecord).sort(
-                        ([, a], [, b]) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime(),
-                    )
-                    const recentChatId = sorted[0][0]
-                    setCurrentChatId(recentChatId)
-                    setMessages(chatsRecord[recentChatId].messages || [])
-                    if (chatsRecord[recentChatId].agentId) {
-                        setActiveAgentId(chatsRecord[recentChatId].agentId)
+                const chatsRecord: Record<string, ChatSession> = {}
+                conversations.forEach((conv) => {
+                    chatsRecord[conv.id] = {
+                        id: conv.id,
+                        messages: conv.messages || [],
+                        title: conv.title,
+                        lastUpdated: conv.lastUpdated,
+                        folderId: conv.folderId || null,
+                        archived: conv.archived || false,
+                        agentId: conv.agentId,
+                        sessionId: conv.sessionId,
                     }
+                })
+
+                // The user is already working in the cached chats: fold the list in.
+                const merged = conversationCache.reconcile(chatsRecord)
+                if (merged) {
+                    setChats(merged)
+                } else if (conversations.length > 0) {
+                    showChats(chatsRecord)
                     console.log("✅ Laura AI: Loaded", conversations.length, "conversations from API")
                 } else {
                     console.log("📝 Laura AI: No conversations found, creating new chat")
+                    setChats({})
                     await initNewChatForAgent(currentAgent)
                 }
             } catch (error) {
                 console.error("❌ Laura AI: Failed to load conversations from API:", error)
-                await initNewChatForAgent(currentAgent)
+                if (!cancelled && !cached) await initNewChatForAgent(currentAgent)
             }
         }
 
         loadConversations()
         if (userEmail) {
             userPreferenceService.getOrCreate(userEmail, "JIM").then(setUserPrefs)
+        }
+        return () => {
+            cancelled = true
         }
     }, [user?.id, userEmail])
 
@@ -492,8 +561,17 @@ export default function App() {
     }, [isDark])
 
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "auto" })
+        // Follow streamed text unless the user scrolled up to read.
+        if (stickToBottomRef.current) {
+            messagesEndRef.current?.scrollIntoView({ behavior: "auto" })
+        }
     }, [messages])
+
+    const handleMessagesScroll = () => {
+        const container = messagesContainerRef.current
+        if (!container) return
+        stickToBottomRef.current = container.scrollHeight - container.scrollTop - container.clientHeight < 120
+    }
 
     useEffect(() => {
         if (textareaRef.current) {
@@ -822,6 +900,9 @@ export default function App() {
             files: selectedFiles.map((f) => f.name),
         }
 
+        // Sending always jumps back to the bottom so the reply is followed as it streams
+        stickToBottomRef.current = true
+
         // Clear input immediately after creating the message object
         setInputValue("")
         setSelectedFiles([])
@@ -913,6 +994,13 @@ export default function App() {
 
             if (!currentChatIdForSend) throw new Error("currentChatIdForSend is null")
 
+            // Re-read the tiers right before sending: the previous chat may have
+            // used up the one shown, so n8n is told the tier that pays for this one.
+            const source = (await refreshTokenSource()) ?? tokenSource
+            if (source?.hasLimitedGrant && !source.tokenType) {
+                throw new Error("Token limit reached on every tier")
+            }
+
             const response = await authenticatedFetch(N8N_ENDPOINT, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -923,7 +1011,19 @@ export default function App() {
                         `\n\n<SYSTEM_CONTEXT_DO_NOT_REPLY>\nUSER_PROFILE_DATA: ${JSON.stringify(userPrefs)}\n</SYSTEM_CONTEXT_DO_NOT_REPLY>`,
                     sessionId: sessionId,
                     useMemory: useMemory,
-                    metadata: { namespace: CURRENT_NAMESPACE.current, source: activeAgentId },
+                    metadata: {
+                        namespace: CURRENT_NAMESPACE.current,
+                        source: activeAgentId,
+                        email: userEmail,
+                        tokenType: source?.tokenType ?? null,
+                        // Read by the token-usage tracker to charge the user's grant for this agent.
+                        agentName: "LAURA",
+                        agentType: source?.tokenType ?? null,
+                        // Team tier only: which team grant the tracker charges.
+                        teamId: source?.teamId ?? null,
+                        // Membership tier only: the assigned-membership id whose pool is charged.
+                        membershipAssignmentId: source?.tokenType === "membership" ? source.grantId : null,
+                    },
                     chatId: currentChatIdForSend,
                 }),
             })
@@ -1054,6 +1154,10 @@ export default function App() {
                     console.error("❌ Laura AI: Failed to save AI message:", error)
                 }
             }
+
+            // n8n charges what the chat cost to the tier named in metadata.tokenType.
+            // Pick up the new balance.
+            await refreshTokenSource()
         } catch (error) {
             console.error("Error sending message:", error)
             setMessages((prev) => {
@@ -1728,8 +1832,19 @@ export default function App() {
                     </div>
 
                     {/* Messages */}
-                    <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 custom-scrollbar">
+                    <div
+                        ref={messagesContainerRef}
+                        onScroll={handleMessagesScroll}
+                        className="flex-1 min-h-0 overflow-y-auto px-4 md:px-8 py-6 custom-scrollbar"
+                    >
                         <div className="max-w-6xl mx-auto space-y-6">
+                            <CompactionNotice
+                              sessionId={currentChatId ? (chats[currentChatId]?.sessionId ?? null) : null}
+                              agent="laura-ai"
+                              chatId={currentChatId}
+                              refreshKey={isLoading ? -1 : messages.length}
+                            />
+
                             {messages.map((msg, idx) => (
                                 <div
                                     key={idx}
