@@ -26,16 +26,6 @@ export const AGENT_REGISTRY: Readonly<Record<string, string>> = {
   'tony-ai': 'TONY_AI_N8N_ENDPOINT',
   'valentina-ai': 'VALENTINA_AI_N8N_ENDPOINT',
   'sara-ai': 'SARA_AI_N8N_ENDPOINT',
-  'test-aladino-ai': 'TEST_ALADINO_AI_N8N_ENDPOINT',
-  'test-alex-ai': 'TEST_ALEX_AI_N8N_ENDPOINT',
-  'test-daniele-ai': 'TEST_DANIELE_AI_N8N_ENDPOINT',
-  'test-jim-ai': 'TEST_JIM_AI_N8N_ENDPOINT',
-  'test-lara-ai': 'TEST_LARA_AI_N8N_ENDPOINT',
-  'test-mike-ai': 'TEST_MIKE_AI_N8N_ENDPOINT',
-  'test-niko-ai': 'TEST_NIKO_AI_N8N_ENDPOINT',
-  'test-simone-ai': 'TEST_SIMONE_AI_N8N_ENDPOINT',
-  'test-tony-ai': 'TEST_TONY_AI_N8N_ENDPOINT',
-  'test-valentina-ai': 'TEST_VALENTINA_AI_N8N_ENDPOINT',
   'giulia-widget': 'GIULIA_WIDGET_N8N_ENDPOINT',
   'jennifer-widget': 'JENNIFER_WIDGET_N8N_ENDPOINT',
 };
@@ -44,9 +34,7 @@ export const AGENT_REGISTRY: Readonly<Record<string, string>> = {
  * Agents whose chat history is served by a second n8n webhook. Reached through
  * GET /agents/:slug/history; the slug is the same one used for chat.
  */
-export const AGENT_HISTORY_REGISTRY: Readonly<Record<string, string>> = {
-  'test-valentina-ai': 'TEST_VALENTINA_AI_HISTORY_N8N_ENDPOINT',
-};
+export const AGENT_HISTORY_REGISTRY: Readonly<Record<string, string>> = {};
 
 /**
  * The floating widgets are shown to every signed-in dashboard user, so they
