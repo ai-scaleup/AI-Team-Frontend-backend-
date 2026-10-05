@@ -27,17 +27,14 @@ export async function pineconeConfig(kind: PineconeIndexKind = "shared"): Promis
     let host = dedicatedIndexName
         ? configuredDedicatedHost
         : kind === "agent-memory"
-        ? process.env.PINECONE_AGENT_MEMORY_HOST || process.env.NEXT_PUBLIC_PINECONE_AGENT_MEMORY_HOST
-        : process.env.PINECONE_HOST || process.env.NEXT_PUBLIC_PINECONE_HOST
+        ? process.env.PINECONE_AGENT_MEMORY_HOST
+        : process.env.PINECONE_HOST
 
     const apiKey = dedicatedIndexName
-        ? process.env.PINECONE_API_KEY || process.env.NEXT_PUBLIC_PINECONE_API_KEY
+        ? process.env.PINECONE_API_KEY
         : kind === "agent-memory"
-        ? process.env.PINECONE_AGENT_MEMORY_API_KEY ||
-        process.env.NEXT_PUBLIC_PINECONE_AGENT_MEMORY_API_KEY ||
-        process.env.PINECONE_API_KEY ||
-        process.env.NEXT_PUBLIC_PINECONE_API_KEY
-        : process.env.PINECONE_API_KEY || process.env.NEXT_PUBLIC_PINECONE_API_KEY
+        ? process.env.PINECONE_AGENT_MEMORY_API_KEY || process.env.PINECONE_API_KEY
+        : process.env.PINECONE_API_KEY
 
     if (!apiKey) throw new Error("Pinecone is not configured")
 
@@ -72,10 +69,10 @@ export async function pineconeConfig(kind: PineconeIndexKind = "shared"): Promis
 }
 
 function openAiConfig(kind: PineconeIndexKind): { apiKey: string; model: string } {
-    const apiKey = process.env.OPENAI_API_KEY || process.env.NEXT_PUBLIC_OPENAI_API_KEY
+    const apiKey = process.env.OPENAI_API_KEY
     const model = kind === "chiara" || kind === "jennifer"
         ? "text-embedding-3-large"
-        : process.env.OPENAI_EMBEDDING_MODEL || process.env.NEXT_PUBLIC_OPENAI_MODEL || "text-embedding-3-small"
+        : process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small"
     if (!apiKey) throw new Error("OpenAI is not configured")
     return { apiKey, model }
 }

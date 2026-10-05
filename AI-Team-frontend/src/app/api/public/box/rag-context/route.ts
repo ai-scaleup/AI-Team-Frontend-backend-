@@ -7,8 +7,8 @@ const MAX_TOP_K = 10
 /** Only the /box product knowledge bases may be read from this public route. */
 function allowedNamespaces(): Set<string> {
     return new Set([
-        process.env.BUSINESS_NAMESPACE || process.env.NEXT_PUBLIC_BUSINESS_NAMESPACE || 'business-ai',
-        process.env.CARRIERA_NAMESPACE || process.env.NEXT_PUBLIC_CARRIERA_NAMESPACE || 'carriera-ai',
+        process.env.BUSINESS_NAMESPACE || 'business-ai',
+        process.env.CARRIERA_NAMESPACE || 'carriera-ai',
     ])
 }
 
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Forbidden namespace' }, { status: 403 })
         }
 
-        const openAiKey = process.env.OPENAI_API_KEY || process.env.NEXT_PUBLIC_OPENAI_API_KEY
+        const openAiKey = process.env.OPENAI_API_KEY
         if (!openAiKey) {
             return NextResponse.json({ error: 'OpenAI is not configured' }, { status: 500 })
         }

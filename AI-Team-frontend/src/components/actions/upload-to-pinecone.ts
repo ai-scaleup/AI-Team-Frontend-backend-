@@ -3,10 +3,10 @@
 export async function uploadFilesToPinecone(filesData: { name: string; content: string }[], namespace: string) {
   console.log("[v0] Server: Processing files for Pinecone...")
 
-  const openaiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY
-  const pineconeHost = process.env.NEXT_PUBLIC_PINECONE_HOST
-  const pineconeApiKey = process.env.NEXT_PUBLIC_PINECONE_API_KEY
-  const openaiModel = process.env.NEXT_PUBLIC_OPENAI_MODEL || "text-embedding-3-small"
+  const openaiKey = process.env.OPENAI_API_KEY
+  const pineconeHost = process.env.PINECONE_HOST
+  const pineconeApiKey = process.env.PINECONE_API_KEY
+  const openaiModel = process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small"
 
   if (!openaiKey) throw new Error("OpenAI API key not configured")
   if (!pineconeHost || !pineconeApiKey) throw new Error("Pinecone configuration missing")

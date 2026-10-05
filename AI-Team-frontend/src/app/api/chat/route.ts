@@ -4,11 +4,11 @@ import { fetchCompactionContext, reportCompactionTurn } from '@/lib/compactionBr
 
 export async function POST(request: NextRequest) {
     try {
-        const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY
+        const apiKey = process.env.OPENAI_API_KEY
 
         if (!apiKey) {
             return NextResponse.json(
-                { error: 'OpenAI API key not configured. Please add NEXT_PUBLIC_OPENAI_API_KEY to your .env file' },
+                { error: 'OpenAI API key not configured. Please add OPENAI_API_KEY to your .env file' },
                 { status: 500 }
             )
         }

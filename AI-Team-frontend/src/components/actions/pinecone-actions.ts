@@ -8,7 +8,7 @@ export async function indexFilesToPinecone(
   const PINECONE_HOST = process.env.PINECONE_HOST || ""
   const PINECONE_API_KEY = process.env.PINECONE_API_KEY || ""
   const OPENAI_API_KEY = process.env.OPENAI_API_KEY || ""
-  const OPENAI_MODEL = process.env.OPENAI_MODEL || "text-embedding-3-small"
+  const OPENAI_MODEL = process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small"
 
   if (!PINECONE_HOST || !PINECONE_API_KEY || !OPENAI_API_KEY) {
     console.warn("Pinecone or OpenAI credentials missing")

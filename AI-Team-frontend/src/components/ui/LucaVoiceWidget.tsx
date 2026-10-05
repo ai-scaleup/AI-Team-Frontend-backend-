@@ -161,35 +161,15 @@ export default function LucaVoiceWidget() {
 
         setIsAISpeaking(true)
         try {
-            const { ElevenLabsClient } = await import("@elevenlabs/elevenlabs-js")
-
-            const apiKey = process.env.NEXT_PUBLIC_ELEVEN_LABS_API_KEY
-
-            const client = new ElevenLabsClient({
-                apiKey: apiKey,
+            // The /api/tts proxy keeps the ElevenLabs key on the server
+            const response = await fetch('/api/tts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, voiceId: 'XrExE9yKIg1WjnnlVkGX' }), // Matilda
             })
+            if (!response.ok) throw new Error(`TTS request failed: ${response.status}`)
 
-            const voiceId = 'XrExE9yKIg1WjnnlVkGX' // Matilda
-
-            const audioStream = await client.textToSpeech.stream(voiceId, {
-                text: text,
-                modelId: "eleven_turbo_v2_5",
-                voiceSettings: {
-                    stability: 0.5,
-                    similarityBoost: 0.75,
-                },
-            })
-
-            const reader = audioStream.getReader()
-            const chunks: Uint8Array[] = []
-
-            while (true) {
-                const { done, value } = await reader.read()
-                if (done) break
-                if (value) chunks.push(value)
-            }
-
-            const audioBlob = new Blob(chunks as BlobPart[], { type: 'audio/mpeg' })
+            const audioBlob = await response.blob()
             const audioUrl = URL.createObjectURL(audioBlob)
             const audio = new Audio(audioUrl)
 

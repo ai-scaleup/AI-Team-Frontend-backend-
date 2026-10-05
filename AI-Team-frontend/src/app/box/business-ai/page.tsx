@@ -181,7 +181,7 @@ const BusinessAIGiftLanding = () => {
         setIsChatTyping(true);
         try {
             // Query Pinecone for relevant context (RAG)
-            const namespace = process.env.NEXT_PUBLIC_BUSINESS_NAMESPACE || 'business-ai';
+            const namespace = 'business-ai';
             const ragContext = await queryPineconeForContext(userMsg, namespace);
 
             // Build conversation history for context (last 10 messages)

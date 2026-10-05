@@ -20,8 +20,8 @@ async function proxyChiaraRequest(request: NextRequest, context: RouteContext) {
     }
   }
 
-  const apiUrl = process.env.CHIARA_API_URL || process.env.NEXT_PUBLIC_CHIARA_API_URL || DEFAULT_CHIARA_API_URL
-  const adminToken = process.env.CHIARA_ADMIN_TOKEN || process.env.NEXT_PUBLIC_CHIARA_ADMIN_TOKEN
+  const apiUrl = process.env.CHIARA_API_URL || DEFAULT_CHIARA_API_URL
+  const adminToken = process.env.CHIARA_ADMIN_TOKEN
 
   if (!adminToken) {
     return NextResponse.json(

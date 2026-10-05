@@ -12,7 +12,7 @@ export async function GET() {
     if (unauthorized) return unauthorized
 
     try {
-        const token = process.env.WHAPI_TOKEN || process.env.NEXT_PUBLIC_WHAPI_TOKEN
+        const token = process.env.WHAPI_TOKEN
 
         if (!token) {
             return NextResponse.json(

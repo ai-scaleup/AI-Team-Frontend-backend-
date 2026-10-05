@@ -6,8 +6,8 @@ import { NextRequest, NextResponse } from 'next/server'
  */
 export async function POST(request: NextRequest) {
     try {
-        const apiKey = process.env.NLPEARL_API_KEY || process.env.NEXT_PUBLIC_NLPEARL_API_KEY
-        const pearlId = process.env.PEARL_ID || process.env.NEXT_PUBLIC_PEARL_ID
+        const apiKey = process.env.NLPEARL_API_KEY
+        const pearlId = process.env.PEARL_ID
 
         if (!apiKey || !pearlId) {
             return NextResponse.json(

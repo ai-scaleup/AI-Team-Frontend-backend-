@@ -54,7 +54,7 @@ if (typeof window !== "undefined") {
 
 // Removed Pinecone initialization, assuming it's handled via environment variables in fetch calls
 // const pinecone = new Pinecone({
-//   apiKey: process.env.NEXT_PUBLIC_PINECONE_API_KEY || "",
+//   apiKey: process.env.PINECONE_API_KEY || "",
 // })
 
 // --- TYPES ---
