@@ -542,7 +542,7 @@ export default function App() {
     const loadConversations = async () => {
       try {
         console.log("📡 Aladino AI: Fetching conversations from API for user:", user.id)
-        const conversations = await conversationService.getConversations(user.id, "aladino-ai")
+        const conversations = await conversationService.getConversations(user.id, "aladino-ai", userEmail)
         if (cancelled) return
 
         const chatsRecord: Record<string, ChatSession> = {}
@@ -581,7 +581,7 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [user?.id])
+  }, [user?.id, userEmail])
 
   useEffect(() => {
     if (isDark) {
@@ -678,7 +678,7 @@ export default function App() {
           folderId: null,
           archived: false,
           messages: [welcomeMsg],
-        })
+        }, userEmail)
         console.log("✅ Conversation created in database:", newChatId)
       } catch (error) {
         console.error("❌ Failed to create conversation in database:", error)
@@ -722,7 +722,7 @@ export default function App() {
     // Fetch messages from API to ensure we have latest
     if (user?.id) {
       try {
-        const apiMessages = await conversationService.getMessages(user.id, chatId)
+        const apiMessages = await conversationService.getMessages(user.id, chatId, userEmail)
         if (apiMessages && apiMessages.length > 0) {
           setMessages(apiMessages)
           // Update local state with fetched messages
@@ -809,7 +809,7 @@ export default function App() {
     // Call API to delete from database
     if (user?.id) {
       try {
-        await conversationService.deleteConversation(user.id, chatIdToDelete)
+        await conversationService.deleteConversation(user.id, chatIdToDelete, userEmail)
         console.log("✅ Conversation deleted from database:", chatIdToDelete)
       } catch (error) {
         console.error("❌ Failed to delete conversation from database:", error)
@@ -876,7 +876,7 @@ export default function App() {
     // Call API to update in database
     if (user?.id) {
       try {
-        await conversationService.updateConversation(user.id, chatId, { title: newTitle })
+        await conversationService.updateConversation(user.id, chatId, { title: newTitle }, userEmail)
         console.log("✅ Conversation renamed in database:", chatId, "->", newTitle)
       } catch (error) {
         console.error("❌ Failed to rename conversation in database:", error)
@@ -1002,7 +1002,7 @@ export default function App() {
             agentId: activeAgentId,
             sessionId: newSessionId,
             messages: [welcomeMsg, userMessage],
-          })
+          }, userEmail)
           console.log("✅ New conversation created with messages")
         } catch (error) {
           console.error("❌ Failed to create conversation:", error)
@@ -1027,7 +1027,7 @@ export default function App() {
             text: userMessage.text,
             sender: userMessage.sender,
             time: userMessage.time,
-          })
+          }, userEmail)
           console.log("✅ User message saved to API")
         } catch (error) {
           console.error("❌ Failed to save user message:", error)
@@ -1209,7 +1209,7 @@ export default function App() {
             text: finalAiMessage.text,
             sender: finalAiMessage.sender,
             time: finalAiMessage.time,
-          })
+          }, userEmail)
           console.log("✅ AI message saved to API")
         } catch (error) {
           console.error("❌ Failed to save AI message:", error)

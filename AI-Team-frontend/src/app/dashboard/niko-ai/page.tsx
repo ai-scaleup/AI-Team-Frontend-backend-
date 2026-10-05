@@ -538,7 +538,7 @@ export default function App() {
     const loadConversations = async () => {
       try {
         console.log("📡 Niko AI: Fetching conversations from API for user:", user.id)
-        const conversations = await conversationService.getConversations(user.id, "niko-ai")
+        const conversations = await conversationService.getConversations(user.id, "niko-ai", userEmail)
         if (cancelled) return
 
         const chatsRecord: Record<string, ChatSession> = {}
@@ -577,7 +577,7 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [user?.id])
+  }, [user?.id, userEmail])
 
   useEffect(() => {
     if (isDark) {
@@ -672,7 +672,7 @@ export default function App() {
           folderId: null,
           archived: false,
           messages: [welcomeMsg],
-        })
+        }, userEmail)
         console.log("✅ Niko AI: Conversation created in database:", newChatId)
       } catch (error) {
         console.error("❌ Niko AI: Failed to create conversation in database:", error)
@@ -710,7 +710,7 @@ export default function App() {
 
     if (user?.id) {
       try {
-        const apiMessages = await conversationService.getMessages(user.id, chatId)
+        const apiMessages = await conversationService.getMessages(user.id, chatId, userEmail)
         if (apiMessages && apiMessages.length > 0) {
           setMessages(apiMessages)
           setChats((prev) => ({
@@ -795,7 +795,7 @@ export default function App() {
 
     if (user?.id) {
       try {
-        await conversationService.deleteConversation(user.id, chatIdToDelete)
+        await conversationService.deleteConversation(user.id, chatIdToDelete, userEmail)
         console.log("✅ Niko AI: Conversation deleted from database:", chatIdToDelete)
       } catch (error) {
         console.error("❌ Niko AI: Failed to delete conversation from database:", error)
@@ -859,7 +859,7 @@ export default function App() {
 
     if (user?.id) {
       try {
-        await conversationService.updateConversation(user.id, chatId, { title: newTitle })
+        await conversationService.updateConversation(user.id, chatId, { title: newTitle }, userEmail)
         console.log("✅ Niko AI: Conversation renamed in database:", chatId, "->", newTitle)
       } catch (error) {
         console.error("❌ Niko AI: Failed to rename conversation in database:", error)
@@ -983,7 +983,7 @@ export default function App() {
             agentId: activeAgentId,
             sessionId: newSessionId,
             messages: [welcomeMsg, userMessage],
-          })
+          }, userEmail)
           console.log("✅ Niko AI: New conversation created with messages")
         } catch (error) {
           console.error("❌ Niko AI: Failed to create conversation:", error)
@@ -1006,7 +1006,7 @@ export default function App() {
             text: userMessage.text,
             sender: userMessage.sender,
             time: userMessage.time,
-          })
+          }, userEmail)
           console.log("✅ Niko AI: User message saved to API")
         } catch (error) {
           console.error("❌ Niko AI: Failed to save user message:", error)
@@ -1184,7 +1184,7 @@ export default function App() {
             text: finalAiMessage.text,
             sender: finalAiMessage.sender,
             time: finalAiMessage.time,
-          })
+          }, userEmail)
           console.log("✅ Niko AI: AI message saved to API")
         } catch (error) {
           console.error("❌ Niko AI: Failed to save AI message:", error)

@@ -517,7 +517,7 @@ export default function App() {
     const loadConversations = async () => {
       try {
         console.log("📡 Tony AI: Fetching conversations from API for user:", user.id)
-        const conversations = await conversationService.getConversations(user.id, "tony-ai")
+        const conversations = await conversationService.getConversations(user.id, "tony-ai", userEmail)
         if (cancelled) return
 
         const chatsRecord: Record<string, ChatSession> = {}
@@ -556,7 +556,7 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [user?.id])
+  }, [user?.id, userEmail])
 
   useEffect(() => {
     if (isDark) {
@@ -654,7 +654,7 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
           folderId: null,
           archived: false,
           messages: [welcomeMsg],
-        })
+        }, userEmail)
         console.log("✅ Tony AI: Conversation created in database:", newChatId)
       } catch (error) {
         console.error("❌ Tony AI: Failed to create conversation in database:", error)
@@ -692,7 +692,7 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
 
     if (user?.id) {
       try {
-        const apiMessages = await conversationService.getMessages(user.id, chatId)
+        const apiMessages = await conversationService.getMessages(user.id, chatId, userEmail)
         if (apiMessages && apiMessages.length > 0) {
           setMessages(apiMessages)
           setChats((prev) => ({
@@ -777,7 +777,7 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
 
     if (user?.id) {
       try {
-        await conversationService.deleteConversation(user.id, chatIdToDelete)
+        await conversationService.deleteConversation(user.id, chatIdToDelete, userEmail)
         console.log("✅ Tony AI: Conversation deleted from database:", chatIdToDelete)
       } catch (error) {
         console.error("❌ Tony AI: Failed to delete conversation from database:", error)
@@ -841,7 +841,7 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
 
     if (user?.id) {
       try {
-        await conversationService.updateConversation(user.id, chatId, { title: newTitle })
+        await conversationService.updateConversation(user.id, chatId, { title: newTitle }, userEmail)
         console.log("✅ Tony AI: Conversation renamed in database:", chatId, "->", newTitle)
       } catch (error) {
         console.error("❌ Tony AI: Failed to rename conversation in database:", error)
@@ -966,7 +966,7 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
             agentId: activeAgentId,
             sessionId: newSessionId,
             messages: [welcomeMsg, userMessage],
-          })
+          }, userEmail)
           console.log("✅ Tony AI: New conversation created with messages")
         } catch (error) {
           console.error("❌ Tony AI: Failed to create conversation:", error)
@@ -990,7 +990,7 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
             text: messageText,
             sender: userMessage.sender,
             time: userMessage.time,
-          })
+          }, userEmail)
           console.log("✅ Tony AI: User message saved to API")
         } catch (error) {
           console.error("❌ Tony AI: Failed to save user message:", error)
@@ -1169,7 +1169,7 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
             text: finalAiMessage.text,
             sender: finalAiMessage.sender,
             time: finalAiMessage.time,
-          })
+          }, userEmail)
           console.log("✅ Tony AI: AI message saved to API")
         } catch (error) {
           console.error("❌ Tony AI: Failed to save AI message:", error)
