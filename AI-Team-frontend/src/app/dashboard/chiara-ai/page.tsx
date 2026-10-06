@@ -7,12 +7,19 @@ import { Fragment, useState, useEffect, useMemo, useRef } from "react"
 import {
     MessageSquare, Loader2, ChevronRight, Search, RefreshCw, Sun, Moon,
     ChevronLeft, Users, UserCheck, User, Mail, Phone, Calendar, X,
-    PanelRightClose, PanelRightOpen
+    PanelRightClose, PanelRightOpen, Menu
 } from "lucide-react"
 
 // --- CONFIGURATION ---
-const CHIARA_AVATAR = "https://www.ai-scaleup.com/wp-content/uploads/2025/02/Lara-AI-social-strategiest.png"
+// Served from /public: ai-scaleup.com now answers image requests with a
+// captcha page, so hotlinked avatars from there render as broken images.
+const CHIARA_AVATAR = "/assets/agents/Lara-AI-1.png"
 const USER_AVATAR_URL = "https://www.shutterstock.com/image-vector/vector-flat-illustration-grayscale-avatar-600nw-2264922221.jpg"
+
+const NAV_ITEMS = [
+    { key: "conversations", label: "Conversations", icon: MessageSquare },
+    { key: "leads", label: "Leads", icon: Users },
+] as const
 
 // --- TYPES ---
 interface Session {
@@ -174,6 +181,7 @@ export default function ChiaraAiPage() {
     const [mounted, setMounted] = useState(false)
     const [isDark, setIsDark] = useState(true)
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+    const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
     const [section, setSection] = useState<"conversations" | "leads">("conversations")
     const [isDetailsPanelOpen, setIsDetailsPanelOpen] = useState(false)
 
@@ -183,6 +191,7 @@ export default function ChiaraAiPage() {
     const [chatLogs, setChatLogs] = useState<ChatLog[]>([])
     const [loadingSessions, setLoadingSessions] = useState(true)
     const [loadingLogs, setLoadingLogs] = useState(false)
+    const [refreshingLogs, setRefreshingLogs] = useState(false)
     const [searchQuery, setSearchQuery] = useState("")
     const [lastPollTime, setLastPollTime] = useState<string>("Never")
 
@@ -202,7 +211,10 @@ export default function ChiaraAiPage() {
     const [loadingLeadChat, setLoadingLeadChat] = useState(false)
 
     // Refs
-    const messagesEndRef = useRef<HTMLDivElement>(null)
+    const messagesContainerRef = useRef<HTMLDivElement>(null)
+    // A refresh that resolves after the user switched chats must not overwrite them.
+    const selectedSessionRef = useRef<string | null>(null)
+    selectedSessionRef.current = selectedSession
 
     const groupedSessions = useMemo(() => mergeSessions(sessions), [sessions])
     const selectedSessionGroup = useMemo(
@@ -247,10 +259,10 @@ export default function ChiaraAiPage() {
         }
     }
 
+    // Loaded once; after that only the refresh buttons reload. A timer here used
+    // to reload the open conversation every 15 seconds.
     useEffect(() => {
         fetchSessions(true)
-        const interval = setInterval(() => fetchSessions(false), 15000)
-        return () => clearInterval(interval)
     }, [])
 
     // --- FETCH ALL LEADS ---
@@ -284,40 +296,57 @@ export default function ChiaraAiPage() {
     }, [section])
 
     // --- FETCH LOGS ---
+    const fetchChatLogs = async (sessionIds: string[]) => {
+        const logsBySession = await Promise.all(
+            sessionIds.map(async sessionId => {
+                try {
+                    const res = await authenticatedFetch(`${API_BASE}/chiara/chat-logs/${encodeURIComponent(sessionId)}`)
+                    if (!res.ok) return []
+
+                    const data = await res.json()
+                    return Array.isArray(data) ? data as ChatLog[] : []
+                } catch (error) {
+                    console.error(`Error fetching Chiara logs for session ${sessionId}:`, error)
+                    return []
+                }
+            })
+        )
+
+        return dedupeAndSortLogs(logsBySession.flat())
+    }
+
+    // Keyed on the ids, not the group object: reloading the session list builds
+    // new group objects, which must not reload the open conversation.
+    const selectedRawSessionIds = selectedSessionGroup?.rawSessionIds.join("\n") ?? ""
+    const getSelectedSessionIds = () =>
+        selectedRawSessionIds ? selectedRawSessionIds.split("\n") : selectedSession ? [selectedSession] : []
+
     useEffect(() => {
-        async function fetchLogs() {
-            if (!selectedSession) return
-            setLoadingLogs(true)
-            try {
-                const sessionIds = selectedSessionGroup?.rawSessionIds.length
-                    ? selectedSessionGroup.rawSessionIds
-                    : [selectedSession]
+        if (!selectedSession) return
 
-                const logsBySession = await Promise.all(
-                    sessionIds.map(async sessionId => {
-                        try {
-                            const res = await authenticatedFetch(`${API_BASE}/chiara/chat-logs/${encodeURIComponent(sessionId)}`)
-                            if (!res.ok) return []
+        let cancelled = false
+        setLoadingLogs(true)
+        fetchChatLogs(selectedRawSessionIds ? selectedRawSessionIds.split("\n") : [selectedSession])
+            .then(logs => { if (!cancelled) setChatLogs(logs) })
+            .finally(() => { if (!cancelled) setLoadingLogs(false) })
 
-                            const data = await res.json()
-                            return Array.isArray(data) ? data as ChatLog[] : []
-                        } catch (error) {
-                            console.error(`Error fetching Chiara logs for session ${sessionId}:`, error)
-                            return []
-                        }
+        return () => { cancelled = true }
+    }, [selectedSession, selectedRawSessionIds])
 
-                    })
-                )
+    // The chat header's refresh button: reloads the open conversation in place,
+    // keeping the messages on screen, and updates the session list's counts.
+    const refreshChat = async () => {
+        if (!selectedSession || refreshingLogs) return
 
-                setChatLogs(dedupeAndSortLogs(logsBySession.flat()))
-            } catch (error) {
-                console.error("Error fetching logs:", error)
-            } finally {
-                setLoadingLogs(false)
-            }
+        const sessionId = selectedSession
+        setRefreshingLogs(true)
+        try {
+            const [logs] = await Promise.all([fetchChatLogs(getSelectedSessionIds()), fetchSessions(false)])
+            if (selectedSessionRef.current === sessionId) setChatLogs(logs)
+        } finally {
+            setRefreshingLogs(false)
         }
-        fetchLogs()
-    }, [selectedSession, selectedSessionGroup])
+    }
 
     // A lead belongs to the session it was captured on, so drop it when the
     // selection moves elsewhere.
@@ -385,10 +414,22 @@ export default function ChiaraAiPage() {
         }
     }
 
-    // Auto-scroll messages
+    // Auto-scroll messages. Scroll the transcript itself: scrollIntoView would
+    // also scroll every ancestor, shifting the page layout on small screens.
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+        const container = messagesContainerRef.current
+        if (container) container.scrollTo({ top: container.scrollHeight, behavior: "smooth" })
     }, [chatLogs])
+
+    // The mobile menu closes on Escape, like any other overlay.
+    useEffect(() => {
+        if (!isMobileNavOpen) return
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape") setIsMobileNavOpen(false)
+        }
+        window.addEventListener("keydown", onKeyDown)
+        return () => window.removeEventListener("keydown", onKeyDown)
+    }, [isMobileNavOpen])
 
     // Filter sessions by search
     const filteredSessions = groupedSessions.filter(session =>
@@ -417,9 +458,11 @@ export default function ChiaraAiPage() {
         const showDetails = isDetailsPanelOpen && showLead
 
         return (
-            <div className="relative flex flex-col lg:flex-row h-auto lg:h-[calc(100dvh-3rem)] min-h-0 gap-3 lg:gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 lg:overflow-hidden">
+            // Below lg the list and the transcript take turns filling the screen;
+            // from lg up they sit side by side.
+            <div className="relative flex-1 min-h-112 flex flex-col lg:flex-row gap-3 lg:gap-4 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {/* Session List Column */}
-                <div className="w-full lg:w-72 xl:w-80 h-64 sm:h-72 lg:h-auto shrink-0 glass-panel rounded-xl flex flex-col overflow-hidden border border-slate-200 dark:border-slate-700/50">
+                <div className={`${selectedSession ? "hidden lg:flex" : "flex"} flex-1 lg:flex-none w-full lg:w-72 xl:w-80 min-h-0 glass-panel rounded-xl flex-col overflow-hidden border border-slate-200 dark:border-slate-700/50`}>
                     <div className="p-4 border-b border-slate-200 dark:border-slate-700/50 space-y-3">
                         <div className="flex items-center justify-between">
                             <h3 className="font-bold text-slate-800 dark:text-white truncate">Chats ({groupedSessions.length})</h3>
@@ -461,11 +504,11 @@ export default function ChiaraAiPage() {
                                         : 'border-transparent hover:bg-slate-50 dark:hover:bg-white/5'
                                         }`}
                                 >
-                                    <div className="flex items-center justify-between">
-                                        <span className="font-semibold text-slate-700 dark:text-slate-200 text-xs truncate max-w-[200px] font-mono">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="font-semibold text-slate-700 dark:text-slate-200 text-xs truncate min-w-0 font-mono">
                                             {formatSessionLabel(session.sessionId)}
                                         </span>
-                                        <ChevronRight size={14} className={`text-slate-400 transition-opacity ${selectedSession === session.sessionId ? 'opacity-100' : 'opacity-0'}`} />
+                                        <ChevronRight size={14} className={`shrink-0 text-slate-400 transition-opacity ${selectedSession === session.sessionId ? 'opacity-100' : 'opacity-100 lg:opacity-0'}`} />
                                     </div>
                                     <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-slate-400">
                                         <span>{formatDateTime(session.lastMessageAt)}</span>
@@ -483,14 +526,26 @@ export default function ChiaraAiPage() {
                 </div>
 
                 {/* Chat Transcript Column */}
-                <div className="w-full lg:flex-1 h-[65dvh] min-h-[420px] lg:h-auto lg:min-h-0 glass-panel rounded-xl flex flex-col overflow-hidden border border-slate-200 dark:border-slate-700/50 relative min-w-0">
+                <div className={`${selectedSession ? "flex" : "hidden lg:flex"} flex-1 min-h-0 min-w-0 w-full glass-panel rounded-xl flex-col overflow-hidden border border-slate-200 dark:border-slate-700/50 relative`}>
                     {/* Header */}
-                    <div className="p-3 sm:p-4 border-b border-slate-200 dark:border-slate-700/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/50 dark:bg-black/20">
-                        <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2 text-sm min-w-0">
-                            <MessageSquare size={16} />
-                            <span className="truncate">{selectedSession ? `Session: ${formatSessionLabel(selectedSession)}` : "Chat Transcript"}</span>
-                        </h3>
-                        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                    <div className="p-3 sm:p-4 border-b border-slate-200 dark:border-slate-700/50 flex flex-wrap items-center justify-between gap-2 sm:gap-3 bg-white/50 dark:bg-black/20 shrink-0">
+                        <div className="flex items-center gap-1 min-w-0 flex-1">
+                            {selectedSession && (
+                                <button
+                                    onClick={() => setSelectedSession(null)}
+                                    title="Back to chats"
+                                    aria-label="Back to chats"
+                                    className="lg:hidden -ml-1 p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10 dark:text-slate-300 shrink-0"
+                                >
+                                    <ChevronLeft size={18} />
+                                </button>
+                            )}
+                            <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2 text-sm min-w-0">
+                                <MessageSquare size={16} className="shrink-0" />
+                                <span className="truncate">{selectedSession ? `Session: ${formatSessionLabel(selectedSession)}` : "Chat Transcript"}</span>
+                            </h3>
+                        </div>
+                        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                             {selectedSessionGroup && (
                                 <div className="hidden xl:flex flex-col items-end text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
                                     <span>Last activity: {formatDateTime(selectedSessionGroup.lastMessageAt)}</span>
@@ -500,13 +555,27 @@ export default function ChiaraAiPage() {
                                 </div>
                             )}
                             {selectedSession && chatLogs.length > 0 && (
-                                <span className="text-xs opacity-60">{chatLogs.length} messages</span>
+                                <span className="hidden sm:inline text-xs opacity-60 whitespace-nowrap">{chatLogs.length} messages</span>
+                            )}
+                            {selectedSession && (
+                                <button
+                                    onClick={refreshChat}
+                                    disabled={refreshingLogs || loadingLogs}
+                                    title="Refresh conversation"
+                                    aria-label="Refresh conversation"
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all
+                                        bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20
+                                        ${refreshingLogs || loadingLogs ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                                >
+                                    <RefreshCw className={`w-3.5 h-3.5 ${refreshingLogs ? 'animate-spin' : ''}`} />
+                                    <span className="hidden sm:inline">Refresh</span>
+                                </button>
                             )}
                             {selectedSession && (
                                 <button
                                     onClick={fetchLead}
                                     disabled={loadingLead}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all
                                         bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-600/30
                                         ${loadingLead ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
                                 >
@@ -523,7 +592,7 @@ export default function ChiaraAiPage() {
                     </div>
 
                     {/* Messages */}
-                    <div className="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-6 space-y-4 sm:space-y-6 custom-scrollbar bg-slate-50/50 dark:bg-black/20">
+                    <div ref={messagesContainerRef} className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-5 lg:p-6 space-y-4 sm:space-y-6 custom-scrollbar bg-slate-50/50 dark:bg-black/20">
                         {!selectedSession ? (
                             <div className="h-full flex flex-col items-center justify-center opacity-40">
                                 <MessageSquare className="w-12 h-12 mb-4" />
@@ -552,9 +621,9 @@ export default function ChiaraAiPage() {
                                                 </span>
                                             </div>
                                         )}
-                                        <div className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
+                                        <div className={`flex gap-2 sm:gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
                                             {!isUser && <img src={CHIARA_AVATAR} className="w-7 h-7 sm:w-8 sm:h-8 rounded-full shadow-sm object-cover shrink-0" alt="Chiara AI" />}
-                                            <div className={`max-w-[85%] p-4 rounded-2xl text-sm shadow-sm ${isUser
+                                            <div className={`min-w-0 max-w-[85%] md:max-w-[75%] p-3 sm:p-4 rounded-2xl text-sm shadow-sm ${isUser
                                                 ? 'bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white rounded-tr-none'
                                                 : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-tl-none'
                                                 }`}>
@@ -571,7 +640,6 @@ export default function ChiaraAiPage() {
                                 )
                             })
                         )}
-                        <div ref={messagesEndRef} />
                     </div>
                 </div>
 
@@ -656,13 +724,13 @@ export default function ChiaraAiPage() {
     // RENDER: LEADS
     // ============================
     const renderLeads = () => (
-        <div className="relative flex flex-col xl:flex-row gap-4 h-auto xl:h-[calc(100dvh-3rem)] min-h-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="relative flex flex-col xl:flex-row gap-4 flex-none xl:flex-1 xl:min-h-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Main table area */}
-            <div className={`flex-1 flex flex-col space-y-6 min-h-0 transition-all duration-300 ${selectedLeadForChat ? 'min-w-0' : ''}`}>
+            <div className="flex-1 flex flex-col gap-4 sm:gap-6 min-h-0 min-w-0">
                 {/* Header row */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
-                    <div className="flex items-center gap-3 flex-wrap">
-                        <h2 className="text-2xl font-bold text-slate-800 dark:text-white">WhatsApp leads</h2>
+                <div className="flex flex-row items-center justify-between gap-3 shrink-0">
+                    <div className="flex items-center gap-3 flex-wrap min-w-0">
+                        <h2 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-white">WhatsApp leads</h2>
                         <span className="px-2.5 py-1 rounded-full bg-teal-500/10 text-teal-400 text-xs font-bold border border-teal-500/20">
                             {allLeads.length} total
                         </span>
@@ -670,16 +738,16 @@ export default function ChiaraAiPage() {
                     <button
                         onClick={fetchAllLeads}
                         disabled={loadingAllLeads}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 ${loadingAllLeads ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                        className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-sm font-medium shrink-0 transition-all bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 ${loadingAllLeads ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
                     >
                         <RefreshCw size={16} className={loadingAllLeads ? 'animate-spin' : ''} />
-                        Refresh
+                        <span className="hidden sm:inline">Refresh</span>
                     </button>
                 </div>
 
                 {/* Search bar */}
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3 shrink-0">
-                    <div className="relative w-full max-w-md">
+                <div className="shrink-0">
+                    <div className="relative w-full sm:max-w-md">
                         <Search size={16} className="absolute left-3 top-3 text-slate-400" />
                         <input
                             className="w-full bg-white dark:bg-black/20 border border-slate-200 dark:border-slate-700/50 focus:border-indigo-500 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none dark:text-white glass-panel"
@@ -697,7 +765,7 @@ export default function ChiaraAiPage() {
                 )}
 
                 {/* Table */}
-                <div className="glass-panel rounded-xl border border-slate-200 dark:border-slate-700/50 overflow-hidden flex-1 min-h-0 flex flex-col">
+                <div className="glass-panel rounded-xl border border-slate-200 dark:border-slate-700/50 overflow-hidden flex-1 min-h-0 max-h-[70dvh] xl:max-h-none flex flex-col">
                     {loadingAllLeads ? (
                         <div className="flex items-center justify-center py-16">
                             <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
@@ -709,8 +777,44 @@ export default function ChiaraAiPage() {
                         </div>
                     ) : (
                         <div className="overflow-auto custom-scrollbar flex-1 min-h-0">
+                            {/* Phones get one card per lead instead of a 1020px-wide table. */}
+                            <ul className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+                                {filteredLeads.map(lead => (
+                                    <li key={lead.id}>
+                                        <button
+                                            onClick={() => openLeadConversation(lead)}
+                                            className={`w-full text-left p-4 flex gap-3 transition-colors ${selectedLeadForChat?.id === lead.id
+                                                ? 'bg-indigo-50 dark:bg-indigo-900/20'
+                                                : 'hover:bg-slate-50 dark:hover:bg-white/5'
+                                                }`}
+                                        >
+                                            <div className="w-9 h-9 shrink-0 rounded-full bg-linear-to-br from-indigo-400 to-purple-400 flex items-center justify-center text-white text-sm font-bold shadow-sm">
+                                                {lead.name ? lead.name.charAt(0).toUpperCase() : '?'}
+                                            </div>
+                                            <div className="min-w-0 flex-1 space-y-1">
+                                                <div className="flex items-baseline justify-between gap-2">
+                                                    <span className="font-semibold text-slate-700 dark:text-slate-200 truncate">{lead.name || '—'}</span>
+                                                    <span className="text-[10px] font-mono text-slate-400 shrink-0">#{lead.id}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
+                                                    <Mail size={12} className="opacity-40 shrink-0" />
+                                                    <span className="break-all">{lead.email || '—'}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
+                                                    <Phone size={12} className="opacity-40 shrink-0" />
+                                                    <span>{lead.phone || '—'}</span>
+                                                </div>
+                                                <p className="font-mono text-[10px] text-slate-400 break-all">{lead.sessionId || '—'}</p>
+                                                <p className="text-[10px] text-slate-400">
+                                                    Created {formatDateTime(lead.createdAt)} · Updated {formatDateTime(lead.updatedAt)}
+                                                </p>
+                                            </div>
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
                             {/* Every column of chiara_whatsapp_leads, nothing hidden. */}
-                            <table className="w-full min-w-[1020px] text-sm">
+                            <table className="hidden md:table w-full min-w-[1020px] text-sm">
                                 <thead className="sticky top-0 z-10">
                                     <tr className="border-b border-slate-200 dark:border-slate-700/50 bg-slate-100 dark:bg-[#070d1c]">
                                         <th className="text-left px-5 py-3.5 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">#</th>
@@ -773,10 +877,19 @@ export default function ChiaraAiPage() {
                 </div>
             </div>
 
-            {/* Conversation Sidebar */}
-            <div className={`glass-panel rounded-xl flex flex-col border border-slate-200 dark:border-slate-700/50 transition-all duration-300 ease-in-out overflow-hidden shrink-0 ${selectedLeadForChat ? 'w-full xl:w-96 min-h-[480px] xl:min-h-0 opacity-100' : 'w-0 h-0 opacity-0 border-0'}`}>
+            {/* Conversation Sidebar — an overlay below xl, a column beside the table from xl up */}
+            {selectedLeadForChat && (
+                <div
+                    className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-sm xl:hidden"
+                    onClick={() => { setSelectedLeadForChat(null); setLeadChatLogs([]) }}
+                    aria-hidden="true"
+                />
+            )}
+            <div className={`glass-panel flex-col border border-slate-200 dark:border-slate-700/50 overflow-hidden shrink-0 ${selectedLeadForChat
+                ? 'flex fixed inset-0 z-50 sm:left-auto sm:w-96 xl:static xl:z-auto xl:min-h-0 rounded-none sm:rounded-l-xl xl:rounded-xl'
+                : 'hidden'}`}>
                 {selectedLeadForChat && (
-                    <div className="w-full flex flex-col h-full">
+                    <div className="w-full flex flex-col h-full min-h-0">
                         {/* Sidebar Header */}
                         <div className="p-4 border-b border-slate-200 dark:border-slate-700/50 flex items-center justify-between bg-indigo-900/20 shrink-0">
                             <div className="min-w-0">
@@ -784,11 +897,12 @@ export default function ChiaraAiPage() {
                                     <MessageSquare size={16} />
                                     {selectedLeadForChat.name || "Conversation"}
                                 </h3>
-                                <p className="text-[10px] text-slate-400 mt-0.5 font-mono truncate max-w-[280px]">{selectedLeadForChat.sessionId}</p>
+                                <p className="text-[10px] text-slate-400 mt-0.5 font-mono truncate">{selectedLeadForChat.sessionId}</p>
                             </div>
                             <button
                                 onClick={() => { setSelectedLeadForChat(null); setLeadChatLogs([]) }}
-                                className="p-1.5 rounded-md transition-colors hover:bg-white/10 text-gray-400 hover:text-white"
+                                aria-label="Close conversation"
+                                className="p-1.5 rounded-md transition-colors hover:bg-white/10 text-gray-400 hover:text-white shrink-0"
                             >
                                 <X size={16} />
                             </button>
@@ -862,6 +976,13 @@ export default function ChiaraAiPage() {
         </div>
     )
 
+    // Shown in the sidebar and in the mobile top bar.
+    const themeToggle = (
+        <button onClick={() => setIsDark(!isDark)} title="Toggle theme" aria-label="Toggle theme" className="p-2 rounded-lg backdrop-blur-sm border bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition text-slate-600 dark:text-slate-300 shadow-md shrink-0">
+            {isDark ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
+    )
+
     // ============================
     // MAIN RETURN
     // ============================
@@ -877,52 +998,96 @@ export default function ChiaraAiPage() {
                 .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.2); border-radius: 2px; }
             `}</style>
 
-            <div className={`flex h-screen w-full ${isDark ? "dark" : ""}`}>
+            <div className={`flex h-dvh w-full overflow-hidden ${isDark ? "dark" : ""}`}>
                 {/* =================== SIDEBAR =================== */}
-                <div className={`glass-panel flex flex-col transition-all duration-300 ease-in-out z-40 ${isSidebarCollapsed ? "w-20" : "w-20 md:w-64"} fixed md:relative h-full border-r border-indigo-100 dark:border-indigo-900/30 overflow-hidden`}>
-                    <div className={`p-4 border-b border-indigo-100 dark:border-indigo-900/30 bg-gradient-to-b from-white/50 to-transparent dark:from-indigo-900/20 flex flex-col ${isSidebarCollapsed ? 'items-center' : ''}`}>
-                        {/* Chiara AI Branding */}
-                        <div className={`flex items-center gap-3 mb-4 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-                            <div className="relative w-11 h-11 shrink-0 rounded-full border-[2px] border-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.5)] overflow-hidden bg-slate-950">
-                                <img src={CHIARA_AVATAR} className="w-full h-full object-cover" alt="Chiara AI" />
-                            </div>
-                            {!isSidebarCollapsed && (
-                                <div className="hidden md:block flex-1 min-w-0">
-                                    <h1 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-widest leading-none truncate">CHIARA AI</h1>
-                                    <span className="inline-block mt-1 px-2 py-0.5 rounded bg-indigo-500 text-white text-[9px] font-bold tracking-widest shadow-[0_0_10px_rgba(99,102,241,0.5)] uppercase">ONLINE</span>
-                                </div>
-                            )}
-                            {!isSidebarCollapsed && <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="hidden md:block p-1.5 rounded-lg hover:bg-white/10 text-slate-400"><ChevronLeft size={18} /></button>}
+                {/* Below md the sidebar is an off-canvas drawer opened from the top bar;
+                    from md up it is a column that collapses to an icon rail. */}
+                {isMobileNavOpen && (
+                    <div
+                        className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-sm md:hidden"
+                        onClick={() => setIsMobileNavOpen(false)}
+                        aria-hidden="true"
+                    />
+                )}
+                <aside className={`glass-panel fixed inset-y-0 left-0 z-50 flex h-full w-64 flex-col overflow-hidden border-r border-indigo-100 dark:border-indigo-900/30 transition-[width,transform] duration-300 ease-in-out md:relative md:z-auto md:translate-x-0 ${isMobileNavOpen ? "translate-x-0" : "-translate-x-full"} ${isSidebarCollapsed ? "md:w-20" : "md:w-64"}`}>
+                    {/* Chiara AI Branding */}
+                    <div className={`flex items-center gap-3 p-4 border-b border-indigo-100 dark:border-indigo-900/30 bg-linear-to-b from-white/50 to-transparent dark:from-indigo-900/20 shrink-0 ${isSidebarCollapsed ? "md:flex-col md:px-2" : ""}`}>
+                        <div className="relative w-11 h-11 shrink-0 rounded-full border-2 border-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.5)] overflow-hidden bg-slate-950">
+                            <img src={CHIARA_AVATAR} className="w-full h-full object-cover" alt="Chiara AI" />
                         </div>
-                        {isSidebarCollapsed && <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="hidden md:block mb-4 p-1.5 rounded-lg hover:bg-white/10 text-slate-400"><ChevronRight size={18} /></button>}
-
-                        {/* Nav Items */}
-                        <div className="space-y-1">
-                            <button title="Conversations" onClick={() => setSection('conversations')} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all ${section === 'conversations' ? 'bg-indigo-500/10 text-indigo-500 border border-indigo-500/20' : 'text-slate-500 hover:bg-white/5'} ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-                                <MessageSquare size={20} /> {!isSidebarCollapsed && <span className="hidden md:inline">Conversations</span>}
-                            </button>
-                            <button title="Leads" onClick={() => setSection('leads')} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all ${section === 'leads' ? 'bg-indigo-500/10 text-indigo-500 border border-indigo-500/20' : 'text-slate-500 hover:bg-white/5'} ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-                                <Users size={20} /> {!isSidebarCollapsed && <span className="hidden md:inline">Leads</span>}
-                            </button>
+                        <div className={`flex-1 min-w-0 ${isSidebarCollapsed ? "md:hidden" : ""}`}>
+                            <h1 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-widest leading-none truncate">CHIARA AI</h1>
+                            <span className="inline-block mt-1 px-2 py-0.5 rounded bg-indigo-500 text-white text-[9px] font-bold tracking-widest shadow-[0_0_10px_rgba(99,102,241,0.5)] uppercase">ONLINE</span>
                         </div>
-                    </div>
-
-                    {/* Bottom controls */}
-                    <div className={`mt-auto p-4 border-t border-indigo-100 dark:border-indigo-900/30 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'gap-3'}`}>
-                        {!isSidebarCollapsed && <MockUserButton />}
-                        <button onClick={() => setIsDark(!isDark)} title="Toggle theme" className="p-2 rounded-lg backdrop-blur-sm border bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition text-slate-600 dark:text-slate-300 shadow-md">
-                            {isDark ? <Sun size={18} /> : <Moon size={18} />}
+                        <button
+                            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                            title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                            aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                            className="hidden md:flex p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-600 dark:hover:text-white transition-colors shrink-0"
+                        >
+                            {isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+                        </button>
+                        <button
+                            onClick={() => setIsMobileNavOpen(false)}
+                            aria-label="Close menu"
+                            className="md:hidden p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors shrink-0"
+                        >
+                            <X size={18} />
                         </button>
                     </div>
-                </div>
+
+                    {/* Nav Items */}
+                    <nav className={`flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3 space-y-1 ${isSidebarCollapsed ? "md:px-2" : ""}`}>
+                        {NAV_ITEMS.map(({ key, label, icon: Icon }) => (
+                            <button
+                                key={key}
+                                title={label}
+                                aria-current={section === key ? "page" : undefined}
+                                onClick={() => { setSection(key); setIsMobileNavOpen(false) }}
+                                className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium border transition-all ${section === key
+                                    ? 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20'
+                                    : 'border-transparent text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-700 dark:hover:text-slate-200'
+                                    } ${isSidebarCollapsed ? 'md:justify-center' : ''}`}
+                            >
+                                <Icon size={20} className="shrink-0" />
+                                <span className={`truncate ${isSidebarCollapsed ? "md:hidden" : ""}`}>{label}</span>
+                            </button>
+                        ))}
+                    </nav>
+
+                    {/* Bottom controls */}
+                    <div className={`p-4 border-t border-indigo-100 dark:border-indigo-900/30 flex items-center gap-3 shrink-0 ${isSidebarCollapsed ? "md:flex-col md:px-2" : ""}`}>
+                        <MockUserButton />
+                        {themeToggle}
+                    </div>
+                </aside>
 
                 {/* =================== MAIN CONTENT =================== */}
-                <div className="ml-20 md:ml-0 flex-1 min-w-0 flex flex-col relative h-full overflow-hidden bg-slate-50/50 dark:bg-transparent">
-                    <div className="flex-1 overflow-y-auto px-3 sm:px-4 lg:px-6 xl:px-8 py-3 sm:py-4 lg:py-6 custom-scrollbar">
+                <main className="flex-1 min-w-0 flex flex-col relative h-full overflow-hidden bg-slate-50/50 dark:bg-transparent">
+                    {/* Mobile top bar */}
+                    <header className="md:hidden flex items-center gap-3 h-14 px-3 shrink-0 border-b border-indigo-100 dark:border-indigo-900/30 bg-white/80 dark:bg-slate-950/80 backdrop-blur">
+                        <button
+                            onClick={() => setIsMobileNavOpen(true)}
+                            aria-label="Open menu"
+                            className="-ml-1 p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
+                        >
+                            <Menu size={20} />
+                        </button>
+                        <img src={CHIARA_AVATAR} className="w-8 h-8 rounded-full object-cover border-2 border-indigo-400 shrink-0" alt="Chiara AI" />
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest leading-none truncate">Chiara AI</p>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                                {NAV_ITEMS.find(item => item.key === section)?.label}
+                            </p>
+                        </div>
+                        {themeToggle}
+                    </header>
+
+                    <div className="flex-1 min-h-0 flex flex-col overflow-y-auto px-3 sm:px-4 lg:px-6 xl:px-8 py-3 sm:py-4 lg:py-6 custom-scrollbar">
                         {section === 'conversations' && renderConversations()}
                         {section === 'leads' && renderLeads()}
                     </div>
-                </div>
+                </main>
             </div>
         </>
     )

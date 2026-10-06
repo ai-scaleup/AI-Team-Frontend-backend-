@@ -4,7 +4,14 @@ import { useEffect, useRef, useState } from "react"
 
 const N8N_URL = "/api/n8n-proxy?agent=giulia-widget"
 const AVATAR = "https://www.ai-scaleup.com/wp-content/uploads/2025/11/Giulia-ai.png"
+// ai-scaleup.com can answer image requests with a captcha page instead of the
+// image; fall back to a local monogram rather than showing a broken image.
+const FALLBACK_AVATAR = "/assets/agents/giulia-ai-fallback.svg"
 const USER_AVATAR = "https://www.shutterstock.com/image-vector/vector-flat-illustration-grayscale-avatar-600nw-2264922221.jpg"
+
+const showFallbackAvatar = (img: HTMLImageElement) => {
+  if (!img.src.endsWith(FALLBACK_AVATAR)) img.src = FALLBACK_AVATAR
+}
 
 export default function GiuliaWidget() {
   const chatBubbleRef = useRef<HTMLDivElement>(null)
@@ -30,7 +37,11 @@ export default function GiuliaWidget() {
 
     const avatar = document.createElement("div")
     avatar.className = "giulia-message-avatar"
-    avatar.innerHTML = `<img src="${sender === "ai" ? AVATAR : USER_AVATAR}" alt="${sender}">`
+    const avatarImg = document.createElement("img")
+    avatarImg.alt = sender
+    if (sender === "ai") avatarImg.onerror = () => showFallbackAvatar(avatarImg)
+    avatarImg.src = sender === "ai" ? AVATAR : USER_AVATAR
+    avatar.appendChild(avatarImg)
 
     const content = document.createElement("div")
     content.className = "giulia-message-content"
@@ -125,6 +136,13 @@ export default function GiuliaWidget() {
     const close = closeBtnRef.current
     const send = sendBtnRef.current
     const input = chatInputRef.current
+
+    // An avatar that failed before hydration never fires React's onError, so
+    // probe the image separately and swap both avatars when it cannot load.
+    const avatars = [bubble?.querySelector("img"), chatWindowRef.current?.querySelector<HTMLImageElement>(".giulia-avatar img")]
+    const probe = new Image()
+    probe.onerror = () => avatars.forEach(img => img && showFallbackAvatar(img))
+    probe.src = AVATAR
 
     const onBubble = () => toggleOpen(true)
     const onClose = () => toggleOpen(false)
@@ -632,7 +650,7 @@ export default function GiuliaWidget() {
 
       <div className="giulia-widget">
         <div className="giulia-chat-bubble" ref={chatBubbleRef}>
-          <img src={AVATAR || "/placeholder.svg"} alt="Giulia AI" />
+          <img src={AVATAR} alt="Giulia AI" onError={(e) => showFallbackAvatar(e.currentTarget)} />
         </div>
 
         <div className="giulia-chat-window" ref={chatWindowRef}>
@@ -642,7 +660,7 @@ export default function GiuliaWidget() {
             </button>
             <div className="giulia-header-content">
               <div className="giulia-avatar">
-                <img src={AVATAR || "/placeholder.svg"} alt="Giulia AI" />
+                <img src={AVATAR} alt="Giulia AI" onError={(e) => showFallbackAvatar(e.currentTarget)} />
               </div>
               <div className="giulia-info">
                 <div className="giulia-name">Giulia AI</div>
