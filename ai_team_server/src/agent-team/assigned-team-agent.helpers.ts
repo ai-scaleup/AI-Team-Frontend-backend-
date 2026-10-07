@@ -47,6 +47,11 @@ export async function refreshAssignedTeamRollup(
  * Brings every grant of a team in line with the team's current roster:
  * agents added to the team get a row seeded with the grant's per-agent
  * limit, agents removed from the team lose theirs.
+ *
+ * Runs inside the team PATCH transaction against a remote pooler, so the
+ * roster change is applied to all grants at once rather than grant by grant:
+ * a per-grant loop of four round trips pushed a team with a handful of
+ * grants past the interactive transaction timeout.
  */
 export async function syncAssignedTeamAgents(
   db: Db,
@@ -57,23 +62,57 @@ export async function syncAssignedTeamAgents(
     where: { teamId },
     select: { id: true, tokenLimit: true },
   });
+  if (grants.length === 0) return;
+  const grantIds = grants.map((g) => g.id);
 
-  for (const grant of grants) {
-    await db.assignedTeamAgent.deleteMany({
-      where: { assignedTeamId: grant.id, agentName: { notIn: agentNames } },
-    });
-    if (agentNames.length) {
-      await db.assignedTeamAgent.createMany({
-        data: agentNames.map((agentName) => ({
+  await db.assignedTeamAgent.deleteMany({
+    where: {
+      assignedTeamId: { in: grantIds },
+      agentName: { notIn: agentNames },
+    },
+  });
+  if (agentNames.length) {
+    await db.assignedTeamAgent.createMany({
+      data: grants.flatMap((grant) =>
+        agentNames.map((agentName) => ({
           assignedTeamId: grant.id,
           agentName,
           tokenLimit: grant.tokenLimit,
           tokensLeft: grant.tokenLimit,
         })),
-        skipDuplicates: true,
-      });
-    }
-    await refreshAssignedTeamRollup(db, grant.id);
+      ),
+      skipDuplicates: true,
+    });
+  }
+
+  // Same rollup as refreshAssignedTeamRollup, aggregated for all grants in
+  // one query. A grant left with no agent rows is absent from the result and
+  // rolls up to zero usage, access only.
+  const sums = await db.assignedTeamAgent.groupBy({
+    by: ['assignedTeamId'],
+    where: { assignedTeamId: { in: grantIds } },
+    _sum: {
+      usedTokens: true,
+      inputTokens: true,
+      outputTokens: true,
+      tokensLeft: true,
+    },
+    _count: { tokenLimit: true },
+  });
+  const byGrant = new Map(sums.map((s) => [s.assignedTeamId, s]));
+
+  for (const grantId of grantIds) {
+    const agg = byGrant.get(grantId);
+    await db.assignedTeam.update({
+      where: { id: grantId },
+      data: {
+        usedTokens: agg?._sum.usedTokens ?? 0,
+        inputTokens: agg?._sum.inputTokens ?? 0,
+        outputTokens: agg?._sum.outputTokens ?? 0,
+        tokensLeft:
+          agg && agg._count.tokenLimit > 0 ? (agg._sum.tokensLeft ?? 0) : null,
+      },
+    });
   }
 }
 

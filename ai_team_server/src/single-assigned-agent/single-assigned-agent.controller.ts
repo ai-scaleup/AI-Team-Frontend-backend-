@@ -47,6 +47,13 @@ const timingSchema = {
     example: 50000,
     description: 'Null/omitted = access only, no allowance on this grant',
   },
+  llmModelId: {
+    type: 'string',
+    nullable: true,
+    example: 'llm-anthropic-claude-opus-5-5',
+    description:
+      'Chat model while this grant pays (id from GET /admin/llm-models). On create, omit or null for the default; on update, omit to keep it, null to reset to the default',
+  },
 };
 
 const assignmentResponseSchema = {
@@ -66,11 +73,33 @@ const assignmentResponseSchema = {
     },
     usedTokens: { type: 'integer', description: 'Rollup of total spend' },
     inputTokens: { type: 'integer', description: 'Rollup of prompt tokens' },
-    outputTokens: { type: 'integer', description: 'Rollup of completion tokens' },
+    outputTokens: {
+      type: 'integer',
+      description: 'Rollup of completion tokens',
+    },
     tokensLeft: {
       type: 'integer',
       nullable: true,
-      description: 'max(0, tokenLimit - usedTokens); null when tokenLimit is null',
+      description:
+        'max(0, tokenLimit - usedTokens); null when tokenLimit is null',
+    },
+    llmModelId: {
+      type: 'string',
+      nullable: true,
+      description: "The grant's own model choice; null = the catalog default",
+    },
+    llmModel: {
+      type: 'object',
+      nullable: true,
+      description: 'The chosen catalog row; null = the catalog default',
+      properties: {
+        id: { type: 'string' },
+        provider: { type: 'string' },
+        modelId: { type: 'string' },
+        label: { type: 'string' },
+        isDefault: { type: 'boolean' },
+        isActive: { type: 'boolean' },
+      },
     },
     createdAt: { type: 'string', format: 'date-time' },
     updatedAt: { type: 'string', format: 'date-time' },
@@ -97,6 +126,8 @@ const assignmentResponseSchema = {
     inputTokens: 800,
     outputTokens: 400,
     tokensLeft: 48800,
+    llmModelId: null,
+    llmModel: null,
     createdAt: '2026-09-11T09:15:00.000Z',
     updatedAt: '2026-09-11T09:15:00.000Z',
     user: {
@@ -166,7 +197,11 @@ export class SingleAssignedAgentController {
   @ApiOperation({ summary: 'List single agent assignments (paginated)' })
   @ApiQuery({ name: 'email', required: false, format: 'email' })
   @ApiQuery({ name: 'userId', required: false, format: 'uuid' })
-  @ApiQuery({ name: 'agentName', required: false, enum: Object.values(AgentName) })
+  @ApiQuery({
+    name: 'agentName',
+    required: false,
+    enum: Object.values(AgentName),
+  })
   @ApiQuery({ name: 'isActive', required: false, type: Boolean })
   @ApiQuery({
     name: 'activeOnly',
@@ -247,7 +282,8 @@ export class SingleAssignedAgentController {
     schema: assignmentResponseSchema,
   })
   @ApiBadRequestResponse({
-    description: 'Invalid email, agent name, inputTokens, or outputTokens value',
+    description:
+      'Invalid email, agent name, inputTokens, or outputTokens value',
   })
   @ApiNotFoundResponse({
     description: 'User not found, or no active assignment for this agent',

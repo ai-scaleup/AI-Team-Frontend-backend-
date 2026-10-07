@@ -28,6 +28,7 @@ import { PearlAdminModule } from './pearl-admin/pearl-admin.module';
 import { SingleAssignedAgentModule } from './single-assigned-agent/single-assigned-agent.module';
 import { AgentTeamModule } from './agent-team/agent-team.module';
 import { CompactionModule } from './compaction/compaction.module';
+import { LlmModelModule } from './llm-model/llm-model.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { CompactionModule } from './compaction/compaction.module';
     SingleAssignedAgentModule,
     AgentTeamModule,
     CompactionModule,
+    LlmModelModule,
   ],
   controllers: [AppController],
   providers: [AppService],

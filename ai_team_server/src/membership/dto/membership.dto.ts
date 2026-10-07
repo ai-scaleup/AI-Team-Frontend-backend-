@@ -10,6 +10,11 @@ export class CreateMembershipDto {
   includedAgents?: AgentName[];
   /** Agent teams bundled into the membership, by AgentTeam id. */
   includedTeamIds?: string[];
+  /**
+   * LlmModel.id the membership's chats run on (GET /admin/llm-models).
+   * Null/omitted = the catalog default (Claude Sonnet 5).
+   */
+  llmModelId?: string | null;
 }
 
 export class UpdateMembershipDto {
@@ -23,6 +28,8 @@ export class UpdateMembershipDto {
    * teams untouched; an empty array unlinks them all.
    */
   includedTeamIds?: string[];
+  /** Omit to keep the current model; null resets to the catalog default. */
+  llmModelId?: string | null;
 }
 
 /** Body for the single-agent add endpoint. */

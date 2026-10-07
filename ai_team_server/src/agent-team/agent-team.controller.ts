@@ -50,6 +50,25 @@ const teamResponseSchema = {
       description:
         'Default token allowance seeded onto each user assignment of this team; null = access only',
     },
+    llmModelId: {
+      type: 'string',
+      nullable: true,
+      description:
+        "The team's own model choice (LlmModel.id); null = follows the catalog default",
+    },
+    llmModel: {
+      type: 'object',
+      description:
+        'The model the team runs on: its own choice, else the catalog default',
+      properties: {
+        id: { type: 'string' },
+        provider: { type: 'string' },
+        modelId: { type: 'string' },
+        label: { type: 'string' },
+        isDefault: { type: 'boolean' },
+        isActive: { type: 'boolean' },
+      },
+    },
     agents: agentsSchema,
     agentCount: { type: 'integer' },
     assignmentCount: {
@@ -65,6 +84,15 @@ const teamResponseSchema = {
     description: 'Content, outreach and follow-up agents',
     isActive: true,
     tokenLimit: 50000,
+    llmModelId: null,
+    llmModel: {
+      id: 'llm-anthropic-claude-sonnet-5',
+      provider: 'anthropic',
+      modelId: 'claude-sonnet-5',
+      label: 'Claude Sonnet 5',
+      isDefault: true,
+      isActive: true,
+    },
     agents: ['CHIARA_AI', 'JIM', 'LARA'],
     agentCount: 3,
     assignmentCount: 0,
@@ -118,6 +146,13 @@ export class AgentTeamController {
           example: 50000,
           description:
             'Default token allowance for the team. Seeds the tokenLimit of every user assignment created from it; omit or null for access only',
+        },
+        llmModelId: {
+          type: 'string',
+          nullable: true,
+          example: 'llm-anthropic-claude-opus-5-5',
+          description:
+            'Chat model for every agent in the team (id from GET /admin/llm-models); omit or null for the default (Claude Sonnet 5)',
         },
       },
       example: {
@@ -196,6 +231,12 @@ export class AgentTeamController {
           nullable: true,
           minimum: 0,
           description: 'Null clears the allowance (access only)',
+        },
+        llmModelId: {
+          type: 'string',
+          nullable: true,
+          description:
+            'Chat model id from GET /admin/llm-models; null resets the team to the default model',
         },
       },
       example: {

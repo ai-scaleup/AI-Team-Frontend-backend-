@@ -13,6 +13,7 @@ import {
   SingleAssignedAgent,
   User,
 } from 'src/generated/prisma/client';
+import { LlmModelService } from 'src/llm-model/llm-model.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { recordGrantUsageDay } from 'src/token-usage/grant-usage-daily.helpers';
 import {
@@ -33,8 +34,14 @@ const userSelect = {
   select: { id: true, email: true, oauthId: true, username: true },
 } as const;
 
+// Every read carries the grant's own model choice; null = the catalog default.
+const assignmentInclude = {
+  user: userSelect,
+  llmModel: true,
+} satisfies Prisma.SingleAssignedAgentInclude;
+
 type AssignmentWithUser = Prisma.SingleAssignedAgentGetPayload<{
-  include: { user: typeof userSelect };
+  include: typeof assignmentInclude;
 }>;
 
 /**
@@ -50,7 +57,11 @@ type AssignmentWithUser = Prisma.SingleAssignedAgentGetPayload<{
 export class SingleAssignedAgentService {
   private readonly logger = new Logger(SingleAssignedAgentService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    // Validates the grant's chat model.
+    private readonly llmModels: LlmModelService,
+  ) {}
 
   /* ------------------------------- helpers ------------------------------- */
 
@@ -121,7 +132,7 @@ export class SingleAssignedAgentService {
     if (!id?.trim()) throw new BadRequestException('Assignment id is required');
     const row = await this.prisma.singleAssignedAgent.findUnique({
       where: { id },
-      include: { user: userSelect },
+      include: assignmentInclude,
     });
     if (!row) throw new NotFoundException(`Agent assignment "${id}" not found`);
     return row;
@@ -156,6 +167,7 @@ export class SingleAssignedAgentService {
       dto.durationDays,
     );
     const tokenLimit = dto.tokenLimit ?? null;
+    if (dto.llmModelId) await this.llmModels.assertSelectable(dto.llmModelId);
 
     return this.prisma.singleAssignedAgent.create({
       data: {
@@ -169,8 +181,9 @@ export class SingleAssignedAgentService {
         isActive,
         tokenLimit,
         tokensLeft: this.tokensLeftFor(tokenLimit, 0),
+        llmModelId: dto.llmModelId ?? null,
       },
-      include: { user: userSelect },
+      include: assignmentInclude,
     });
   }
 
@@ -203,7 +216,7 @@ export class SingleAssignedAgentService {
     const [data, total] = await Promise.all([
       this.prisma.singleAssignedAgent.findMany({
         where,
-        include: { user: userSelect },
+        include: assignmentInclude,
         orderBy: { [q.sortBy ?? 'createdAt']: q.sortOrder ?? 'desc' },
         skip: (page - 1) * limit,
         take: limit,
@@ -231,6 +244,7 @@ export class SingleAssignedAgentService {
     dto: UpdateSingleAssignedAgentDto,
   ): Promise<AssignmentWithUser> {
     const existing = await this.getOrThrow(id);
+    if (dto.llmModelId) await this.llmModels.assertSelectable(dto.llmModelId);
 
     // A renewal is a fresh grant on the same row: it starts now (unless the
     // caller says otherwise), so durationDays is counted from the renewal.
@@ -250,6 +264,15 @@ export class SingleAssignedAgentService {
         ? { durationDays: dto.durationDays }
         : {}),
       ...(typeof dto.isActive === 'boolean' ? { isActive: dto.isActive } : {}),
+      // Omitted keeps the stored choice; null resets to the default model.
+      ...(dto.llmModelId !== undefined
+        ? {
+            llmModel:
+              dto.llmModelId === null
+                ? { disconnect: true }
+                : { connect: { id: dto.llmModelId } },
+          }
+        : {}),
     };
 
     const usedTokens = dto.resetUsage ? 0 : existing.usedTokens;
@@ -288,7 +311,7 @@ export class SingleAssignedAgentService {
       const updated = await tx.singleAssignedAgent.update({
         where: { id },
         data,
-        include: { user: userSelect },
+        include: assignmentInclude,
       });
 
       if (dto.isActive === false && existing.isActive) {
@@ -355,7 +378,7 @@ export class SingleAssignedAgentService {
           ? { outputTokens: { increment: split.outputTokens } }
           : {}),
       },
-      include: { user: userSelect },
+      include: assignmentInclude,
     });
     await recordGrantUsageDay(this.prisma, {
       oauthId: user.oauthId,
@@ -403,7 +426,7 @@ export class SingleAssignedAgentService {
         usedTokens: totalUsedTokens,
         tokensLeft: this.tokensLeftFor(existing.tokenLimit, totalUsedTokens),
       },
-      include: { user: userSelect },
+      include: assignmentInclude,
     });
     // The caller sends a running total, so the day's spend is the change.
     await recordGrantUsageDay(this.prisma, {

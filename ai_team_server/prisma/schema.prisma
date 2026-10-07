@@ -270,6 +270,12 @@ model SingleAssignedAgent {
   // Only the direct assign path ever writes this.
   tokenLimit Int?
 
+  // Chat model the agent runs on while this grant pays for the chat. Null =
+  // the catalog's default model (LlmModel.isDefault), so grants created
+  // before this column existed need no backfill.
+  llmModelId String?
+  llmModel   LlmModel? @relation(fields: [llmModelId], references: [id], onDelete: SetNull)
+
   // Running totals for this grant, so the agent tier can be read without
   // joining UserAgentTokenUsage. DailyTokenUsage stays the source of truth
   // for cycle maths -- these are a rollup, not the ledger.
@@ -285,6 +291,7 @@ model SingleAssignedAgent {
   // Allowed multiples just in case, or we keep unique
   @@index([userId, isActive])
   @@index([expiresAt])
+  @@index([llmModelId])
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -307,6 +314,12 @@ model AgentTeam {
   // writes this.
   tokenLimit Int?
 
+  // Chat model every agent in the team runs on. Null = the catalog's default
+  // model (LlmModel.isDefault), so teams created before this column existed
+  // need no backfill.
+  llmModelId String?
+  llmModel   LlmModel? @relation(fields: [llmModelId], references: [id], onDelete: SetNull)
+
   agents              AgentTeamAgent[]
   assignments         AssignedTeam[]
   // Memberships that bundle this team (read-only from the membership side).
@@ -314,6 +327,35 @@ model AgentTeam {
   createdAt           DateTime                 @default(now())
   updatedAt           DateTime                 @updatedAt
 
+  @@index([isActive])
+  @@index([llmModelId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Chat model catalog
+//
+// The models an admin can pick for a team. Rows are seeded by migration and
+// only ever added or deactivated, never deleted, so a team's stored choice
+// stays readable. `modelId` is the exact id the provider's API expects; it is
+// what n8n receives. The row flagged isDefault (lowest sortOrder if several)
+// is what a team, membership or single-agent grant without its own choice
+// runs on.
+// ─────────────────────────────────────────────────────────────
+model LlmModel {
+  id        String      @id @default(uuid())
+  provider    String      // "anthropic" for now
+  modelId     String      // e.g. "claude-sonnet-5"
+  label       String      // e.g. "Claude Sonnet 5"
+  isActive    Boolean     @default(true)
+  isDefault   Boolean     @default(false)
+  sortOrder   Int         @default(0)
+  teams       AgentTeam[]
+  memberships MembershipTemplate[]
+  singleAssignments SingleAssignedAgent[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@unique([provider, modelId])
   @@index([isActive])
 }
 
@@ -637,8 +679,17 @@ model MembershipTemplate {
   includedTeams  MembershipTemplateTeam[]
   assignments    AssignedMembership[]
 
+  // Chat model every agent the membership reaches runs on while the
+  // membership pays for the chat. Null = the catalog's default model
+  // (LlmModel.isDefault), so templates created before this column existed
+  // need no backfill.
+  llmModelId String?
+  llmModel   LlmModel? @relation(fields: [llmModelId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([llmModelId])
 }
 
 // Link between a membership template and an AgentTeam.

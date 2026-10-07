@@ -3,7 +3,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { AgentName, Prisma } from 'src/generated/prisma/client';
+import { AgentName, LlmModel, Prisma } from 'src/generated/prisma/client';
+import {
+  LlmModelService,
+  LlmModelView,
+  toLlmModelView,
+} from 'src/llm-model/llm-model.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { TokenUsageService } from 'src/token-usage/services/token-usage.service';
 import {
@@ -41,6 +46,7 @@ export const membershipTemplateInclude = {
       },
     },
   },
+  llmModel: true,
 } satisfies Prisma.MembershipTemplateInclude;
 
 type TemplateRow = Prisma.MembershipTemplateGetPayload<{
@@ -73,6 +79,10 @@ export type MembershipTemplateView = {
   includedTeamIds: string[];
   /** Union of single agents and every active team's agents. */
   effectiveAgents: AgentName[];
+  /** The membership's own model choice; null = it follows the catalog default. */
+  llmModelId: string | null;
+  /** The model the membership's chats run on: its own choice, else the default. */
+  llmModel: LlmModelView;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -126,6 +136,15 @@ function normalizeTokenLimit(value: unknown): number {
       'monthlyTokenLimit must be a non-negative integer',
     );
   return n;
+}
+
+/** LlmModel.id, or null for the catalog default; undefined leaves it as is. */
+function normalizeModelId(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== 'string')
+    throw new BadRequestException('llmModelId must be a string or null');
+  return value.trim() || null;
 }
 
 /** A usage delta: any integer, negative for a refund or correction. */
@@ -214,7 +233,10 @@ export function toAssignmentView(
   };
 }
 
-function toView(row: TemplateRow): MembershipTemplateView {
+function toView(
+  row: TemplateRow,
+  defaultModel: LlmModel,
+): MembershipTemplateView {
   const includedTeams = row.includedTeams.map(({ team }) => ({
     id: team.id,
     name: team.name,
@@ -231,6 +253,8 @@ function toView(row: TemplateRow): MembershipTemplateView {
     includedTeams,
     includedTeamIds: includedTeams.map((t) => t.id),
     effectiveAgents: resolveTemplateAgents(row),
+    llmModelId: row.llmModelId,
+    llmModel: toLlmModelView(row.llmModel ?? defaultModel),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -249,6 +273,8 @@ export class MembershipService {
     // Owns the usage ledger the admin dashboard reads; spend recorded on a
     // membership pool is mirrored there so the two never disagree.
     private readonly tokenUsage: TokenUsageService,
+    // Resolves and validates the membership's chat model.
+    private readonly llmModels: LlmModelService,
   ) {}
 
   /* ------------------------------- helpers ------------------------------- */
@@ -283,6 +309,8 @@ export class MembershipService {
       'includedTeamIds',
     );
     await this.assertTeamsExist(includedTeamIds);
+    const llmModelId = normalizeModelId(data.llmModelId) ?? null;
+    if (llmModelId) await this.llmModels.assertSelectable(llmModelId);
 
     const row = await this.prisma.membershipTemplate.create({
       data: {
@@ -290,6 +318,7 @@ export class MembershipService {
         durationDays: data.durationDays,
         monthlyTokenLimit: data.monthlyTokenLimit,
         includedAgents: normalizeAgents(data.includedAgents),
+        llmModelId,
         ...(includedTeamIds.length
           ? {
               includedTeams: {
@@ -300,19 +329,26 @@ export class MembershipService {
       },
       include: membershipTemplateInclude,
     });
-    return toView(row);
+    return toView(row, await this.llmModels.getDefault());
   }
 
   async listMemberships() {
-    const rows = await this.prisma.membershipTemplate.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: membershipTemplateInclude,
-    });
-    return rows.map(toView);
+    const [rows, defaultModel] = await Promise.all([
+      this.prisma.membershipTemplate.findMany({
+        orderBy: { createdAt: 'desc' },
+        include: membershipTemplateInclude,
+      }),
+      this.llmModels.getDefault(),
+    ]);
+    return rows.map((row) => toView(row, defaultModel));
   }
 
   async getMembership(id: string) {
-    return toView(await this.getRowOrThrow(id));
+    const [row, defaultModel] = await Promise.all([
+      this.getRowOrThrow(id),
+      this.llmModels.getDefault(),
+    ]);
+    return toView(row, defaultModel);
   }
 
   async updateMembership(id: string, data: UpdateMembershipDto) {
@@ -323,45 +359,54 @@ export class MembershipService {
         ? undefined
         : normalizeIds(data.includedTeamIds, 'includedTeamIds');
     if (includedTeamIds) await this.assertTeamsExist(includedTeamIds);
+    const llmModelId = normalizeModelId(data.llmModelId);
+    if (llmModelId) await this.llmModels.assertSelectable(llmModelId);
 
-    const row = await this.prisma.$transaction(async (tx) => {
-      if (includedTeamIds) {
-        // Replace the team list: drop links not in the new list, add the rest.
-        await tx.membershipTemplateTeam.deleteMany({
-          where: {
-            membershipTemplateId: id,
-            teamId: { notIn: includedTeamIds },
-          },
-        });
-        for (const teamId of includedTeamIds) {
-          await tx.membershipTemplateTeam.upsert({
+    const row = await this.prisma.$transaction(
+      async (tx) => {
+        if (includedTeamIds) {
+          // Replace the team list: drop links not in the new list, add the rest.
+          await tx.membershipTemplateTeam.deleteMany({
             where: {
-              membershipTemplateId_teamId: {
-                membershipTemplateId: id,
-                teamId,
-              },
+              membershipTemplateId: id,
+              teamId: { notIn: includedTeamIds },
             },
-            create: { membershipTemplateId: id, teamId },
-            update: {},
           });
+          for (const teamId of includedTeamIds) {
+            await tx.membershipTemplateTeam.upsert({
+              where: {
+                membershipTemplateId_teamId: {
+                  membershipTemplateId: id,
+                  teamId,
+                },
+              },
+              create: { membershipTemplateId: id, teamId },
+              update: {},
+            });
+          }
         }
-      }
 
-      return tx.membershipTemplate.update({
-        where: { id },
-        data: {
-          name: data.name,
-          durationDays: data.durationDays,
-          monthlyTokenLimit: data.monthlyTokenLimit,
-          includedAgents:
-            data.includedAgents === undefined
-              ? undefined
-              : normalizeAgents(data.includedAgents),
-        },
-        include: membershipTemplateInclude,
-      });
-    });
-    return toView(row);
+        return tx.membershipTemplate.update({
+          where: { id },
+          data: {
+            name: data.name,
+            durationDays: data.durationDays,
+            monthlyTokenLimit: data.monthlyTokenLimit,
+            includedAgents:
+              data.includedAgents === undefined
+                ? undefined
+                : normalizeAgents(data.includedAgents),
+            // undefined leaves the stored choice; null resets to the default.
+            llmModelId,
+          },
+          include: membershipTemplateInclude,
+        });
+        // One round trip per linked team over a single pooled connection; the
+        // 5s default is too tight for that (same as the team PATCH).
+      },
+      { maxWait: 10_000, timeout: 30_000 },
+    );
+    return toView(row, await this.llmModels.getDefault());
   }
 
   async deleteMembership(id: string) {
@@ -376,7 +421,7 @@ export class MembershipService {
       }),
     ]);
 
-    return toView(row);
+    return toView(row, await this.llmModels.getDefault());
   }
 
   /* --------------------------- single agents ---------------------------- */

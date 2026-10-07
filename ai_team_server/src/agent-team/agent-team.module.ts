@@ -1,5 +1,6 @@
 // src/agent-team/agent-team.module.ts
 import { Module } from '@nestjs/common';
+import { LlmModelModule } from 'src/llm-model/llm-model.module';
 import { TokenUsageModule } from 'src/token-usage/token-usage.module';
 import { AgentTeamController } from './agent-team.controller';
 import { AgentTeamService } from './agent-team.service';
@@ -13,7 +14,8 @@ import { TeamAssignmentService } from './team-assignment.service';
   // PrismaModule is global; re-providing PrismaService here would open a
   // second connection pool. TokenUsageModule owns the usage ledger that the
   // admin dashboard reads, so usage recorded on a team grant goes through it.
-  imports: [TokenUsageModule],
+  // LlmModelModule resolves and validates the team's chat model.
+  imports: [TokenUsageModule, LlmModelModule],
   controllers: [AgentTeamController, TeamAssignmentController],
   providers: [AgentTeamService, TeamAssignmentService],
   exports: [AgentTeamService, TeamAssignmentService],

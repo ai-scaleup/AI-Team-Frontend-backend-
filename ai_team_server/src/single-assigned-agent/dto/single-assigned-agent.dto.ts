@@ -6,9 +6,12 @@ import {
   IsEnum,
   IsIn,
   IsInt,
+  IsNotEmpty,
   IsOptional,
+  IsString,
   IsUUID,
   Max,
+  MaxLength,
   Min,
   ValidateIf,
 } from 'class-validator';
@@ -40,6 +43,12 @@ const toDateOrNull = ({ value }: { value: any }) => {
   if (value === '' || value === undefined) return undefined;
   if (value === null) return null;
   return new Date(value);
+};
+
+/** Trims a model id; maps an empty string to null (= the default model). */
+const toModelId = ({ value }: { value: any }) => {
+  if (typeof value !== 'string') return value;
+  return value.trim() || null;
 };
 
 const toBool = ({ value }: { value: any }) => {
@@ -94,6 +103,15 @@ export class CreateSingleAssignedAgentDto {
   @IsInt()
   @Min(0)
   tokenLimit?: number | null;
+
+  /** LlmModel.id the agent runs on while this grant pays (GET /admin/llm-models). Null/omitted = the catalog default. */
+  @IsOptional()
+  @ValidateIf((o) => o.llmModelId !== null)
+  @Transform(toModelId)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  llmModelId?: string | null;
 }
 
 /* --------------------------------- UPDATE --------------------------------- */
@@ -139,6 +157,15 @@ export class UpdateSingleAssignedAgentDto {
   @IsOptional()
   @IsBoolean()
   resetUsage?: boolean;
+
+  /** Omit to keep the current model; null resets the grant to the catalog default. */
+  @IsOptional()
+  @ValidateIf((o) => o.llmModelId !== null)
+  @Transform(toModelId)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  llmModelId?: string | null;
 }
 
 /**

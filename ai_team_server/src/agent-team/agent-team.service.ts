@@ -5,7 +5,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { AgentName, Prisma } from 'src/generated/prisma/client';
+import { AgentName, LlmModel, Prisma } from 'src/generated/prisma/client';
+import {
+  LlmModelService,
+  LlmModelView,
+  toLlmModelView,
+} from 'src/llm-model/llm-model.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { syncAssignedTeamAgents } from './assigned-team-agent.helpers';
 import {
@@ -24,6 +29,7 @@ type Paginated<T> = {
 
 const teamInclude = {
   agents: { select: { agentName: true }, orderBy: { createdAt: 'asc' } },
+  llmModel: true,
   _count: { select: { assignments: true } },
 } satisfies Prisma.AgentTeamInclude;
 
@@ -37,6 +43,10 @@ export type AgentTeamView = {
   isActive: boolean;
   /** Default per-agent allowance seeded onto each assignment; null = access only. */
   tokenLimit: number | null;
+  /** The team's own model choice; null = it follows the catalog default. */
+  llmModelId: string | null;
+  /** The model the team actually runs on: its own choice, else the default. */
+  llmModel: LlmModelView;
   agents: AgentName[];
   agentCount: number;
   assignmentCount: number;
@@ -44,7 +54,7 @@ export type AgentTeamView = {
   updatedAt: Date;
 };
 
-function toView(row: TeamRow): AgentTeamView {
+function toView(row: TeamRow, defaultModel: LlmModel): AgentTeamView {
   const agents = row.agents.map((a) => a.agentName);
   return {
     id: row.id,
@@ -52,6 +62,8 @@ function toView(row: TeamRow): AgentTeamView {
     description: row.description,
     isActive: row.isActive,
     tokenLimit: row.tokenLimit,
+    llmModelId: row.llmModelId,
+    llmModel: toLlmModelView(row.llmModel ?? defaultModel),
     agents,
     agentCount: agents.length,
     assignmentCount: row._count.assignments,
@@ -67,7 +79,10 @@ function toView(row: TeamRow): AgentTeamView {
  */
 @Injectable()
 export class AgentTeamService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly llmModels: LlmModelService,
+  ) {}
 
   /* ------------------------------- helpers ------------------------------- */
 
@@ -111,6 +126,7 @@ export class AgentTeamService {
 
   async create(dto: CreateAgentTeamDto): Promise<AgentTeamView> {
     await this.assertNameFree(dto.name);
+    if (dto.llmModelId) await this.llmModels.assertSelectable(dto.llmModelId);
     const agents = dto.agents ?? [];
 
     const row = await this.prisma.agentTeam.create({
@@ -119,11 +135,12 @@ export class AgentTeamService {
         description: dto.description,
         isActive: dto.isActive ?? true,
         tokenLimit: dto.tokenLimit ?? null,
+        llmModelId: dto.llmModelId ?? null,
         agents: { create: agents.map((agentName) => ({ agentName })) },
       },
       include: teamInclude,
     });
-    return toView(row);
+    return toView(row, await this.llmModels.getDefault());
   }
 
   /* --------------------------------- READ --------------------------------- */
@@ -144,7 +161,7 @@ export class AgentTeamService {
     // runtime pool can intentionally be limited to one connection; concurrent
     // list requests would otherwise fail with P2028 while waiting to begin a
     // transaction. The adapter will queue the ordinary queries safely.
-    const [rows, total] = await Promise.all([
+    const [rows, total, defaultModel] = await Promise.all([
       this.prisma.agentTeam.findMany({
         where,
         include: teamInclude,
@@ -153,10 +170,11 @@ export class AgentTeamService {
         take: limit,
       }),
       this.prisma.agentTeam.count({ where }),
+      this.llmModels.getDefault(),
     ]);
 
     return {
-      data: rows.map(toView),
+      data: rows.map((row) => toView(row, defaultModel)),
       total,
       page,
       limit,
@@ -165,7 +183,11 @@ export class AgentTeamService {
   }
 
   async findOne(id: string): Promise<AgentTeamView> {
-    return toView(await this.getOrThrow(id));
+    const [row, defaultModel] = await Promise.all([
+      this.getOrThrow(id),
+      this.llmModels.getDefault(),
+    ]);
+    return toView(row, defaultModel);
   }
 
   /* -------------------------------- UPDATE -------------------------------- */
@@ -176,37 +198,47 @@ export class AgentTeamService {
     if (dto.name !== undefined && dto.name !== existing.name) {
       await this.assertNameFree(dto.name, id);
     }
+    if (dto.llmModelId) await this.llmModels.assertSelectable(dto.llmModelId);
 
-    const row = await this.prisma.$transaction(async (tx) => {
-      if (dto.agents !== undefined) {
-        await tx.agentTeamAgent.deleteMany({ where: { teamId: id } });
-        if (dto.agents.length) {
-          await tx.agentTeamAgent.createMany({
-            data: dto.agents.map((agentName) => ({ teamId: id, agentName })),
-          });
+    const row = await this.prisma.$transaction(
+      async (tx) => {
+        if (dto.agents !== undefined) {
+          await tx.agentTeamAgent.deleteMany({ where: { teamId: id } });
+          if (dto.agents.length) {
+            await tx.agentTeamAgent.createMany({
+              data: dto.agents.map((agentName) => ({ teamId: id, agentName })),
+            });
+          }
+          // Users already holding this team follow the new roster: a newly
+          // added agent gets its per-agent allowance, a removed one loses it.
+          await syncAssignedTeamAgents(tx, id, dto.agents);
         }
-        // Users already holding this team follow the new roster: a newly
-        // added agent gets its per-agent allowance, a removed one loses it.
-        await syncAssignedTeamAgents(tx, id, dto.agents);
-      }
-      return tx.agentTeam.update({
-        where: { id },
-        data: {
-          ...(dto.name !== undefined ? { name: dto.name } : {}),
-          ...(dto.description !== undefined
-            ? { description: dto.description }
-            : {}),
-          ...(typeof dto.isActive === 'boolean'
-            ? { isActive: dto.isActive }
-            : {}),
-          ...(dto.tokenLimit !== undefined
-            ? { tokenLimit: dto.tokenLimit }
-            : {}),
-        },
-        include: teamInclude,
-      });
-    });
-    return toView(row);
+        return tx.agentTeam.update({
+          where: { id },
+          data: {
+            ...(dto.name !== undefined ? { name: dto.name } : {}),
+            ...(dto.description !== undefined
+              ? { description: dto.description }
+              : {}),
+            ...(typeof dto.isActive === 'boolean'
+              ? { isActive: dto.isActive }
+              : {}),
+            ...(dto.tokenLimit !== undefined
+              ? { tokenLimit: dto.tokenLimit }
+              : {}),
+            ...(dto.llmModelId !== undefined
+              ? { llmModelId: dto.llmModelId }
+              : {}),
+          },
+          include: teamInclude,
+        });
+        // Every statement is a round trip to the Supabase pooler and the pool
+        // holds one connection, so Prisma's 5s default is too tight for a team
+        // with several grants (it failed as P2028, surfacing as a bare 500).
+      },
+      { maxWait: 10_000, timeout: 30_000 },
+    );
+    return toView(row, await this.llmModels.getDefault());
   }
 
   /* -------------------------------- DELETE -------------------------------- */

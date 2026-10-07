@@ -236,6 +236,9 @@ export class MembershipController {
         monthlyTokenLimit: 100000,
         includedAgents: ['JIM'],
         includedTeamIds: ['1f0a6d4c-1c3e-4d1a-9b52-1a2b3c4d5e6f'],
+        // Chat model (id from GET /admin/llm-models); omit or null for the
+        // default.
+        llmModelId: 'llm-anthropic-claude-opus-5-5',
       },
     },
   })
@@ -275,6 +278,8 @@ export class MembershipController {
         // Replaces the team list. Omit to leave it as it is; an empty array
         // unlinks every team.
         includedTeamIds: ['1f0a6d4c-1c3e-4d1a-9b52-1a2b3c4d5e6f'],
+        // Omit to keep the current model; null resets to the default.
+        llmModelId: 'llm-anthropic-claude-sonnet-5-5',
       },
     },
   })

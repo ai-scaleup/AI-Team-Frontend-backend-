@@ -27,6 +27,9 @@ describe('SingleAssignedAgentService.update', () => {
     user: { id: 'user-1', email: 'a@b.c', oauthId: 'oauth-1', username: 'a' },
   };
 
+  // The chat model catalog; only id validation is used here.
+  const llmModels = { assertSelectable: jest.fn() };
+
   let service: SingleAssignedAgentService;
 
   beforeEach(() => {
@@ -37,7 +40,10 @@ describe('SingleAssignedAgentService.update', () => {
       ...data,
     }));
     prisma.$transaction.mockImplementation((fn) => fn(prisma));
-    service = new SingleAssignedAgentService(prisma as never);
+    service = new SingleAssignedAgentService(
+      prisma as never,
+      llmModels as never,
+    );
   });
 
   const sentData = () =>
@@ -84,5 +90,36 @@ describe('SingleAssignedAgentService.update', () => {
     expect(data).toMatchObject({ tokenLimit: 150000, tokensLeft: 46167 });
     expect(data).not.toHaveProperty('usedTokens');
     expect(data).not.toHaveProperty('startsAt');
+  });
+
+  it('leaves the model alone when llmModelId is omitted', async () => {
+    await service.update(exhausted.id, { tokenLimit: 150000 });
+
+    expect(llmModels.assertSelectable).not.toHaveBeenCalled();
+    expect(sentData()).not.toHaveProperty('llmModel');
+  });
+
+  it('validates and stores a chosen model', async () => {
+    const id = 'llm-anthropic-claude-opus-5-5';
+    await service.update(exhausted.id, { llmModelId: id });
+
+    expect(llmModels.assertSelectable).toHaveBeenCalledWith(id);
+    expect(sentData()).toMatchObject({ llmModel: { connect: { id } } });
+  });
+
+  it('resets the model to the default when llmModelId is null', async () => {
+    await service.update(exhausted.id, { llmModelId: null });
+
+    expect(llmModels.assertSelectable).not.toHaveBeenCalled();
+    expect(sentData()).toMatchObject({ llmModel: { disconnect: true } });
+  });
+
+  it('refuses an unknown model before writing', async () => {
+    llmModels.assertSelectable.mockRejectedValue(new Error('unknown'));
+
+    await expect(
+      service.update(exhausted.id, { llmModelId: 'nope' }),
+    ).rejects.toThrow('unknown');
+    expect(prisma.singleAssignedAgent.update).not.toHaveBeenCalled();
   });
 });

@@ -76,6 +76,17 @@ export class CreateAgentTeamDto {
   @IsInt()
   @Min(0)
   tokenLimit?: number | null;
+  /**
+   * LlmModel.id the team's agents run on (GET /admin/llm-models).
+   * Null/omitted = the catalog default (Claude Sonnet 5).
+   */
+  @IsOptional()
+  @ValidateIf((o) => o.llmModelId !== null)
+  @Transform(trim)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  llmModelId?: string | null;
 }
 
 /* --------------------------------- UPDATE --------------------------------- */
@@ -113,6 +124,14 @@ export class UpdateAgentTeamDto {
   @IsInt()
   @Min(0)
   tokenLimit?: number | null;
+  /** Null resets the team to the catalog default model. */
+  @IsOptional()
+  @ValidateIf((o) => o.llmModelId !== null)
+  @Transform(trim)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  llmModelId?: string | null;
 }
 
 /* ---------------------------------- LIST ---------------------------------- */

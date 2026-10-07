@@ -48,6 +48,29 @@ describe('MembershipService', () => {
     applyAgentTokenDelta: jest.fn(),
   };
 
+  // The chat model catalog: a default, plus validation of a chosen id.
+  const defaultModel = {
+    id: 'llm-anthropic-claude-sonnet-5',
+    provider: 'anthropic',
+    modelId: 'claude-sonnet-5',
+    label: 'Claude Sonnet 5',
+    isActive: true,
+    isDefault: true,
+    sortOrder: 50,
+  };
+  const opusModel = {
+    ...defaultModel,
+    id: 'llm-anthropic-claude-opus-5-5',
+    modelId: 'claude-opus-5-5',
+    label: 'Claude Opus 5.5',
+    isDefault: false,
+    sortOrder: 20,
+  };
+  const llmModels = {
+    getDefault: jest.fn(),
+    assertSelectable: jest.fn(),
+  };
+
   const teamLink = (id: string, agents: string[] = [], isActive = true) => ({
     team: {
       id,
@@ -65,6 +88,8 @@ describe('MembershipService', () => {
     monthlyTokenLimit: 100000,
     includedAgents: ['JIM'],
     includedTeams: [],
+    llmModelId: null,
+    llmModel: null,
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
     updatedAt: new Date('2026-01-01T00:00:00.000Z'),
   };
@@ -82,7 +107,13 @@ describe('MembershipService', () => {
     prisma.user.findUnique.mockResolvedValue({ id: 'user-1' });
     prisma.dailyTokenUsage.findMany.mockResolvedValue([]);
     tokenUsage.applyAgentTokenDelta.mockResolvedValue(undefined);
-    service = new MembershipService(prisma as any, tokenUsage as any);
+    llmModels.getDefault.mockResolvedValue(defaultModel);
+    llmModels.assertSelectable.mockResolvedValue(opusModel);
+    service = new MembershipService(
+      prisma as any,
+      tokenUsage as any,
+      llmModels as any,
+    );
   });
 
   // A grant row as Prisma returns it with assignmentInclude.
@@ -154,6 +185,7 @@ describe('MembershipService', () => {
         monthlyTokenLimit: 100000,
         // Duplicates collapse in both lists.
         includedAgents: ['JIM', 'SARA_AI'],
+        llmModelId: null,
         includedTeams: {
           create: [{ teamId: 't1' }, { teamId: 't2' }],
         },
@@ -183,9 +215,87 @@ describe('MembershipService', () => {
         durationDays: 7,
         monthlyTokenLimit: 5000,
         includedAgents: [],
+        llmModelId: null,
       },
       include: membershipTemplateInclude,
     });
+  });
+
+  it('stores a chosen chat model and shows it on the template', async () => {
+    prisma.membershipTemplate.create.mockResolvedValue({
+      ...baseRow,
+      llmModelId: opusModel.id,
+      llmModel: opusModel,
+    });
+
+    const result = await service.createMembership({
+      name: 'Pro',
+      durationDays: 30,
+      monthlyTokenLimit: 100000,
+      llmModelId: `  ${opusModel.id} `,
+    });
+
+    expect(llmModels.assertSelectable).toHaveBeenCalledWith(opusModel.id);
+    expect(prisma.membershipTemplate.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ llmModelId: opusModel.id }),
+      }),
+    );
+    expect(result.llmModelId).toBe(opusModel.id);
+    expect(result.llmModel.modelId).toBe('claude-opus-5-5');
+  });
+
+  it('shows the catalog default for a template without its own model', async () => {
+    prisma.membershipTemplate.findUnique.mockResolvedValue(baseRow);
+
+    const result = await service.getMembership('membership-template-1');
+
+    expect(result.llmModelId).toBeNull();
+    expect(result.llmModel).toEqual({
+      id: defaultModel.id,
+      provider: 'anthropic',
+      modelId: 'claude-sonnet-5',
+      label: 'Claude Sonnet 5',
+      isDefault: true,
+      isActive: true,
+    });
+  });
+
+  it('rejects an unknown or inactive chat model before writing', async () => {
+    llmModels.assertSelectable.mockRejectedValue(
+      new BadRequestException('Unknown or inactive model "nope"'),
+    );
+
+    await expect(
+      service.createMembership({
+        name: 'Pro',
+        durationDays: 30,
+        monthlyTokenLimit: 1,
+        llmModelId: 'nope',
+      }),
+    ).rejects.toThrow(BadRequestException);
+    expect(prisma.membershipTemplate.create).not.toHaveBeenCalled();
+  });
+
+  it('resets the chat model to the default when llmModelId is null', async () => {
+    prisma.membershipTemplate.findUnique.mockResolvedValue({
+      ...baseRow,
+      llmModelId: opusModel.id,
+      llmModel: opusModel,
+    });
+    prisma.membershipTemplate.update.mockResolvedValue(baseRow);
+
+    const result = await service.updateMembership('membership-template-1', {
+      llmModelId: null,
+    });
+
+    expect(llmModels.assertSelectable).not.toHaveBeenCalled();
+    expect(prisma.membershipTemplate.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ llmModelId: null }),
+      }),
+    );
+    expect(result.llmModel.id).toBe(defaultModel.id);
   });
 
   it('rejects unknown agent team ids on create', async () => {
@@ -267,6 +377,7 @@ describe('MembershipService', () => {
         durationDays: undefined,
         monthlyTokenLimit: undefined,
         includedAgents: ['JIM', 'SARA_AI'],
+        llmModelId: undefined,
       },
       include: membershipTemplateInclude,
     });
