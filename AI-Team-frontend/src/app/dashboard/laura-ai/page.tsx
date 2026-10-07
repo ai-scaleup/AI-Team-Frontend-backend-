@@ -1023,6 +1023,8 @@ export default function App() {
                         teamId: source?.teamId ?? null,
                         // Membership tier only: the assigned-membership id whose pool is charged.
                         membershipAssignmentId: source?.tokenType === "membership" ? source.grantId : null,
+                        // Single-agent tier only: the grant whose own model the proxy applies.
+                        singleAssignmentId: source?.tokenType === "single-agent" ? source.grantId : null,
                     },
                     chatId: currentChatIdForSend,
                 }),

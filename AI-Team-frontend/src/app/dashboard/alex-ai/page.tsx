@@ -39,9 +39,7 @@ import {
   Home,
   BookOpen,
   FoldVertical,
-  Loader2,
 } from "lucide-react"
-import { CompactionNotice } from "@/components/ui/CompactionNotice"
 import PreferencesWizard from "@/components/preferences/PreferencesWizard"
 import PreferencesButton from "@/components/preferences/PreferencesButton"
 import { useUser } from "@clerk/nextjs"
@@ -336,18 +334,6 @@ const TOKEN_ALERT_STYLES: Record<TokenAlertLevel, { wrap: string; icon: string }
   },
 }
 
-// --- CONVERSATION COMPACTION ---
-// The backend folds the older turns of a long chat into a summary and leaves
-// this marker in the transcript; the page shows the same one as soon as the
-// compaction lands, without waiting for a reload.
-const COMPACTION_NOTICE_TEXT = "Conversazione compattata · i messaggi precedenti sono stati riassunti"
-// From this share of the way to the compaction trigger, the user is told one is coming.
-const COMPACTION_WARN_PERCENT = 90
-const COMPACTION_POLL_MS = 3000
-// A compaction of a full conversation takes a few summarising calls; past
-// this the page stops asking and the marker shows on the next load instead.
-const COMPACTION_POLL_ATTEMPTS = 100
-
 // --- AGENT ROSTER LIST ---
 const AI_TEAM_LIST = [
   { id: "mike-ai" },
@@ -410,16 +396,6 @@ export default function App() {
   const [newFolderName, setNewFolderName] = useState("")
   const [showArchived, setShowArchived] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
-  // Chat whose older turns the backend is summarising right now.
-  const [compactingChatId, setCompactingChatId] = useState<string | null>(null)
-  // How far a chat is towards the token count at which the backend compacts it (0-100).
-  const [compactionLevel, setCompactionLevel] = useState<{ chatId: string; percent: number } | null>(null)
-  const isNearCompaction = Boolean(
-    compactionLevel &&
-      compactionLevel.chatId === currentChatId &&
-      compactionLevel.percent >= COMPACTION_WARN_PERCENT &&
-      compactingChatId !== currentChatId,
-  )
   const tokenUsagePercent = tokenUsage?.totalTokenLimit
     ? Math.min(100, Math.max(0, (tokenUsage.totalUsedTokens / tokenUsage.totalTokenLimit) * 100))
     : 0
@@ -471,7 +447,7 @@ export default function App() {
   // --- TYPES ---
   interface Message {
     text: string
-    // "system" is a marker in the transcript (the conversation was compacted), not a chat bubble.
+    // "system" is a marker in older transcripts (the conversation was compacted), not a chat bubble.
     sender: "ai" | "user" | "system"
     time: string
     files?: string[]
@@ -510,42 +486,11 @@ export default function App() {
   const prevMessageCountRef = useRef(0)
   const currentChatIdRef = useRef<string | null>(null)
 
-  // compactionEvents=1 asks the proxy to say when a reply started a compaction.
-  const N8N_ENDPOINT = "/api/n8n-proxy?agent=alex-ai&compactionEvents=1"
+  const N8N_ENDPOINT = "/api/n8n-proxy?agent=alex-ai"
 
   useEffect(() => {
     currentChatIdRef.current = currentChatId
   }, [currentChatId])
-
-  useEffect(() => {
-    if (compactingChatId && compactingChatId === currentChatId) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "auto" })
-    }
-  }, [compactingChatId, currentChatId])
-
-  // A chat opened from the sidebar may already be close to its compaction:
-  // ask where it stands so the warning shows before the next message too.
-  const currentSessionId = currentChatId ? chats[currentChatId]?.sessionId : undefined
-  useEffect(() => {
-    if (!currentChatId || !currentSessionId) return
-    let cancelled = false
-
-    authenticatedFetch("/api/compaction/status", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId: currentSessionId, agent: "alex-ai", chatId: currentChatId }),
-    })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((status) => {
-        if (cancelled || !status) return
-        setCompactionLevel({ chatId: currentChatId, percent: Number(status.percentOfTrigger) || 0 })
-      })
-      .catch(() => {})
-
-    return () => {
-      cancelled = true
-    }
-  }, [currentChatId, currentSessionId])
 
   // --- Set Pinecone namespace ---
   useEffect(() => {
@@ -1024,58 +969,6 @@ export default function App() {
     }
   }
 
-  // Follows a compaction the backend started after a reply, then puts the
-  // marker right after that reply (`noticeIndex`) — the user may already have
-  // written again by the time the summary is ready. `before` is where the
-  // chat stood when the compaction started.
-  const watchCompaction = async (
-    chatId: string,
-    sessionId: string,
-    noticeIndex: number,
-    before: { compactionCount: number; summaryVersion: number },
-  ) => {
-    const insertNotice = (list: Message[]) => {
-      const next = [...list]
-      next.splice(Math.min(noticeIndex, next.length), 0, { text: COMPACTION_NOTICE_TEXT, sender: "system", time: "" })
-      return next
-    }
-
-    setCompactingChatId(chatId)
-    try {
-      for (let attempt = 0; attempt < COMPACTION_POLL_ATTEMPTS; attempt++) {
-        await new Promise((resolve) => setTimeout(resolve, COMPACTION_POLL_MS))
-
-        const response = await authenticatedFetch("/api/compaction/status", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId, agent: "alex-ai", chatId }),
-        })
-        if (!response.ok) continue
-        const status = await response.json()
-
-        if (status.compactionCount > before.compactionCount) {
-          // A compaction that wrote no new summary changed nothing for the agent.
-          if (status.summaryVersion > before.summaryVersion) {
-            setChats((prev) =>
-              prev[chatId]
-                ? { ...prev, [chatId]: { ...prev[chatId], messages: insertNotice(prev[chatId].messages || []) } }
-                : prev,
-            )
-            if (currentChatIdRef.current === chatId) setMessages(insertNotice)
-          }
-          // The chat is back well under the trigger, so the warning goes too.
-          setCompactionLevel({ chatId, percent: Number(status.percentOfTrigger) || 0 })
-          return
-        }
-        if (!status.compacting) return
-      }
-    } catch (error) {
-      console.error("Alex AI: Failed to follow the compaction:", error)
-    } finally {
-      setCompactingChatId((current) => (current === chatId ? null : current))
-    }
-  }
-
   const sendMessage = async () => {
     if (!inputValue.trim() && selectedFiles.length === 0) return
     if (isTokenLimitReached) return
@@ -1218,6 +1111,8 @@ export default function App() {
           teamId: source?.teamId ?? null,
           // Membership tier only: the assigned-membership id whose pool is charged.
           membershipAssignmentId: source?.tokenType === "membership" ? source.grantId : null,
+          // Single-agent tier only: the grant whose own model the proxy applies.
+          singleAssignmentId: source?.tokenType === "single-agent" ? source.grantId : null,
         },
         chatId: currentChatIdForSend,
       })
@@ -1236,14 +1131,6 @@ export default function App() {
       let buffer = ""
       let rawText = "" // full text accumulated from the stream so far
       let isFirstChunk = true
-      // Where the chat stands after this reply, as the proxy reports it:
-      // how close it is to a compaction and whether this reply started one.
-      let compactionEvent: {
-        started: boolean
-        percentOfTrigger: number
-        compactionCount: number
-        summaryVersion: number
-      } | null = null
 
       // --- Smooth typewriter reveal ---
       // n8n streams the reply in chunks, but the network often delivers several
@@ -1308,13 +1195,6 @@ export default function App() {
                   rawText += obj.content
                 }
                 // The typewriter loop picks up the new rawText on its next tick.
-              } else if (obj.type === "compaction") {
-                compactionEvent = {
-                  started: obj.status === "started",
-                  percentOfTrigger: Number(obj.percentOfTrigger) || 0,
-                  compactionCount: Number(obj.compactionCount) || 0,
-                  summaryVersion: Number(obj.summaryVersion) || 0,
-                }
               } else if (obj.type === "done" || obj.type === "end") {
                 break
               }
@@ -1377,14 +1257,6 @@ export default function App() {
       // Usage is no longer recorded from here: n8n charges what the chat cost
       // to the tier named in metadata.tokenType. Pick up the new balance.
       await refreshTokenSource()
-
-      // The marker goes right after this reply: the messages so far plus the reply.
-      if (compactionEvent) {
-        setCompactionLevel({ chatId: currentChatIdForSend, percent: compactionEvent.percentOfTrigger })
-        if (compactionEvent.started) {
-          void watchCompaction(currentChatIdForSend, sessionId, currentMessages.length + 1, compactionEvent)
-        }
-      }
 
       // Upsert pending file contents to Pinecone on send - REMOVED
       // if (pendingFileContents.length > 0 && CURRENT_NAMESPACE.current) {
@@ -2165,13 +2037,6 @@ export default function App() {
           {/* Messages */}
           <div className="relative flex-1 overflow-y-auto px-4 md:px-8 py-6 custom-scrollbar">
             <div className="max-w-6xl mx-auto space-y-6">
-              <CompactionNotice
-                sessionId={currentChatId ? (chats[currentChatId]?.sessionId ?? null) : null}
-                agent="alex-ai"
-                chatId={currentChatId}
-                refreshKey={isLoading ? -1 : messages.length}
-              />
-
               {messages.map((msg, idx) => msg.sender === "system" ? (
                 <div
                   key={idx}
@@ -2270,16 +2135,6 @@ export default function App() {
                 </div>
               ))}
 
-              {compactingChatId !== null && compactingChatId === currentChatId && (
-                <div
-                  role="status"
-                  className="flex items-center justify-center gap-2 text-xs font-semibold text-sky-600 dark:text-sky-400"
-                >
-                  <Loader2 size={14} className="animate-spin" />
-                  Compattazione della conversazione in corso…
-                </div>
-              )}
-
               <div ref={messagesEndRef} />
             </div>
 
@@ -2325,21 +2180,6 @@ export default function App() {
           {(isPreferenceLoading || isPreferenceReady) && (
             <div className="sticky bottom-0 px-4 md:px-8 pb-4 md:pb-6">
               <div className="max-w-6xl mx-auto">
-              {/* Compaction announcer bar */}
-              {isNearCompaction && compactionLevel && (
-                <div
-                  role="status"
-                  className="mb-3 flex items-center gap-2.5 rounded-xl border px-4 py-3 text-sm font-medium bg-sky-500/10 border-sky-400/40 text-sky-700 dark:text-sky-300"
-                >
-                  <FoldVertical size={16} className="shrink-0" />
-                  <span>
-                    Questa conversazione sta per essere compattata ({compactionLevel.percent}% del limite). I messaggi
-                    più vecchi verranno riassunti in automatico: la cronologia resta visibile e puoi continuare a
-                    scrivere.
-                  </span>
-                </div>
-              )}
-
               {/* Token usage announcer bar */}
               {isTokenLimitReached ? (
                 <div className="mb-3 flex items-center gap-2.5 rounded-xl border px-4 py-3 text-sm font-medium bg-rose-500/15 border-rose-500/50 text-rose-700 dark:text-rose-300">

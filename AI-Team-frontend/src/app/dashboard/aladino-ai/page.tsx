@@ -38,7 +38,6 @@ import {
   Home,
   BookOpen,
 } from "lucide-react"
-import { CompactionNotice } from "@/components/ui/CompactionNotice"
 import { useUser } from "@clerk/nextjs"
 import { conversationService } from "@/services/conversationService"
 import { useConversationCache } from "@/hooks/use-conversation-cache"
@@ -1081,6 +1080,8 @@ export default function App() {
             teamId: source?.teamId ?? null,
             // Membership tier only: the assigned-membership id whose pool is charged.
             membershipAssignmentId: source?.tokenType === "membership" ? source.grantId : null,
+            // Single-agent tier only: the grant whose own model the proxy applies.
+            singleAssignmentId: source?.tokenType === "single-agent" ? source.grantId : null,
           },
           chatId: currentChatIdForSend,
         }),
@@ -1928,13 +1929,6 @@ export default function App() {
             className="flex-1 min-h-0 overflow-y-auto px-4 md:px-8 py-6 custom-scrollbar"
           >
             <div className="max-w-6xl mx-auto space-y-6">
-              <CompactionNotice
-                sessionId={currentChatId ? (chats[currentChatId]?.sessionId ?? null) : null}
-                agent="aladino-ai"
-                chatId={currentChatId}
-                refreshKey={isLoading ? -1 : messages.length}
-              />
-
               {messages.map((msg, idx) => (
                 <div
                   key={idx}

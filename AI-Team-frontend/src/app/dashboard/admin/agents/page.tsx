@@ -7,7 +7,7 @@ import { FormEvent, useEffect, useState } from "react";
 import {
   Bot, Users, Plus, ShieldCheck, MoreVertical, Search, CreditCard,
   AlertTriangle, Trash2, MessageSquare, Save,
-  X, Loader2, Pencil, Coins
+  X, Loader2, Pencil, Coins, Cpu
 } from "lucide-react";
 
 
@@ -31,6 +31,17 @@ interface AgentTeam {
   users?: number;
   /** Default allowance seeded onto each user assignment; null = access only. */
   tokenLimit?: number | null;
+  /** The model the team's agents run on (its own choice, else the default). */
+  llmModel?: LlmModelOption | null;
+}
+
+/** A row of the chat model catalog, from /admin/llm-models. */
+interface LlmModelOption {
+  id: string;
+  provider: string;
+  modelId: string;
+  label: string;
+  isDefault: boolean;
 }
 
 /** Shape returned by every /admin/teams endpoint. */
@@ -40,6 +51,10 @@ interface AgentTeamResponse {
   description?: string | null;
   isActive: boolean;
   tokenLimit?: number | null;
+  /** The team's own choice; null = follows the catalog default. */
+  llmModelId?: string | null;
+  /** What the team actually runs on. */
+  llmModel?: LlmModelOption | null;
   agents?: string[];
   agentCount?: number;
   assignmentCount?: number;
@@ -60,6 +75,10 @@ interface MembershipTemplate {
   includedTeams?: { id: string; name: string; agents: string[]; isActive: boolean }[];
   includedTeamIds?: string[];
   effectiveAgents?: string[];
+  /** The membership's own choice; null = follows the catalog default. */
+  llmModelId?: string | null;
+  /** The model the membership's chats run on (its own choice, else the default). */
+  llmModel?: LlmModelOption | null;
 }
 
 const DEFAULT_ALERTS: AlertThreshold[] = [
@@ -89,6 +108,35 @@ const parseTokenLimitInput = (raw: string): number | null | undefined => {
 const formatTokenLimit = (limit: number | null | undefined) =>
   typeof limit === "number" ? `${limit.toLocaleString()} tokens / agent` : "Access only";
 
+/** Picker over the chat model catalog; the default model is marked as such. */
+function ModelSelect({
+  models,
+  value,
+  onChange,
+  className,
+}: {
+  models: LlmModelOption[];
+  value: string;
+  onChange: (id: string) => void;
+  className: string;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      disabled={models.length === 0}
+      className={`w-full border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-indigo-400/60 disabled:opacity-60 ${className}`}
+    >
+      {models.length === 0 && <option value="">Loading models...</option>}
+      {models.map(model => (
+        <option key={model.id} value={model.id} className="bg-[#0F172A]">
+          {model.label}{model.isDefault ? " (default)" : ""}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 export default function AgentsAndTeamsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [teams, setTeams] = useState<AgentTeam[]>([]);
@@ -99,6 +147,10 @@ export default function AgentsAndTeamsPage() {
   // Kept as a string so the field can be blank (= no allowance, access only).
   const [teamTokenLimit, setTeamTokenLimit] = useState("");
   const [selectedTeamAgents, setSelectedTeamAgents] = useState<string[]>([]);
+  // Chat model catalog; "" in the pickers means "not loaded yet".
+  const [llmModels, setLlmModels] = useState<LlmModelOption[]>([]);
+  const [teamModelId, setTeamModelId] = useState("");
+  const [editTeamModelId, setEditTeamModelId] = useState("");
   const [isCreatingTeam, setIsCreatingTeam] = useState(false);
   const [deletingTeamId, setDeletingTeamId] = useState<string | null>(null);
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
@@ -117,6 +169,7 @@ export default function AgentsAndTeamsPage() {
   const [membershipTokenLimit, setMembershipTokenLimit] = useState(100000);
   const [membershipAgents, setMembershipAgents] = useState<string[]>([]);
   const [membershipTeamIds, setMembershipTeamIds] = useState<string[]>([]);
+  const [membershipModelId, setMembershipModelId] = useState("");
   const [isCreatingMembership, setIsCreatingMembership] = useState(false);
   const [deletingMembershipId, setDeletingMembershipId] = useState<string | null>(null);
   const [membershipMessage, setMembershipMessage] = useState<string | null>(null);
@@ -127,6 +180,7 @@ export default function AgentsAndTeamsPage() {
   const [editMembershipTokenLimit, setEditMembershipTokenLimit] = useState(100000);
   const [editMembershipAgents, setEditMembershipAgents] = useState<string[]>([]);
   const [editMembershipTeamIds, setEditMembershipTeamIds] = useState<string[]>([]);
+  const [editMembershipModelId, setEditMembershipModelId] = useState("");
   const [isUpdatingMembership, setIsUpdatingMembership] = useState(false);
 
   // Alert Thresholds state
@@ -194,6 +248,7 @@ export default function AgentsAndTeamsPage() {
           agents: team.agents ?? [],
           users: team.assignmentCount,
           tokenLimit: team.tokenLimit ?? null,
+          llmModel: team.llmModel ?? null,
         })),
       );
     } catch (error) {
@@ -204,9 +259,32 @@ export default function AgentsAndTeamsPage() {
     }
   };
 
+  const defaultModelId = () => llmModels.find(m => m.isDefault)?.id ?? llmModels[0]?.id ?? "";
+
+  const loadLlmModels = async () => {
+    try {
+      // Anthropic only for now; the catalog can hold other providers later.
+      const response = await authenticatedFetch(`${API_BASE}/admin/llm-models?provider=anthropic`, {
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        throw new Error(await parseApiError(response));
+      }
+      const models = (await response.json()) as LlmModelOption[];
+      setLlmModels(models);
+      const initialModelId = models.find(m => m.isDefault)?.id ?? models[0]?.id ?? "";
+      setTeamModelId(prev => prev || initialModelId);
+      setMembershipModelId(prev => prev || initialModelId);
+    } catch (error) {
+      setTeamError(error instanceof Error ? `Unable to load models: ${error.message}` : "Unable to load models.");
+      setLlmModels([]);
+    }
+  };
+
   useEffect(() => {
     void loadMemberships();
     void loadTeams();
+    void loadLlmModels();
   }, []);
 
   const toggleTeamAgent = (agent: string) => {
@@ -251,6 +329,7 @@ export default function AgentsAndTeamsPage() {
     setTeamDescription("");
     setTeamTokenLimit("");
     setSelectedTeamAgents([]);
+    setTeamModelId(defaultModelId());
   };
 
   const resetCreateMembershipForm = () => {
@@ -259,6 +338,7 @@ export default function AgentsAndTeamsPage() {
     setMembershipTokenLimit(100000);
     setMembershipAgents([]);
     setMembershipTeamIds([]);
+    setMembershipModelId(defaultModelId());
   };
 
 
@@ -270,6 +350,7 @@ export default function AgentsAndTeamsPage() {
     setEditTeamDescription(team.description ?? "");
     setEditTeamTokenLimit(typeof team.tokenLimit === "number" ? String(team.tokenLimit) : "");
     setEditTeamAgents(team.agents);
+    setEditTeamModelId(team.llmModel?.id ?? defaultModelId());
   };
 
   const cancelEditingTeam = () => {
@@ -278,6 +359,7 @@ export default function AgentsAndTeamsPage() {
     setEditTeamDescription("");
     setEditTeamTokenLimit("");
     setEditTeamAgents([]);
+    setEditTeamModelId("");
   };
 
   const createTeam = async (event: FormEvent<HTMLFormElement>) => {
@@ -314,6 +396,8 @@ export default function AgentsAndTeamsPage() {
           isActive: true,
           agents: selectedTeamAgents,
           tokenLimit,
+          // null lets the server use the default model (Claude Sonnet 5).
+          llmModelId: teamModelId || null,
         }),
       });
 
@@ -331,6 +415,7 @@ export default function AgentsAndTeamsPage() {
           agents: created.agents ?? selectedTeamAgents,
           users: created.assignmentCount ?? 0,
           tokenLimit: created.tokenLimit ?? tokenLimit,
+          llmModel: created.llmModel ?? null,
         },
         ...prev,
       ]);
@@ -382,6 +467,8 @@ export default function AgentsAndTeamsPage() {
           monthlyTokenLimit: membershipTokenLimit,
           includedAgents: membershipAgents,
           includedTeamIds: membershipTeamIds,
+          // null lets the server use the default model (Claude Sonnet 5).
+          llmModelId: membershipModelId || null,
         }),
       });
 
@@ -409,6 +496,7 @@ export default function AgentsAndTeamsPage() {
     setEditMembershipDurationDays(membership.durationDays);
     setEditMembershipTokenLimit(membership.monthlyTokenLimit);
     setEditMembershipAgents(membership.includedAgents ?? []);
+    setEditMembershipModelId(membership.llmModel?.id ?? defaultModelId());
     setEditMembershipTeamIds(
       membership.includedTeamIds ?? membership.includedTeams?.map(team => team.id) ?? [],
     );
@@ -418,6 +506,7 @@ export default function AgentsAndTeamsPage() {
     setEditingMembershipId(null);
     setEditMembershipAgents([]);
     setEditMembershipTeamIds([]);
+    setEditMembershipModelId("");
   };
 
   const updateMembership = async (membership: MembershipTemplate) => {
@@ -456,6 +545,8 @@ export default function AgentsAndTeamsPage() {
           monthlyTokenLimit: editMembershipTokenLimit,
           includedAgents: editMembershipAgents,
           includedTeamIds: editMembershipTeamIds,
+          // Left out when the catalog failed to load, so the stored model is kept.
+          ...(editMembershipModelId ? { llmModelId: editMembershipModelId } : {}),
         }),
       });
 
@@ -561,7 +652,7 @@ export default function AgentsAndTeamsPage() {
     setIsUpdatingTeam(true);
 
     try {
-      // One PATCH covers name, description, token limit and the full agent list.
+      // One PATCH covers name, description, token limit, model and the full agent list.
       const response = await authenticatedFetch(`${API_BASE}/admin/teams/${team.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -572,6 +663,8 @@ export default function AgentsAndTeamsPage() {
           agents: editTeamAgents,
           // null clears the allowance on the API side.
           tokenLimit,
+          // Left out when the catalog failed to load, so the stored model is kept.
+          ...(editTeamModelId ? { llmModelId: editTeamModelId } : {}),
         }),
       });
 
@@ -591,6 +684,7 @@ export default function AgentsAndTeamsPage() {
                 agents: updated.agents ?? editTeamAgents,
                 users: updated.assignmentCount ?? item.users,
                 tokenLimit: updated.tokenLimit ?? tokenLimit,
+                llmModel: updated.llmModel ?? item.llmModel,
               }
             : item,
         ),
@@ -710,6 +804,18 @@ export default function AgentsAndTeamsPage() {
                       Applied per agent: every agent in the team gets this many tokens for each user the team is assigned to.
                     </p>
                   </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs text-white/50">Model</label>
+                    <ModelSelect
+                      models={llmModels}
+                      value={teamModelId}
+                      onChange={setTeamModelId}
+                      className="rounded-xl"
+                    />
+                    <p className="mt-1 text-[11px] text-white/35">
+                      Every agent in the team answers with this model.
+                    </p>
+                  </div>
                 </div>
 
                 <div className="mt-4">
@@ -808,6 +914,15 @@ export default function AgentsAndTeamsPage() {
                             className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-indigo-400/60"
                           />
                         </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs text-white/45">Model</label>
+                          <ModelSelect
+                            models={llmModels}
+                            value={editTeamModelId}
+                            onChange={setEditTeamModelId}
+                            className="rounded-lg"
+                          />
+                        </div>
                       </div>
 
                       <div>
@@ -895,6 +1010,12 @@ export default function AgentsAndTeamsPage() {
                           <Coins size={14} />
                           {formatTokenLimit(team.tokenLimit)}
                         </span>
+                        {team.llmModel && (
+                          <span className="flex items-center gap-2" title={`Model every agent in the team runs on (${team.llmModel.modelId})`}>
+                            <Cpu size={14} />
+                            {team.llmModel.label}
+                          </span>
+                        )}
                       </div>
                     </>
                   )}
@@ -927,7 +1048,7 @@ export default function AgentsAndTeamsPage() {
                 onSubmit={createMembership}
                 className="mb-6 rounded-xl border border-emerald-400/20 bg-emerald-500/[0.04] p-4"
               >
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                   <div>
                     <label className="mb-1.5 block text-xs text-white/50">Membership name</label>
                     <input
@@ -957,6 +1078,16 @@ export default function AgentsAndTeamsPage() {
                       className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-emerald-400/60"
                     />
                     <p className="mt-1 text-[11px] text-white/35">One pool for every agent in the membership, not per agent.</p>
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs text-white/50">Model</label>
+                    <ModelSelect
+                      models={llmModels}
+                      value={membershipModelId}
+                      onChange={setMembershipModelId}
+                      className="rounded-xl"
+                    />
+                    <p className="mt-1 text-[11px] text-white/35">Every agent answers with this model while the membership pays.</p>
                   </div>
                 </div>
 
@@ -1065,7 +1196,7 @@ export default function AgentsAndTeamsPage() {
                       key={membership.id}
                       className="rounded-xl border border-emerald-400/20 bg-emerald-500/[0.04] p-4"
                     >
-                      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                         <div>
                           <label className="mb-1.5 block text-xs text-white/50">Membership name</label>
                           <input
@@ -1094,6 +1225,15 @@ export default function AgentsAndTeamsPage() {
                             className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-emerald-400/60"
                           />
                           <p className="mt-1 text-[11px] text-white/35">One pool for every agent in the membership, not per agent.</p>
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs text-white/50">Model</label>
+                          <ModelSelect
+                            models={llmModels}
+                            value={editMembershipModelId}
+                            onChange={setEditMembershipModelId}
+                            className="rounded-xl"
+                          />
                         </div>
                       </div>
 
@@ -1183,6 +1323,15 @@ export default function AgentsAndTeamsPage() {
                         <span>{membership.durationDays} Days</span>
                         <span>-</span>
                         <span title="Shared by every agent in the membership">{(membership.monthlyTokenLimit / 1000).toFixed(0)}k Tokens/mo shared</span>
+                        {membership.llmModel && (
+                          <>
+                            <span>-</span>
+                            <span className="flex items-center gap-1.5" title={`Model every agent runs on while this membership pays (${membership.llmModel.modelId})`}>
+                              <Cpu size={13} />
+                              {membership.llmModel.label}
+                            </span>
+                          </>
+                        )}
                       </div>
                       <div className="mt-3 space-y-2">
                         <div className="flex flex-wrap items-center gap-1">

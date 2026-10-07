@@ -41,7 +41,6 @@ import {
   BookOpen,
   AlertTriangle,
 } from "lucide-react"
-import { CompactionNotice } from "@/components/ui/CompactionNotice"
 import PreferencesWizard from "@/components/preferences/PreferencesWizard"
 import PreferencesButton from "@/components/preferences/PreferencesButton"
 import { useUser } from "@clerk/nextjs"
@@ -1122,6 +1121,8 @@ export default function App() {
             teamId: source?.teamId ?? null,
             // Membership tier only: the assigned-membership id whose pool is charged.
             membershipAssignmentId: source?.tokenType === "membership" ? source.grantId : null,
+            // Single-agent tier only: the grant whose own model the proxy applies.
+            singleAssignmentId: source?.tokenType === "single-agent" ? source.grantId : null,
           },
           chatId: currentChatIdForSend,
         }),
@@ -1987,12 +1988,6 @@ export default function App() {
           >
             <div className="max-w-6xl mx-auto space-y-6">
 
-              <CompactionNotice
-                sessionId={currentChatId ? (chats[currentChatId]?.sessionId ?? null) : null}
-                agent="valentina-ai"
-                chatId={currentChatId}
-                refreshKey={isLoading ? -1 : messages.length}
-              />
               {messages.map((msg, idx) => (
                 <div
                   key={idx}

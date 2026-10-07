@@ -5,6 +5,7 @@ import {
   fetchCompactionContext,
   reportCompactionTurn,
 } from '@/lib/compactionBridge'
+import { fetchAgentModel } from '@/lib/agentModel'
 
 /**
  * Server-side proxy for the n8n agent webhooks.
@@ -50,12 +51,47 @@ const N8N_ENV_VARS: Record<string, string> = {
  * are short public chats with no AgentName behind them, and the history
  * endpoint, which fetches a transcript rather than taking a turn. Listing them
  * keeps the proxy from asking the backend about something it will reject.
+ *
+ * The production agents are also left out: their chats go straight to n8n with
+ * no summary added and no turn reported, so the backend never compacts them.
+ * This is decided here rather than in the compaction settings because a
+ * membership or team setting would win over an agent-level one.
  */
 const COMPACTION_EXCLUDED = new Set([
   'giulia-widget',
   'jennifer-widget',
   'test-valentina-ai-history',
+  'alex-ai',
+  'tony-ai',
+  'mike-ai',
+  'lara-ai',
+  'simone-ai',
+  'aladino-ai',
+  'valentina-ai',
+  'niko-ai',
+  'jim-ai',
+  'daniele-ai',
 ])
+
+/**
+ * Agents whose workflow takes its chat model from the request. For these the
+ * proxy looks up the model of the grant paying for the chat (single agent,
+ * team or membership, set in the admin panel) and adds it to the body as
+ * `model`, with the details under `metadata`. Keyed by proxy slug, valued by
+ * the backend's AgentName. A workflow that does not read `model` ignores it.
+ */
+const MODEL_AGENTS: Record<string, string> = {
+  'alex-ai': 'ALEX',
+  'tony-ai': 'TONY',
+  'mike-ai': 'MIKE',
+  'lara-ai': 'LARA',
+  'simone-ai': 'SIMONE',
+  'aladino-ai': 'ALADINO',
+  'valentina-ai': 'VALENTINA',
+  'niko-ai': 'NIKO',
+  'jim-ai': 'JIM',
+  'daniele-ai': 'DANIELE',
+}
 
 function resolveEndpoint(agent: string | null): string | null {
   if (!agent) return null
@@ -76,7 +112,8 @@ async function proxy(request: NextRequest, method: 'GET' | 'POST') {
   // Only signed-in users may reach the workflows. The dashboard already
   // requires a Clerk session; this keeps the proxy from being an open relay
   // for anyone who discovers the route.
-  const { userId } = await auth()
+  const session = await auth()
+  const { userId } = session
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -119,6 +156,44 @@ async function proxy(request: NextRequest, method: 'GET' | 'POST') {
   // rides along with the next message, once: the workflow keeps that message
   // in its own history, so sending it again would only repeat it.
   let body = rawBody
+
+  // The paying grant's model (single agent, team or membership) rides along with every message.
+  // It is resolved here, for the signed-in user, so the page can name the
+  // paying grant but never choose the model itself.
+  const modelAgentName = agent ? MODEL_AGENTS[agent] : undefined
+  if (payload && modelAgentName) {
+    const modelEmail = await sessionEmail()
+    const teamId = payload.metadata?.teamId
+    const membershipAssignmentId = payload.metadata?.membershipAssignmentId
+    const singleAssignmentId = payload.metadata?.singleAssignmentId
+    const resolved = modelEmail
+      ? await fetchAgentModel({
+          email: modelEmail,
+          agentName: modelAgentName,
+          teamId: typeof teamId === 'string' ? teamId : null,
+          membershipAssignmentId:
+            typeof membershipAssignmentId === 'string' ? membershipAssignmentId : null,
+          singleAssignmentId: typeof singleAssignmentId === 'string' ? singleAssignmentId : null,
+          bearerToken: await session.getToken().catch(() => null),
+        })
+      : null
+
+    if (resolved) {
+      payload.model = resolved.model.modelId
+      payload.metadata = {
+        ...(payload.metadata ?? {}),
+        model: resolved.model.modelId,
+        modelProvider: resolved.model.provider,
+        modelLabel: resolved.model.label,
+        modelSource: resolved.source,
+        modelTeamId: resolved.teamId,
+        modelMembershipAssignmentId: resolved.membershipAssignmentId,
+        modelSingleAssignmentId: resolved.singleAssignmentId,
+      }
+      body = JSON.stringify(payload)
+    }
+  }
+
   let deliveredSummaryVersion: number | undefined
   if (payload?.sessionId && compactionAgent) {
     const context = await fetchCompactionContext({
@@ -222,6 +297,7 @@ interface ChatPayload {
   title?: string
   metadata?: Record<string, unknown> & { email?: string }
   memoryBlock?: string
+  model?: string
 }
 
 /** A finished turn, as it is reported to the backend. */
@@ -244,6 +320,16 @@ async function resolveEmail(payload: ChatPayload): Promise<string | undefined> {
   const fromPayload = payload.metadata?.email
   if (typeof fromPayload === 'string' && fromPayload.trim()) return fromPayload.trim()
 
+  try {
+    const user = await currentUser()
+    return user?.primaryEmailAddress?.emailAddress ?? undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** The signed-in user's own email, ignoring whatever the page sent. */
+async function sessionEmail(): Promise<string | undefined> {
   try {
     const user = await currentUser()
     return user?.primaryEmailAddress?.emailAddress ?? undefined

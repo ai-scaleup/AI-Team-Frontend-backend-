@@ -42,7 +42,6 @@ import {
   Home,
   BookOpen,
 } from "lucide-react"
-import { CompactionNotice } from "@/components/ui/CompactionNotice"
 import { getDevUserEmail } from "@/lib/devToken"
 
 // --- TYPES ---
@@ -1043,6 +1042,8 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
             teamId: source?.teamId ?? null,
             // Membership tier only: the assigned-membership id whose pool is charged.
             membershipAssignmentId: source?.tokenType === "membership" ? source.grantId : null,
+            // Single-agent tier only: the grant whose own model the proxy applies.
+            singleAssignmentId: source?.tokenType === "single-agent" ? source.grantId : null,
           },
           chatId: currentChatIdForSend,
         }),
@@ -1884,13 +1885,6 @@ In alternativa, preferisci una consulenza completa per sviluppare un sales plan 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 custom-scrollbar">
             <div className="max-w-6xl mx-auto space-y-6">
-              <CompactionNotice
-                sessionId={currentChatId ? (chats[currentChatId]?.sessionId ?? null) : null}
-                agent="tony-ai"
-                chatId={currentChatId}
-                refreshKey={isLoading ? -1 : messages.length}
-              />
-
               {messages.map((msg, idx) => (
                 <div
                   key={idx}

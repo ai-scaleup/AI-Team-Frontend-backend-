@@ -9,7 +9,7 @@ import {
 } from "recharts";
 import {
   UserPlus, Calendar, CreditCard, Activity, TrendingUp, Search,
-  Bot, Users, Clock,
+  Bot, Users, Clock, Cpu,
   DollarSign, Euro, Loader2, CheckCircle2, AlertCircle
 } from "lucide-react";
 
@@ -64,6 +64,15 @@ const SONNET_4_6_OUTPUT_USD_PER_TOKEN = 15 / 1000000;
 const EUR_RATE = 0.92; // 1 USD = 0.92 EUR
 
 type CurrencyMode = "tokens" | "USD" | "EUR";
+
+/** A row of the chat model catalog, from /admin/llm-models. */
+type LlmModelOption = {
+  id: string;
+  provider: string;
+  modelId: string;
+  label: string;
+  isDefault: boolean;
+};
 
 type AgentTeam = {
   id: string;
@@ -312,6 +321,9 @@ export default function AssignAndMetricsPage() {
   const [memberships, setMemberships] = useState<MembershipTemplate[]>([]);
   const [isLoadingMemberships, setIsLoadingMemberships] = useState(false);
   const [teams, setTeams] = useState<AgentTeam[]>([]);
+  // Chat model catalog; "" in the picker means "not loaded yet".
+  const [llmModels, setLlmModels] = useState<LlmModelOption[]>([]);
+  const [agentModelId, setAgentModelId] = useState("");
   const [isLoadingTeams, setIsLoadingTeams] = useState(false);
   const [recentAssignments, setRecentAssignments] = useState<RecentAssignment[]>([]);
   const [isLoadingRecentAssignments, setIsLoadingRecentAssignments] = useState(false);
@@ -382,6 +394,25 @@ export default function AssignAndMetricsPage() {
       });
     } finally {
       setIsLoadingMemberships(false);
+    }
+  };
+
+  const loadLlmModels = async () => {
+    try {
+      // Anthropic only for now; the catalog can hold other providers later.
+      const response = await authenticatedFetch(`${API_BASE}/admin/llm-models?provider=anthropic`, {
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        throw new Error(await parseApiError(response));
+      }
+      const models = (await response.json()) as LlmModelOption[];
+      setLlmModels(models);
+      setAgentModelId(prev => prev || (models.find(m => m.isDefault)?.id ?? models[0]?.id ?? ""));
+    } catch (error) {
+      // Assignments still work without the catalog; the grant keeps the default model.
+      console.error("Unable to load models:", error);
+      setLlmModels([]);
     }
   };
 
@@ -490,6 +521,7 @@ export default function AssignAndMetricsPage() {
   useEffect(() => {
     void loadMemberships();
     void loadTeams();
+    void loadLlmModels();
     void loadRecentAssignments();
     void loadAgentMetrics();
   }, []);
@@ -658,7 +690,14 @@ export default function AssignAndMetricsPage() {
         // row carries the token allowance (the quota engine reads it directly),
         // and a 409 means the user already holds an active grant, so renew it:
         // resetUsage zeroes its spend so the new allowance is available in full.
-        const grant = { durationDays, isActive: true, tokenLimit: tokenLimitValue };
+        const grant = {
+          durationDays,
+          isActive: true,
+          tokenLimit: tokenLimitValue,
+          // Left out when the catalog failed to load: a new grant then runs on
+          // the default model and a renewed one keeps the model it had.
+          ...(agentModelId ? { llmModelId: agentModelId } : {}),
+        };
         const accessResponse = await authenticatedFetch(`${API_BASE}/admin/single-agent-assignments`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -685,9 +724,12 @@ export default function AssignAndMetricsPage() {
           throw new Error(await parseApiError(accessResponse));
         }
 
+        const chosenModel = llmModels.find(m => m.id === agentModelId);
         setAssignmentMessage({
           type: "success",
-          text: `${selectedAssignment} assigned to ${email} for ${durationDays} days with ${tokenLimitValue.toLocaleString()} tokens.`,
+          text: `${selectedAssignment} assigned to ${email} for ${durationDays} days with ${tokenLimitValue.toLocaleString()} tokens${
+            chosenModel ? ` on ${chosenModel.label}` : ""
+          }.`,
         });
         await loadRecentAssignments();
         await loadAgentMetrics();
@@ -930,6 +972,32 @@ export default function AssignAndMetricsPage() {
                 </div>
               )}
             </div>
+
+            {assignType === "agent" && (
+              <div>
+                <label className="text-xs text-white/50 mb-1.5 block">Model</label>
+                <div className="relative">
+                  <Cpu size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+                  <select
+                    value={agentModelId}
+                    onChange={(e) => setAgentModelId(e.target.value)}
+                    disabled={llmModels.length === 0}
+                    className="w-full rounded-xl border border-white/10 bg-[#111827] p-3 pl-9 text-sm text-white outline-none transition focus:border-indigo-500 disabled:opacity-60"
+                    style={{ colorScheme: "dark" }}
+                  >
+                    {llmModels.length === 0 && <option value="">Default model</option>}
+                    {llmModels.map((model) => (
+                      <option key={model.id} value={model.id}>
+                        {model.label}{model.isDefault ? " (default)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <p className="mt-1.5 text-[11px] text-white/35">
+                  The agent answers with this model while this grant pays for the chat.
+                </p>
+              </div>
+            )}
 
             {assignmentMessage && (
               <div
