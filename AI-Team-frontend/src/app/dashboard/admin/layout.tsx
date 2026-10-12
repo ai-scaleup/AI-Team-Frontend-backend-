@@ -13,7 +13,8 @@ import {
   Mail,
   KeyRound,
   BookOpen,
-  Scissors
+  Scissors,
+  Building2
 } from "lucide-react";
 import { isAdminEmail } from "@/lib/adminAccess";
 
@@ -139,6 +140,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       relatedPaths: ["/dashboard/admin/assign-tokens"],
     },
     { name: "Users", href: "/dashboard/admin/users", icon: Users },
+    { name: "Agencies", href: "/dashboard/admin/agencies", icon: Building2 },
     { name: "Compaction", href: "/dashboard/admin/compaction", icon: Scissors },
     { name: "Knowledgebase", href: "/dashboard/admin/knowledgebase", icon: BookOpen },
   ];
