@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+/** Room for long chat replies; mirrors vercel.json. */
+export const maxDuration = 300
+
 const GEMINI_MODEL = 'gemini-2.5-flash-lite'
 const MAX_PROMPT_LENGTH = 60000
 

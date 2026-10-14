@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { fetchCompactionContext, reportCompactionTurn } from '@/lib/compactionBridge'
 
+/** Room for long chat replies; mirrors vercel.json. */
+export const maxDuration = 300
+
 export async function POST(request: NextRequest) {
     try {
         const apiKey = process.env.OPENAI_API_KEY

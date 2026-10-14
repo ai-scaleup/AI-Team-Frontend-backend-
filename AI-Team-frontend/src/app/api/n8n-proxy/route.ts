@@ -8,6 +8,13 @@ import {
 import { fetchAgentModel } from '@/lib/agentModel'
 
 /**
+ * Long replies stream for minutes. If Vercel stops the function first, the
+ * browser keeps a cut reply while n8n saves the whole one to its memory, and
+ * the agent loses its place on "continua". Mirrors vercel.json.
+ */
+export const maxDuration = 300
+
+/**
  * Server-side proxy for the n8n agent webhooks.
  *
  * Webhook URLs are read from server-only environment variables (no

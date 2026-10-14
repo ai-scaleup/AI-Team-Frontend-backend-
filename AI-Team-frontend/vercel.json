@@ -1,13 +1,13 @@
 {
     "functions": {
         "src/app/api/n8n-proxy/route.ts": {
-            "maxDuration": 120
+            "maxDuration": 300
         },
         "src/app/api/chat/route.ts": {
-            "maxDuration": 120
+            "maxDuration": 300
         },
         "src/app/api/public/box/chat/route.ts": {
-            "maxDuration": 120
+            "maxDuration": 300
         },
         "src/app/api/**/*.ts": {
             "maxDuration": 90
