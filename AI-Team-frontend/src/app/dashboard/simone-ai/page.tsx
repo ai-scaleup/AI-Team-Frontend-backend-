@@ -375,6 +375,20 @@ const AI_TEAM_LIST = [
 
 
 
+/**
+ * Keeps the legacy device copy of Simone's chats (still read by the test
+ * page). It holds every chat in full, so a long article can push it past the
+ * browser's storage quota. That must never stop a reply from being saved to
+ * the API, so a failed write is only logged.
+ */
+function saveLocalChats(chats: Record<string, ChatSession>) {
+  try {
+    localStorage.setItem("simone-ai-chats", JSON.stringify(chats))
+  } catch (error) {
+    console.warn("Simone AI: chats not cached on this device:", error)
+  }
+}
+
 // --- TOKEN USAGE ALERT RULES (conversation scope) ---
 // Mirrors the admin "Token Usage Alerts" defaults. Frontend-only for now.
 type TokenAlertLevel = "info" | "warning" | "critical"
@@ -657,7 +671,7 @@ export default function App() {
 
     setChats((prev) => {
       const newChats = { [newChatId]: newChat, ...prev }
-      localStorage.setItem("simone-ai-chats", JSON.stringify(newChats))
+      saveLocalChats(newChats)
       return newChats
     })
 
@@ -685,7 +699,7 @@ export default function App() {
       if (!existing) return prev
       const updatedChat = { ...existing, ...updates }
       const newChats = { ...prev, [chatId]: updatedChat }
-      localStorage.setItem("simone-ai-chats", JSON.stringify(newChats))
+      saveLocalChats(newChats)
       return newChats
     })
   }
@@ -774,7 +788,7 @@ export default function App() {
       }
     })
     setChats(updatedChats)
-    localStorage.setItem("simone-ai-chats", JSON.stringify(updatedChats))
+    saveLocalChats(updatedChats)
 
     const updatedFolders = folders.filter((f) => f.id !== folderId)
     setFolders(updatedFolders)
@@ -811,7 +825,7 @@ export default function App() {
     if (remainingIds.length === 0) {
       await initNewChatForAgent(AGENTS_DB[activeAgentId])
     } else {
-      localStorage.setItem("simone-ai-chats", JSON.stringify(updatedChats))
+      saveLocalChats(updatedChats)
       setChats(updatedChats)
 
       if (chatIdToDelete === currentChatId) {
@@ -938,21 +952,31 @@ export default function App() {
   ) => {
     if (!user?.id) return
 
-    try {
-      await conversationService.addMessage(user.id, chatId, toPersistableMessage(message), userEmail)
-      console.log(`Simone AI: ${label} message saved to API`)
-    } catch (error) {
-      if (!isNotFoundError(error)) {
-        console.error(`Simone AI: Failed to save ${label} message:`, error)
-        return
-      }
-
+    // A reply can take minutes to write, so a dropped save loses real work:
+    // try again a couple of times before giving up.
+    const retryDelaysMs = [1_000, 3_000]
+    for (let attempt = 0; ; attempt++) {
       try {
-        await createConversationFromChat(chatId, chat, chatMessages)
-        console.log("Simone AI: Missing conversation recreated in API:", chatId)
-      } catch (recreateError) {
-        console.error("Simone AI: Failed to recreate missing conversation:", recreateError)
+        await conversationService.addMessage(user.id, chatId, toPersistableMessage(message), userEmail)
+        console.log(`Simone AI: ${label} message saved to API`)
+        return
+      } catch (error) {
+        if (isNotFoundError(error)) break
+        if (attempt >= retryDelaysMs.length) {
+          console.error(`Simone AI: Failed to save ${label} message:`, error)
+          return
+        }
+        console.warn(`Simone AI: Saving ${label} message failed, retrying:`, error)
+        await new Promise((resolve) => setTimeout(resolve, retryDelaysMs[attempt]))
       }
+    }
+
+    // The conversation itself is missing: recreate it with the whole chat.
+    try {
+      await createConversationFromChat(chatId, chat, chatMessages)
+      console.log("Simone AI: Missing conversation recreated in API:", chatId)
+    } catch (recreateError) {
+      console.error("Simone AI: Failed to recreate missing conversation:", recreateError)
     }
   }
 
@@ -1028,7 +1052,7 @@ export default function App() {
       currentMessages = [welcomeMsg, userMessage]
       activeChatForSend = newChat
       setMessages(currentMessages)
-      localStorage.setItem("simone-ai-chats", JSON.stringify(updatedChatsState))
+      saveLocalChats(updatedChatsState)
 
       if (user?.id) {
         try {
@@ -1063,7 +1087,7 @@ export default function App() {
       const updatedChatsState = { ...chats, [currentChatIdForSend]: updatedChatSession }
       setChats(updatedChatsState)
       setMessages(currentMessages)
-      localStorage.setItem("simone-ai-chats", JSON.stringify(updatedChatsState))
+      saveLocalChats(updatedChatsState)
       activeChatForSend = updatedChatSession
 
       await saveMessageToApi(currentChatIdForSend, updatedChatSession, userMessage, currentMessages, "User")
@@ -1073,6 +1097,7 @@ export default function App() {
     const aiResponsePlaceholder: Message = { text: "...", sender: "ai", time: "", raw: "" }
     setMessages((prev) => [...prev, aiResponsePlaceholder])
 
+    let replyFinished = false
     try {
       const currentChat = activeChatForSend || chats[currentChatIdForSend!]
       let sessionId = currentChat?.sessionId
@@ -1091,7 +1116,7 @@ export default function App() {
         }
         const updatedChatsState = { ...chats, [currentChatIdForSend!]: updatedChat }
         setChats(updatedChatsState)
-        localStorage.setItem("simone-ai-chats", JSON.stringify(updatedChatsState))
+        saveLocalChats(updatedChatsState)
         activeChatForSend = updatedChat
       }
 
@@ -1250,10 +1275,15 @@ export default function App() {
           sessionId ||
           `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       }
-      const updatedChatsState = { ...chats, [currentChatIdForSend!]: updatedChatSession }
       setMessages(finalMessages)
-      setChats(updatedChatsState)
-      localStorage.setItem("simone-ai-chats", JSON.stringify(updatedChatsState))
+      replyFinished = true
+      // Updated from the latest chats, not the ones this send started with: the
+      // API's list may have arrived while the reply was streaming.
+      setChats((prev) => {
+        const next = { ...prev, [currentChatIdForSend!]: updatedChatSession }
+        saveLocalChats(next)
+        return next
+      })
       activeChatForSend = updatedChatSession
 
       if (currentChatIdForSend) {
@@ -1265,12 +1295,17 @@ export default function App() {
       await refreshTokenSource()
     } catch (error) {
       console.error("Error sending message:", error)
-      setMessages((prev) => {
-        const newMsgs = [...prev]
-        newMsgs[newMsgs.length - 1].text =
-          `Errore: Impossibile inviare il messaggio. ${error instanceof Error ? error.message : String(error)}`
-        return newMsgs
-      })
+      // A finished reply stays on screen; only an unanswered send shows the error.
+      if (!replyFinished) {
+        setMessages((prev) => {
+          const newMsgs = [...prev]
+          newMsgs[newMsgs.length - 1] = {
+            ...newMsgs[newMsgs.length - 1],
+            text: `Errore: Impossibile inviare il messaggio. ${error instanceof Error ? error.message : String(error)}`,
+          }
+          return newMsgs
+        })
+      }
     } finally {
       setIsLoading(false)
 
