@@ -7,6 +7,8 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { setupSwagger } from './swagger';
 
+import { AgencyWhiteLabelService } from './agency/agency-white-label.service';
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
 
@@ -15,10 +17,32 @@ async function bootstrap() {
     .map((origin) => origin.trim().replace(/\/$/, ''))
     .filter(Boolean);
 
+  const whiteLabel = app.get(AgencyWhiteLabelService);
+
   app.enableCors({
     // CORS_ORIGINS accepts a comma-separated list of frontend URLs. An empty
     // value keeps the test deployment open to browser clients on any origin.
-    origin: configuredOrigins.length > 0 ? configuredOrigins : true,
+    // An agency's own address (AgencyDomain) is allowed as well, since its
+    // customers use the app from there.
+    origin:
+      configuredOrigins.length > 0
+        ? (
+            origin: string | undefined,
+            callback: (err: Error | null, allow?: boolean) => void,
+          ) => {
+            if (
+              !origin ||
+              configuredOrigins.includes(origin.replace(/\/$/, ''))
+            ) {
+              callback(null, true);
+              return;
+            }
+            whiteLabel
+              .isAgencyOrigin(origin)
+              .then((allowed) => callback(null, allowed))
+              .catch(() => callback(null, false));
+          }
+        : true,
     credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
   });

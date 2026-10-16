@@ -21,6 +21,10 @@ import {
   isDevToken,
 } from './dev-token';
 import { isPublicRoute } from './public-routes';
+import {
+  AgencyWhiteLabelService,
+  SESSION_TOKEN_PREFIX,
+} from '../agency/agency-white-label.service';
 
 // This extends the Express Request interface to include our 'auth' property
 declare global {
@@ -35,6 +39,8 @@ const clerk = Clerk({ secretKey: process.env.CLERK_SECRET_KEY });
 
 @Injectable()
 export class AuthMiddleware implements NestMiddleware {
+  constructor(private readonly whiteLabel: AgencyWhiteLabelService) {}
+
   async use(req: Request, res: Response, next: NextFunction) {
     // 1. Public routes — the n8n workflow calls these with no credential.
     if (isPublicRoute(req)) {
@@ -50,8 +56,30 @@ export class AuthMiddleware implements NestMiddleware {
       return;
     }
 
-    // 3. Clerk JWT.
+    // 3. Agency customer session (own login on an agency's address, no
+    //    Clerk). Its tokens start with "acs_"; a Clerk JWT never does.
     const authHeader = req.headers.authorization;
+    const bearerToken = authHeader?.startsWith('Bearer ')
+      ? authHeader.slice(7).trim()
+      : '';
+    if (bearerToken.startsWith(SESSION_TOKEN_PREFIX)) {
+      const session = await this.whiteLabel.validateSession(bearerToken);
+      if (!session) {
+        throw new UnauthorizedException(
+          'Your session has ended. Sign in again.',
+        );
+      }
+      req.auth = {
+        sub: session.oauthId,
+        email: session.email,
+        agencyCustomer: true,
+        agencySession: session,
+      };
+      next();
+      return;
+    }
+
+    // 4. Clerk JWT.
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       throw new UnauthorizedException(

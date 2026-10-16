@@ -38,9 +38,11 @@ export const listUsersQuerySchema = z.object({
   search: z.string().trim().optional(),
   usageFrom: optionalQueryDate,
   usageTo: optionalQueryDate,
-  // Membership template name, or "none" for users without an active membership.
+  // Membership template name, "none" for users without an active membership,
+  // or "any" for users with any running membership.
   membership: z.string().trim().min(1).optional(),
-  status: z.enum(['active', 'expiring', 'expired']).optional(),
+  // "running" = access live right now (active or expiring).
+  status: z.enum(['active', 'expiring', 'expired', 'running']).optional(),
   sortBy: z
     .enum(['createdAt', 'duration', 'monthly', 'weekly', 'daily'])
     .default('createdAt'),

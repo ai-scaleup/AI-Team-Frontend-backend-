@@ -155,36 +155,38 @@ enum ApiModel {
 }
 
 model User {
-  id            String                @id @default(uuid())
-  email         String                @unique
-  oauthId       String                @unique
-  username      String?
+  id              String                 @id @default(uuid())
+  email           String                 @unique
+  oauthId         String                 @unique
+  username        String?
   // Token allowance stamped onto every conversation this user creates from now
   // on. Null means no quota. Kept on the user rather than derived from the
   // conversations so a limit assigned before the first chat still survives.
-  tokenLimit    Int?
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
+  tokenLimit      Int?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
   // Per-agent assignments with timing & expiry
-  agents        SingleAssignedAgent[]
+  agents          SingleAssignedAgent[]
   // Team-level assignments (AgentTeam), independent of the tiers above/below
-  teams         AssignedTeam[]
+  teams           AssignedTeam[]
   // User conversations
-  conversations Conversation[]
+  conversations   Conversation[]
   // User preferences (one-to-many: per agent)
-  preferences   UserPreference[]
+  preferences     UserPreference[]
   // Token usage per agent
-  tokenUsage    UserAgentTokenUsage[]
+  tokenUsage      UserAgentTokenUsage[]
   // Memberships
-  memberships   AssignedMembership[]
+  memberships     AssignedMembership[]
   // Daily Usage Tracking
-  dailyUsage    DailyTokenUsage[]
+  dailyUsage      DailyTokenUsage[]
   // Daily team / single-agent spend, for charts only
   grantDailyUsage GrantTokenUsageDaily[]
   // Token Quota Stops
-  stopLogs      TokenLimitStopLog[]
+  stopLogs        TokenLimitStopLog[]
   // UI Alerts
-  alerts        UserAlert[]
+  alerts          UserAlert[]
+  // Password login for agency customers on an agency address (no Clerk)
+  agencyLogin     AgencyCustomerLogin?
 }
 
 // Pearl white-label data is isolated from the application's existing User
@@ -324,6 +326,8 @@ model AgentTeam {
   assignments         AssignedTeam[]
   // Memberships that bundle this team (read-only from the membership side).
   membershipTemplates MembershipTemplateTeam[]
+  // Agency memberships that bundle this team (read-only from that side).
+  agencyMemberships   AgencyMembershipTeam[]
   createdAt           DateTime                 @default(now())
   updatedAt           DateTime                 @updatedAt
 
@@ -342,18 +346,18 @@ model AgentTeam {
 // runs on.
 // ─────────────────────────────────────────────────────────────
 model LlmModel {
-  id        String      @id @default(uuid())
-  provider    String      // "anthropic" for now
-  modelId     String      // e.g. "claude-sonnet-5"
-  label       String      // e.g. "Claude Sonnet 5"
-  isActive    Boolean     @default(true)
-  isDefault   Boolean     @default(false)
-  sortOrder   Int         @default(0)
-  teams       AgentTeam[]
-  memberships MembershipTemplate[]
+  id                String                @id @default(uuid())
+  provider          String // "anthropic" for now
+  modelId           String // e.g. "claude-sonnet-5"
+  label             String // e.g. "Claude Sonnet 5"
+  isActive          Boolean               @default(true)
+  isDefault         Boolean               @default(false)
+  sortOrder         Int                   @default(0)
+  teams             AgentTeam[]
+  memberships       MembershipTemplate[]
   singleAssignments SingleAssignedAgent[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
 
   @@unique([provider, modelId])
   @@index([isActive])
@@ -748,6 +752,203 @@ model AssignedMembership {
   @@index([userId, isActive])
 }
 
+// ─────────────────────────────────────────────────────────────
+// Agency memberships
+//
+// The plans an agency can buy seat pools of. Kept apart from
+// MembershipTemplate so they never show up in the direct
+// assign-to-user flow. monthlyTokenLimit is PER SEAT per 30-day cycle.
+// Rows are never deleted: removing one sets archivedAt, so the name is
+// free again and nothing that may point at it later is lost.
+// ─────────────────────────────────────────────────────────────
+model AgencyMembership {
+  id                String                 @id @default(uuid())
+  name              String
+  includedAgents    AgentName[]
+  includedTeams     AgencyMembershipTeam[]
+  monthlyTokenLimit Int
+  archivedAt        DateTime?
+  seatPools         AgencySeatPool[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([archivedAt])
+}
+
+// Link between an agency membership and an AgentTeam.
+model AgencyMembershipTeam {
+  id                 String   @id @default(uuid())
+  agencyMembershipId String
+  teamId             String
+  createdAt          DateTime @default(now())
+
+  agencyMembership AgencyMembership @relation(fields: [agencyMembershipId], references: [id], onDelete: Cascade)
+  team             AgentTeam        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([agencyMembershipId, teamId], map: "uniq_team_per_agency_membership")
+  @@index([teamId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Agencies
+//
+// An agency resells agency memberships through seat pools it manages. These
+// tables are records only for now: a customer on a seat does NOT get chat
+// access from them yet (the access and token-limit checks do not read them).
+// Nothing here is ever deleted — agencies, pools, customers and staff are
+// archived, and the seat ledger and activity log are append-only.
+// ─────────────────────────────────────────────────────────────
+enum AgencyStatus {
+  ACTIVE
+  GRACE
+  SUSPENDED
+}
+
+enum AgencyCustomerStatus {
+  ACTIVE
+  INVITED
+  ARCHIVED
+}
+
+enum AgencyStaffRole {
+  OWNER
+  MANAGER
+  OPERATOR
+  VIEWER
+}
+
+model Agency {
+  id         String       @id @default(uuid())
+  name       String
+  ownerName  String
+  ownerEmail String
+  country    String?
+  status     AgencyStatus @default(ACTIVE)
+  archivedAt DateTime?
+  createdBy  String
+
+  pools     AgencySeatPool[]
+  ledger    AgencySeatLedgerEntry[]
+  customers AgencyCustomer[]
+  staff     AgencyStaff[]
+  activity  AgencyActivity[]
+  branding  AgencyBranding?
+  domains   AgencyDomain[]
+  invites   AgencyLoginInvite[]
+  sessions  AgencyCustomerSession[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([archivedAt])
+}
+
+// A block of seats on one agency membership. `seats` is a cached sum of the
+// pool's ledger entries, kept in step in the same transaction as each entry.
+// The membership's agents and tokens per seat are read live from it.
+model AgencySeatPool {
+  id                 String    @id @default(uuid())
+  agencyId           String
+  agencyMembershipId String
+  seats              Int       @default(0)
+  validFrom          DateTime
+  validUntil         DateTime
+  archivedAt         DateTime?
+
+  agency     Agency                  @relation(fields: [agencyId], references: [id], onDelete: Restrict)
+  membership AgencyMembership        @relation(fields: [agencyMembershipId], references: [id], onDelete: Restrict)
+  ledger     AgencySeatLedgerEntry[]
+  customers  AgencyCustomer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agencyId])
+  @@index([agencyMembershipId])
+}
+
+// Append-only: every seat grant or reduction is one line.
+model AgencySeatLedgerEntry {
+  id        String   @id @default(uuid())
+  agencyId  String
+  poolId    String
+  change    Int
+  reason    String
+  note      String?
+  createdBy String
+  createdAt DateTime @default(now())
+
+  agency Agency         @relation(fields: [agencyId], references: [id], onDelete: Restrict)
+  pool   AgencySeatPool @relation(fields: [poolId], references: [id], onDelete: Restrict)
+
+  @@index([agencyId, createdAt])
+  @@index([poolId])
+}
+
+// One customer holding one seat. The 30-day token cycle belongs to the seat:
+// an incoming customer on a substitution inherits cycleStartsAt and
+// usedTokens from the outgoing one. usedTokens stays 0 until seats are wired
+// into chat access.
+model AgencyCustomer {
+  id            String               @id @default(uuid())
+  agencyId      String
+  poolId        String
+  company       String
+  email         String
+  status        AgencyCustomerStatus @default(ACTIVE)
+  cycleStartsAt DateTime             @default(now())
+  usedTokens    Int                  @default(0)
+  lastActiveAt  DateTime?
+  // When this customer came in through a substitution, and whom it replaced.
+  swappedInAt   DateTime?
+  replacesId    String?
+  archivedAt    DateTime?
+
+  agency  Agency              @relation(fields: [agencyId], references: [id], onDelete: Restrict)
+  pool    AgencySeatPool      @relation(fields: [poolId], references: [id], onDelete: Restrict)
+  invites AgencyLoginInvite[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agencyId, status])
+  @@index([poolId, status])
+  @@index([email])
+}
+
+model AgencyStaff {
+  id         String          @id @default(uuid())
+  agencyId   String
+  name       String
+  email      String
+  role       AgencyStaffRole
+  archivedAt DateTime?
+
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agencyId])
+  @@index([email])
+}
+
+// Append-only audit log of everything done to or inside an agency.
+model AgencyActivity {
+  id        String   @id @default(uuid())
+  agencyId  String
+  actor     String
+  actingAs  String?
+  action    String
+  target    String
+  createdAt DateTime @default(now())
+
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Restrict)
+
+  @@index([agencyId, createdAt])
+}
+
 model DailyTokenUsage {
   id           String    @id @default(uuid())
   oauthId      String
@@ -896,14 +1097,14 @@ model CompactionState {
   email     String?
   title     String?
 
-  turnCount       Int @default(0)
+  turnCount               Int @default(0)
   // Estimated tokens the model is being sent right now: memory block plus
   // the turns that have not been folded in yet.
-  liveTokens      Int @default(0)
+  liveTokens              Int @default(0)
   // Tokens spent on user-visible chat turns. Summary-call overhead is logged
   // on CompactionEvent but does not consume the conversation allowance.
-  totalTokens     Int @default(0)
-  compactionCount Int @default(0)
+  totalTokens             Int @default(0)
+  compactionCount         Int @default(0)
   // Newest summary version already handed to the agent workflow inside a chat
   // message. A summary above this one is still waiting to be delivered.
   deliveredSummaryVersion Int @default(0)
@@ -982,4 +1183,98 @@ model CompactionEvent {
   @@index([createdAt])
   @@index([agentName])
   @@index([sessionId, chatId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Agency white label: branding, own addresses and customer login
+//
+// An agency's customers can sign in on the agency's own address with a
+// password kept here — no Clerk. A customer sets the password through a
+// one-time setup link the agency hands them (there is no email sending).
+// Nothing here is ever deleted: domains and sessions are archived/revoked,
+// invites are marked used or replaced.
+// ─────────────────────────────────────────────────────────────
+model AgencyBranding {
+  agencyId     String   @id
+  productName  String
+  // Small image as a data: URL (png, jpeg, webp or svg), shown in <img> only.
+  logoDataUrl  String?
+  primaryColor String   @default("#0ea5e9")
+  updatedBy    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Restrict)
+}
+
+// An address (host name, no port) that serves an agency's branded app.
+// One live row per host name; enforced by the service.
+model AgencyDomain {
+  id         String    @id @default(uuid())
+  agencyId   String
+  hostname   String
+  archivedAt DateTime?
+  createdBy  String
+  createdAt  DateTime  @default(now())
+
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Restrict)
+
+  @@index([hostname])
+  @@index([agencyId])
+}
+
+// A one-time link to set (or reset) a customer's password. Only the hash of
+// the code is stored. A newer link for the same customer replaces older ones.
+model AgencyLoginInvite {
+  id         String    @id @default(uuid())
+  agencyId   String
+  customerId String
+  codeHash   String    @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  replacedAt DateTime?
+  createdBy  String
+  createdAt  DateTime  @default(now())
+
+  agency   Agency         @relation(fields: [agencyId], references: [id], onDelete: Restrict)
+  customer AgencyCustomer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  @@index([customerId])
+}
+
+// A customer's password. One per User; the User row is created when the
+// customer first sets a password (oauthId "agency_<uuid>", not a Clerk id).
+model AgencyCustomerLogin {
+  id             String    @id @default(uuid())
+  userId         String    @unique
+  passwordHash   String
+  passwordSetAt  DateTime  @default(now())
+  failedAttempts Int       @default(0)
+  lockedUntil    DateTime?
+  lastLoginAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user     User                    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  sessions AgencyCustomerSession[]
+}
+
+// A signed-in customer session, bound to the agency it was opened on. Only
+// the hash of the token is stored; logging out or a password reset revokes it.
+model AgencyCustomerSession {
+  id         String    @id @default(uuid())
+  loginId    String
+  agencyId   String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  lastUsedAt DateTime  @default(now())
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+
+  login  AgencyCustomerLogin @relation(fields: [loginId], references: [id], onDelete: Restrict)
+  agency Agency              @relation(fields: [agencyId], references: [id], onDelete: Restrict)
+
+  @@index([loginId])
 }

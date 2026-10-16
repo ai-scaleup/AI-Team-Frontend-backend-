@@ -44,6 +44,14 @@ const PUBLIC_ROUTES: PublicRoute[] = [
     method: 'PATCH',
     pattern: /^\/admin\/memberships\/assignments\/[^/]+\/token-usage$/,
   },
+
+  // Agency customer login (no Clerk). These run before anyone is signed in;
+  // the service rate-limits and locks accounts.
+  // GET /agency-auth/branding, POST /agency-auth/login, /sign-up, /set-password
+  { method: 'GET', pattern: /^\/agency-auth\/branding$/ },
+  { method: 'POST', pattern: /^\/agency-auth\/login$/ },
+  { method: 'POST', pattern: /^\/agency-auth\/sign-up$/ },
+  { method: 'POST', pattern: /^\/agency-auth\/set-password$/ },
 ];
 
 /**

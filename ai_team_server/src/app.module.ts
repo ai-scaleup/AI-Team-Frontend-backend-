@@ -29,6 +29,9 @@ import { SingleAssignedAgentModule } from './single-assigned-agent/single-assign
 import { AgentTeamModule } from './agent-team/agent-team.module';
 import { CompactionModule } from './compaction/compaction.module';
 import { LlmModelModule } from './llm-model/llm-model.module';
+import { AgencyMembershipModule } from './agency-membership/agency-membership.module';
+import { AgencyModule } from './agency/agency.module';
+import { AgencyWhiteLabelModule } from './agency/agency-white-label.module';
 
 @Module({
   imports: [
@@ -54,6 +57,9 @@ import { LlmModelModule } from './llm-model/llm-model.module';
     AgentTeamModule,
     CompactionModule,
     LlmModelModule,
+    AgencyMembershipModule,
+    AgencyModule,
+    AgencyWhiteLabelModule,
   ],
   controllers: [AppController],
   providers: [AppService],

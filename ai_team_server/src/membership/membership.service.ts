@@ -115,7 +115,7 @@ export function normalizeAgents(agents: unknown): AgentName[] {
   return out;
 }
 
-function normalizeIds(ids: unknown, label: string): string[] {
+export function normalizeIds(ids: unknown, label: string): string[] {
   if (ids === undefined || ids === null) return [];
   if (!Array.isArray(ids))
     throw new BadRequestException(`${label} must be an array of ids`);
@@ -129,7 +129,7 @@ function normalizeIds(ids: unknown, label: string): string[] {
 }
 
 /** Allowances are whole, non-negative token counts. */
-function normalizeTokenLimit(value: unknown): number {
+export function normalizeTokenLimit(value: unknown): number {
   const n = typeof value === 'string' ? Number(value) : value;
   if (typeof n !== 'number' || !Number.isInteger(n) || n < 0)
     throw new BadRequestException(

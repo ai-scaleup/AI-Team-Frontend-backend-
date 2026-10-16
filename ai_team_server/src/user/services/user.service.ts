@@ -269,16 +269,25 @@ export class UserService {
     const membershipWhere: Prisma.UserWhereInput | undefined = membership
       ? membership.toLowerCase() === 'none'
         ? { memberships: { none: { isActive: true } } }
-        : {
-            memberships: {
-              some: {
-                isActive: true,
-                template: {
-                  name: { equals: membership, mode: 'insensitive' },
+        : membership.toLowerCase() === 'any'
+          ? {
+              memberships: {
+                some: {
+                  isActive: true,
+                  OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
                 },
               },
-            },
-          }
+            }
+          : {
+              memberships: {
+                some: {
+                  isActive: true,
+                  template: {
+                    name: { equals: membership, mode: 'insensitive' },
+                  },
+                },
+              },
+            }
       : undefined;
 
     // A user counts as having access beyond `boundary` when any assignment
@@ -310,7 +319,9 @@ export class UserService {
             }
           : status === 'expired'
             ? { NOT: hasAccessBeyond(now) }
-            : undefined;
+            : status === 'running'
+              ? hasAccessBeyond(now)
+              : undefined;
 
     const filters = [searchWhere, membershipWhere, statusWhere].filter(
       (item): item is Prisma.UserWhereInput => Boolean(item),
