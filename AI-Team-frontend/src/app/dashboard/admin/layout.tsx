@@ -14,7 +14,8 @@ import {
   KeyRound,
   BookOpen,
   Scissors,
-  Building2
+  Building2,
+  LayoutDashboard
 } from "lucide-react";
 import { isAdminEmail } from "@/lib/adminAccess";
 
@@ -178,7 +179,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             );
           })}
         </nav>
-        <div className="absolute bottom-4 w-64 px-4">
+        <div className="absolute bottom-4 w-64 space-y-1 px-4">
+          {/* These keep the admin panel unlocked; Exit Admin locks it again. */}
+          <Link
+            href="/dashboard/agency"
+            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-white/60 transition-all hover:bg-white/5 hover:text-sky-300"
+          >
+            <Building2 size={18} />
+            Agency portal
+          </Link>
+          <Link
+            href="/dashboard"
+            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-white/60 transition-all hover:bg-white/5 hover:text-sky-300"
+          >
+            <LayoutDashboard size={18} />
+            My dashboard
+          </Link>
           <Link
             href="/dashboard"
             onClick={handleExitAdmin}

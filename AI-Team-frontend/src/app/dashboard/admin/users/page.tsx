@@ -254,7 +254,16 @@ const TIMEFRAME_PRESETS = [
   "This Month", "Last Month"
 ];
 
-const STATUS_OPTIONS = ["All", "Active", "Expiring", "Expired"];
+// "Running" = access live right now, i.e. Active plus Expiring.
+const STATUS_OPTIONS = [
+  { value: "All", label: "All Statuses" },
+  { value: "Running", label: "Running (Active + Expiring)" },
+  { value: "Active", label: "Active" },
+  { value: "Expiring", label: "Expiring (≤14 days)" },
+  { value: "Expired", label: "Expired" },
+];
+
+const ANY_ACTIVE_MEMBERSHIP = "Any active membership";
 
 const startOfDay = (d: Date) => { const r = new Date(d); r.setHours(0, 0, 0, 0); return r; };
 const endOfDay = (d: Date) => { const r = new Date(d); r.setHours(23, 59, 59, 999); return r; };
@@ -351,7 +360,11 @@ const buildUsersQuery = (options: UsersQueryOptions): URLSearchParams => {
   if (options.membershipFilter !== "All Memberships") {
     params.set(
       "membership",
-      options.membershipFilter === "No membership" ? "none" : options.membershipFilter,
+      options.membershipFilter === "No membership"
+        ? "none"
+        : options.membershipFilter === ANY_ACTIVE_MEMBERSHIP
+          ? "any"
+          : options.membershipFilter,
     );
   }
   if (options.statusFilter !== "All") params.set("status", options.statusFilter.toLowerCase());
@@ -479,7 +492,7 @@ export default function AllUsersPage() {
       ...membershipNames,
       ...users.map((u) => u.membership).filter((m) => m && m !== "No membership"),
     ]);
-    return ["All Memberships", ...Array.from(names), "No membership"];
+    return ["All Memberships", ANY_ACTIVE_MEMBERSHIP, ...Array.from(names), "No membership"];
   }, [membershipNames, users]);
 
   // Filtering and sorting both happen server-side across the full result set.
@@ -657,7 +670,7 @@ export default function AllUsersPage() {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="rounded-xl border border-white/10 bg-[#0F172A] py-2.5 px-3 text-sm text-white/70 outline-none hover:bg-white/5 transition appearance-none pr-8"
           >
-            {STATUS_OPTIONS.map((s) => <option key={s}>{s}</option>)}
+            {STATUS_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
 
           {/* Timeframe Selector */}

@@ -3,24 +3,21 @@
 import { useMemo, useState } from "react";
 import {
   ArrowLeft, ArrowLeftRight, Plus, Minus, X, ExternalLink, UserPlus, Power,
-  RotateCcw, AlertTriangle, ShieldCheck, Mail, Search, Bot, MessageSquare,
-  BookOpen, Activity, Users, Layers, ScrollText, Gauge, CalendarClock,
+  RotateCcw, AlertTriangle, ShieldCheck, Mail, Search,
+  Activity, Users, Layers, Gauge, CalendarClock, Pencil, Archive, Globe, KeyRound,
 } from "lucide-react";
 import {
-  Agency, AgencyClient, ActivityEntry, LedgerEntry, SeatPool, StaffRole,
-  DEMO_TODAY, daysUntil, formatDate, formatTokens, seatsInUse,
-} from "./mockData";
+  Agency, AgencyClient, AgencyMembership, ActivityEntry, SeatPool, StaffRole,
+  daysUntil, formatDate, formatTokens, seatsInUse,
+} from "./agencyTypes";
+import {
+  activateCustomer, addPool, adjustSeats, archiveAgency, deactivateCustomer, inviteStaff,
+  restoreCustomer, substituteCustomer, todayIso, updateAgency, updatePoolValidity,
+  createLoginLink, setBranding,
+} from "./agenciesApi";
+import { BrandingForm, LoginLinkModal, SignInAddress } from "./WhiteLabel";
 
-const ADMIN_EMAIL = "digitalcoachai@gmail.com";
-
-type Tab = "customers" | "seats" | "usage" | "staff" | "activity";
-
-const nowStamp = () => {
-  const d = new Date();
-  return `${DEMO_TODAY} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-};
-
-const uid = () => Math.random().toString(36).slice(2, 9);
+type Tab = "customers" | "seats" | "staff" | "activity" | "whitelabel";
 
 /* ──────────────── SHARED UI ──────────────── */
 
@@ -111,140 +108,64 @@ export function InfoBox({ children }: { children: React.ReactNode }) {
   );
 }
 
-/* ──────────────── ACTIONS (local state only) ──────────────── */
-
-/** Every agency action, shared by the admin view and the agency portal. */
-export function agencyActions(
-  agency: Agency,
-  onChange: (next: Agency) => void,
-  onToast: (msg: string) => void,
-  actor: string,
-) {
-  const poolById = (id: string) => agency.pools.find((p) => p.id === id)!;
-
-  const log = (entry: Omit<ActivityEntry, "id" | "date">): ActivityEntry => ({ id: uid(), date: nowStamp(), ...entry });
-
-  /* ── actions (local state only) ── */
-
-  const adjustSeats = (pool: SeatPool, change: number, reason: string, note: string) => {
-    const ledgerEntry: LedgerEntry = { id: uid(), date: DEMO_TODAY, poolId: pool.id, change, reason, by: actor, note: note || undefined };
-    onChange({
-      ...agency,
-      pools: agency.pools.map((p) => (p.id === pool.id ? { ...p, seats: p.seats + change } : p)),
-      ledger: [...agency.ledger, ledgerEntry],
-      activity: [log({ actor, action: `${change > 0 ? "Granted" : "Removed"} seats ${change > 0 ? "+" : ""}${change}`, target: `${pool.membership} pool` }), ...agency.activity],
-    });
-    onToast(`${pool.membership}: ${change > 0 ? "+" : ""}${change} seats recorded in the ledger`);
-  };
-
-  const activate = (company: string, email: string, poolId: string, sendInvite: boolean) => {
-    const client: AgencyClient = {
-      id: uid(), company, email, poolId, status: sendInvite ? "invited" : "active",
-      tokensUsed: 0, cycleStart: DEMO_TODAY, lastActive: null, swappedThisCycle: false,
-    };
-    onChange({
-      ...agency,
-      clients: [client, ...agency.clients],
-      activity: [log({ actor, action: sendInvite ? "Invited customer" : "Activated customer", target: company }), ...agency.activity],
-    });
-    onToast(`${company} now holds a seat${sendInvite ? " — invitation sent" : ""}`);
-  };
-
-  const deactivate = (client: AgencyClient) => {
-    onChange({
-      ...agency,
-      clients: agency.clients.map((c) => (c.id === client.id ? { ...c, status: "archived", archivedOn: DEMO_TODAY } : c)),
-      activity: [log({ actor, action: "Deactivated customer", target: client.company }), ...agency.activity],
-    });
-    onToast(`${client.company} archived — seat freed`);
-  };
-
-  const restore = (client: AgencyClient) => {
-    const pool = poolById(client.poolId);
-    if (seatsInUse(agency, pool.id) >= pool.seats) {
-      onToast(`No free seat in ${pool.membership} — free one first`);
-      return;
+/** Runs a modal's save; on failure the modal stays open and shows the error. */
+function useSave() {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const run = async (fn: () => void | Promise<void>) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await fn();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong.");
+    } finally {
+      setBusy(false);
     }
-    onChange({
-      ...agency,
-      clients: agency.clients.map((c) => (c.id === client.id ? { ...c, status: "active", archivedOn: undefined } : c)),
-      activity: [log({ actor, action: "Restored customer", target: client.company }), ...agency.activity],
-    });
-    onToast(`${client.company} restored`);
   };
-
-  const substitute = (outgoing: AgencyClient, company: string, email: string, override: boolean) => {
-    const incoming: AgencyClient = {
-      id: uid(), company, email, poolId: outgoing.poolId, status: "invited",
-      tokensUsed: outgoing.tokensUsed, cycleStart: outgoing.cycleStart, lastActive: null, swappedThisCycle: true,
-    };
-    onChange({
-      ...agency,
-      clients: [
-        incoming,
-        ...agency.clients.map((c) => (c.id === outgoing.id ? { ...c, status: "archived" as const, archivedOn: DEMO_TODAY } : c)),
-      ],
-      activity: [
-        log({ actor, action: override ? "Substituted customer (admin override)" : "Substituted customer", target: `${outgoing.company} → ${company}` }),
-        ...agency.activity,
-      ],
-    });
-    onToast(`Seat moved from ${outgoing.company} to ${company}`);
-  };
-
-  const inviteStaff = (name: string, email: string, role: StaffRole) => {
-    onChange({
-      ...agency,
-      staff: [...agency.staff, { id: uid(), name, email, role }],
-      activity: [log({ actor, action: `Invited staff (${role})`, target: email }), ...agency.activity],
-    });
-    onToast(`${name} invited as ${role}`);
-  };
-
-  const logWorkspaceOpen = (client: AgencyClient, by: string) => {
-    onChange({
-      ...agency,
-      activity: [log({ actor: by, actingAs: client.company, action: "Opened workspace", target: client.company }), ...agency.activity],
-    });
-  };
-
-  return { adjustSeats, activate, deactivate, restore, substitute, inviteStaff, logWorkspaceOpen };
+  return { busy, error, run };
 }
 
-/* ──────────────── MAIN ──────────────── */
+/* ──────────────── MAIN (superadmin, server-backed) ──────────────── */
 
 export default function AgencyDetail({
-  agency, onBack, onChange, onToast,
+  agency, memberships, onBack, onChange, onArchived, onToast,
 }: {
   agency: Agency;
+  /** Live agency memberships, for adding a seat pool. */
+  memberships: AgencyMembership[];
   onBack: () => void;
   onChange: (next: Agency) => void;
+  onArchived: (agency: Agency) => void;
   onToast: (msg: string) => void;
 }) {
   const [tab, setTab] = useState<Tab>("customers");
   const [adjustPool, setAdjustPool] = useState<SeatPool | null>(null);
+  const [renewPool, setRenewPool] = useState<SeatPool | null>(null);
+  const [showAddPool, setShowAddPool] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
   const [showActivate, setShowActivate] = useState(false);
   const [substituteFor, setSubstituteFor] = useState<AgencyClient | null>(null);
   const [deactivateFor, setDeactivateFor] = useState<AgencyClient | null>(null);
-  const [workspaceFor, setWorkspaceFor] = useState<AgencyClient | null>(null);
   const [showInviteStaff, setShowInviteStaff] = useState(false);
+  const [loginLinkFor, setLoginLinkFor] = useState<AgencyClient | null>(null);
+  const today = todayIso();
 
   const poolById = (id: string) => agency.pools.find((p) => p.id === id)!;
 
-  const { adjustSeats, activate, deactivate, restore, substitute, inviteStaff, logWorkspaceOpen } =
-    agencyActions(agency, onChange, onToast, ADMIN_EMAIL);
-
-  const openWorkspace = (client: AgencyClient) => {
-    logWorkspaceOpen(client, agency.owner.email);
-    setWorkspaceFor(client);
+  // Every action saves on the server and swaps in the agency it sends back,
+  // so seats, ledger and activity always match the database.
+  const save = async (request: Promise<Agency>, message: string) => {
+    onChange(await request);
+    onToast(message);
   };
 
   const tabs: { id: Tab; label: string; icon: React.ElementType; count?: number }[] = [
     { id: "customers", label: "Customers", icon: Users, count: agency.clients.filter((c) => c.status !== "archived").length },
     { id: "seats", label: "Seats & ledger", icon: Layers, count: agency.ledger.length },
-    { id: "usage", label: "Usage", icon: Gauge },
     { id: "staff", label: "Staff", icon: ShieldCheck, count: agency.staff.length },
-    { id: "activity", label: "Activity", icon: ScrollText, count: agency.activity.length },
+    { id: "activity", label: "Activity", icon: Activity, count: agency.activity.length },
+    { id: "whitelabel", label: "White label", icon: Globe },
   ];
 
   return (
@@ -265,20 +186,33 @@ export default function AgencyDetail({
               <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold capitalize ${agencyStatusBadge(agency.status)}`}>{agency.status}</span>
             </div>
             <p className="text-sm text-white/50">
-              Owner {agency.owner.name} · {agency.owner.email} · {agency.country} · since {formatDate(agency.createdOn)}
+              Owner {agency.owner.name} · {agency.owner.email}{agency.country ? ` · ${agency.country}` : ""} · since {formatDate(agency.createdOn)}
             </p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
-            onClick={() => setAdjustPool(agency.pools[0])}
+            onClick={() => setShowEdit(true)}
             className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#0F172A] px-4 py-2.5 text-sm text-white/70 transition hover:bg-white/5"
+          >
+            <Pencil size={15} className="text-sky-400" /> Edit agency
+          </button>
+          <button
+            onClick={() => setShowAddPool(true)}
+            className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#0F172A] px-4 py-2.5 text-sm text-white/70 transition hover:bg-white/5"
+          >
+            <Plus size={15} className="text-sky-400" /> Add seat pool
+          </button>
+          <button
+            onClick={() => setAdjustPool(agency.pools[0])}
+            disabled={agency.pools.length === 0}
+            className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#0F172A] px-4 py-2.5 text-sm text-white/70 transition hover:bg-white/5 disabled:opacity-40"
           >
             <Layers size={15} className="text-sky-400" /> Adjust seats
           </button>
           <button
             onClick={() => setShowActivate(true)}
-            disabled={agency.status === "suspended"}
+            disabled={agency.status === "suspended" || agency.pools.length === 0}
             className="flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <UserPlus size={15} /> Activate customer
@@ -286,12 +220,18 @@ export default function AgencyDetail({
         </div>
       </div>
 
+      <div className="mb-6">
+        <InfoBox>
+          Records only for now: customers on a seat are saved here, but they do not get chat access from the seat yet, and the token columns stay at 0 until that is connected.
+        </InfoBox>
+      </div>
+
       {agency.status !== "active" && (
         <div className={`mb-6 flex items-start gap-3 rounded-xl border p-4 text-sm ${agency.status === "grace" ? "border-amber-500/20 bg-amber-500/10 text-amber-200" : "border-red-500/20 bg-red-500/10 text-red-200"}`}>
           <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
           {agency.status === "grace"
-            ? "Payment failed on 5 Oct 2026. The agency is in its grace period; customers keep access until 19 Oct 2026, then the agency is suspended. Nothing is deleted."
-            : "Suspended since 7 Oct 2026 after the grace period ended. Customers cannot open their agents until the agency pays. No data has been deleted."}
+            ? "The agency is in its grace period. Everything keeps working; set it to Suspended from Edit agency if it does not pay. Nothing is deleted."
+            : "Suspended. New customers, substitutions and restores are blocked until the agency is set back to Active. No data has been deleted."}
         </div>
       )}
 
@@ -299,7 +239,7 @@ export default function AgencyDetail({
       <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
         {agency.pools.map((pool) => {
           const used = seatsInUse(agency, pool.id);
-          const left = daysUntil(pool.validUntil);
+          const left = daysUntil(pool.validUntil, today);
           return (
             <div key={pool.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
               <div className="mb-4 flex items-start justify-between gap-3">
@@ -312,12 +252,20 @@ export default function AgencyDetail({
                     ))}
                   </div>
                 </div>
-                <button
-                  onClick={() => setAdjustPool(pool)}
-                  className="rounded-lg bg-sky-500/10 px-3 py-1.5 text-xs font-semibold text-sky-400 transition hover:bg-sky-500/20"
-                >
-                  Adjust
-                </button>
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={() => setRenewPool(pool)}
+                    className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white/60 transition hover:bg-white/5 hover:text-white"
+                  >
+                    Renew
+                  </button>
+                  <button
+                    onClick={() => setAdjustPool(pool)}
+                    className="rounded-lg bg-sky-500/10 px-3 py-1.5 text-xs font-semibold text-sky-400 transition hover:bg-sky-500/20"
+                  >
+                    Adjust
+                  </button>
+                </div>
               </div>
               <div className="mb-2 flex items-baseline justify-between">
                 <p className="text-sm text-white/60">
@@ -376,16 +324,43 @@ export default function AgencyDetail({
         <CustomersTab
           agency={agency}
           poolById={poolById}
-          onOpen={openWorkspace}
+          onOpen={() => {}}
           onSubstitute={setSubstituteFor}
           onDeactivate={setDeactivateFor}
-          onRestore={restore}
+          onRestore={(c) =>
+            save(restoreCustomer(agency.id, c.id), `${c.company} restored`).catch((e) =>
+              onToast(e instanceof Error ? e.message : "Unable to restore."),
+            )
+          }
+          canOpen={false}
+          onLoginLink={setLoginLinkFor}
         />
       )}
       {tab === "seats" && <LedgerTab agency={agency} poolById={poolById} />}
-      {tab === "usage" && <UsageTab agency={agency} poolById={poolById} />}
       {tab === "staff" && <StaffTab agency={agency} onInvite={() => setShowInviteStaff(true)} />}
       {tab === "activity" && <ActivityTab entries={agency.activity} />}
+      {tab === "whitelabel" && (
+        <div className="space-y-8">
+          <section>
+            <h2 className="mb-1 text-sm font-semibold">Branding</h2>
+            <p className="mb-4 text-sm text-white/50">What the agency&apos;s customers see on the agency&apos;s own address instead of AI Team.</p>
+            <BrandingForm
+              key={agency.id}
+              branding={agency.branding}
+              fallbackName={agency.name}
+              onSave={(input) => save(setBranding(agency.id, input), "Branding saved")}
+            />
+          </section>
+          <section>
+            <h2 className="mb-1 text-sm font-semibold">Sign-in address</h2>
+            <p className="mb-4 text-sm text-white/50">
+              The agency&apos;s customers sign in here with their email and a password (no AI Team login). Give each customer a
+              setup link from the Customers tab.
+            </p>
+            <SignInAddress slug={agency.slug} />
+          </section>
+        </div>
+      )}
 
       {/* Modals */}
       {adjustPool && (
@@ -393,14 +368,58 @@ export default function AgencyDetail({
           agency={agency}
           initialPool={adjustPool}
           onClose={() => setAdjustPool(null)}
-          onSave={(pool, change, reason, note) => { adjustSeats(pool, change, reason, note); setAdjustPool(null); }}
+          onSave={async (pool, change, reason, note) => {
+            await save(
+              adjustSeats(agency.id, pool.id, change, reason, note),
+              `${pool.membership}: ${change > 0 ? "+" : ""}${change} seats recorded in the ledger`,
+            );
+            setAdjustPool(null);
+          }}
+        />
+      )}
+      {renewPool && (
+        <RenewPoolModal
+          pool={renewPool}
+          onClose={() => setRenewPool(null)}
+          onSave={async (validUntil) => {
+            await save(updatePoolValidity(agency.id, renewPool.id, validUntil), `${renewPool.membership} pool now runs until ${formatDate(validUntil)}`);
+            setRenewPool(null);
+          }}
+        />
+      )}
+      {showAddPool && (
+        <AddPoolModal
+          memberships={memberships}
+          onClose={() => setShowAddPool(false)}
+          onSave={async (input) => {
+            await save(addPool(agency.id, input), `${input.seats} seats added in a new pool`);
+            setShowAddPool(false);
+          }}
+        />
+      )}
+      {showEdit && (
+        <EditAgencyModal
+          agency={agency}
+          onClose={() => setShowEdit(false)}
+          onSave={async (input) => {
+            await save(updateAgency(agency.id, input), `${input.name} saved`);
+            setShowEdit(false);
+          }}
+          onArchive={async () => {
+            await archiveAgency(agency.id);
+            setShowEdit(false);
+            onArchived(agency);
+          }}
         />
       )}
       {showActivate && (
         <ActivateModal
           agency={agency}
           onClose={() => setShowActivate(false)}
-          onSave={(company, email, poolId, invite) => { activate(company, email, poolId, invite); setShowActivate(false); }}
+          onSave={async (company, email, poolId, invite) => {
+            await save(activateCustomer(agency.id, { company, email, poolId, invite }), `${company} now holds a seat`);
+            setShowActivate(false);
+          }}
         />
       )}
       {substituteFor && (
@@ -408,34 +427,41 @@ export default function AgencyDetail({
           client={substituteFor}
           pool={poolById(substituteFor.poolId)}
           onClose={() => setSubstituteFor(null)}
-          onSave={(company, email, override) => { substitute(substituteFor, company, email, override); setSubstituteFor(null); }}
+          onSave={async (company, email, override) => {
+            await save(
+              substituteCustomer(agency.id, substituteFor.id, { company, email, override }),
+              `Seat moved from ${substituteFor.company} to ${company}`,
+            );
+            setSubstituteFor(null);
+          }}
+        />
+      )}
+      {loginLinkFor && (
+        <LoginLinkModal
+          customer={loginLinkFor}
+          slug={agency.slug}
+          onCreate={() => createLoginLink(agency.id, loginLinkFor.id)}
+          onClose={() => setLoginLinkFor(null)}
         />
       )}
       {deactivateFor && (
-        <Modal title={`Deactivate ${deactivateFor.company}?`} subtitle="The seat is freed straight away." onClose={() => setDeactivateFor(null)}>
-          <div className="space-y-3 text-sm text-white/60">
-            <p>The account is frozen, not deleted. Conversations and the knowledge base stay exportable for <span className="text-white">60 days</span>, then they are purged.</p>
-            <p>The agency can restore it within that period if a seat is free.</p>
-          </div>
-          <div className="mt-6 flex gap-3">
-            <button onClick={() => setDeactivateFor(null)} className={secondaryBtn}>Cancel</button>
-            <button
-              onClick={() => { deactivate(deactivateFor); setDeactivateFor(null); }}
-              className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white transition hover:bg-red-500"
-            >
-              Deactivate
-            </button>
-          </div>
-        </Modal>
+        <DeactivateModal
+          client={deactivateFor}
+          onClose={() => setDeactivateFor(null)}
+          onConfirm={async () => {
+            await save(deactivateCustomer(agency.id, deactivateFor.id), `${deactivateFor.company} archived — seat freed`);
+            setDeactivateFor(null);
+          }}
+        />
       )}
       {showInviteStaff && (
         <InviteStaffModal
           onClose={() => setShowInviteStaff(false)}
-          onSave={(name, email, role) => { inviteStaff(name, email, role); setShowInviteStaff(false); }}
+          onSave={async (name, email, role) => {
+            await save(inviteStaff(agency.id, { name, email, role }), `${name} added as ${role}`);
+            setShowInviteStaff(false);
+          }}
         />
-      )}
-      {workspaceFor && (
-        <WorkspacePreview agency={agency} client={workspaceFor} pool={poolById(workspaceFor.poolId)} onExit={() => setWorkspaceFor(null)} />
       )}
     </div>
   );
@@ -444,7 +470,7 @@ export default function AgencyDetail({
 /* ──────────────── TABS ──────────────── */
 
 export function CustomersTab({
-  agency, poolById, onOpen, onSubstitute, onDeactivate, onRestore, canManage = true, canOpen = true,
+  agency, poolById, onOpen, onSubstitute, onDeactivate, onRestore, canManage = true, canOpen = true, onLoginLink,
 }: {
   agency: Agency;
   poolById: (id: string) => SeatPool;
@@ -455,6 +481,8 @@ export function CustomersTab({
   /** Activate, substitute, deactivate and restore. */
   canManage?: boolean;
   canOpen?: boolean;
+  /** Setup link for the agency's own address; absent = no button. */
+  onLoginLink?: (c: AgencyClient) => void;
 }) {
   const [query, setQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
@@ -512,7 +540,8 @@ export function CustomersTab({
                     <td className="px-4 py-4 text-xs">{pool.membership}</td>
                     <td className="px-4 py-4">
                       <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold capitalize ${clientStatusBadge(c.status)}`}>{c.status}</span>
-                      {archived && c.archivedOn && <p className="mt-1 text-[10px] text-white/30">purge {formatDate(addDays(c.archivedOn, 60))}</p>}
+                      {archived && c.archivedOn && <p className="mt-1 text-[10px] text-white/30">archived {formatDate(c.archivedOn)}</p>}
+                      {!archived && c.hasLogin && <p className="mt-1 text-[10px] text-emerald-400/70">password set</p>}
                     </td>
                     <td className="w-48 px-4 py-4">
                       <div className="mb-1 flex justify-between font-mono text-xs">
@@ -534,6 +563,7 @@ export function CustomersTab({
                         ) : (
                           <>
                             {canOpen && <IconBtn label="Open workspace" icon={ExternalLink} tone="sky" onClick={() => onOpen(c)} disabled={suspended} />}
+                            {onLoginLink && <IconBtn label="Login link" icon={KeyRound} onClick={() => onLoginLink(c)} />}
                             {canManage && <IconBtn label="Substitute" icon={ArrowLeftRight} onClick={() => onSubstitute(c)} disabled={suspended} />}
                             {canManage && <IconBtn label="Deactivate" icon={Power} tone="red" onClick={() => onDeactivate(c)} />}
                           </>
@@ -638,7 +668,7 @@ export function UsageTab({ agency, poolById }: { agency: Agency; poolById: (id: 
   const blocked = live.filter((c) => pctOf(c) >= 100).length;
   const near = live.filter((c) => pctOf(c) >= 80 && pctOf(c) < 100).length;
   const never = live.filter((c) => !c.lastActive).length;
-  const expiring = agency.pools.filter((p) => { const d = daysUntil(p.validUntil); return d >= 0 && d <= 30; })
+  const expiring = agency.pools.filter((p) => { const d = daysUntil(p.validUntil, todayIso()); return d >= 0 && d <= 30; })
     .reduce((s, p) => s + seatsInUse(agency, p.id), 0);
   const sorted = [...live].sort((a, b) => pctOf(b) - pctOf(a));
 
@@ -799,8 +829,9 @@ function AdjustSeatsModal({
   agency: Agency;
   initialPool: SeatPool;
   onClose: () => void;
-  onSave: (pool: SeatPool, change: number, reason: string, note: string) => void;
+  onSave: (pool: SeatPool, change: number, reason: string, note: string) => void | Promise<void>;
 }) {
+  const { busy, error, run } = useSave();
   const [poolId, setPoolId] = useState(initialPool.id);
   const [direction, setDirection] = useState<"add" | "remove">("add");
   const [amount, setAmount] = useState(1);
@@ -877,10 +908,12 @@ function AdjustSeatsModal({
           </ErrorBox>
         )}
 
+        {error && <ErrorBox>{error}</ErrorBox>}
+
         <div className="flex gap-3 pt-1">
           <button onClick={onClose} className={secondaryBtn}>Cancel</button>
-          <button disabled={tooLow} onClick={() => onSave(pool, change, reason, note)} className={primaryBtn}>
-            Record {change > 0 ? "+" : ""}{change}
+          <button disabled={tooLow || busy} onClick={() => run(() => onSave(pool, change, reason, note.trim()))} className={primaryBtn}>
+            {busy ? "Saving…" : `Record ${change > 0 ? "+" : ""}${change}`}
           </button>
         </div>
       </div>
@@ -893,8 +926,9 @@ export function ActivateModal({
 }: {
   agency: Agency;
   onClose: () => void;
-  onSave: (company: string, email: string, poolId: string, sendInvite: boolean) => void;
+  onSave: (company: string, email: string, poolId: string, sendInvite: boolean) => void | Promise<void>;
 }) {
+  const { busy, error, run } = useSave();
   const [company, setCompany] = useState("");
   const [email, setEmail] = useState("");
   const [poolId, setPoolId] = useState(agency.pools[0].id);
@@ -928,17 +962,18 @@ export function ActivateModal({
         </div>
         <label className="flex cursor-pointer items-center gap-2 text-sm text-white/60">
           <input type="checkbox" checked={sendInvite} onChange={(e) => setSendInvite(e.target.checked)} className="rounded border-white/20 bg-transparent" />
-          Send the invitation email now
+          Mark as invited (not signed in yet — no email is sent)
         </label>
         {full ? (
           <ErrorBox>The {pool.membership} pool is full ({used}/{pool.seats}). Add seats or deactivate a customer first.</ErrorBox>
         ) : (
           <InfoBox>The membership runs while the seat is active and ends with the pool on {formatDate(pool.validUntil)}. No separate duration.</InfoBox>
         )}
+        {error && <ErrorBox>{error}</ErrorBox>}
         <div className="flex gap-3 pt-1">
           <button onClick={onClose} className={secondaryBtn}>Cancel</button>
-          <button disabled={full || !valid} onClick={() => onSave(company.trim(), email.trim(), poolId, sendInvite)} className={primaryBtn}>
-            Activate seat
+          <button disabled={full || !valid || busy} onClick={() => run(() => onSave(company.trim(), email.trim(), poolId, sendInvite))} className={primaryBtn}>
+            {busy ? "Saving…" : "Activate seat"}
           </button>
         </div>
       </div>
@@ -952,10 +987,11 @@ export function SubstituteModal({
   client: AgencyClient;
   pool: SeatPool;
   onClose: () => void;
-  onSave: (company: string, email: string, override: boolean) => void;
+  onSave: (company: string, email: string, override: boolean) => void | Promise<void>;
   /** Only a platform admin may allow a second swap in one cycle. */
   allowOverride?: boolean;
 }) {
+  const { busy, error, run } = useSave();
   const [company, setCompany] = useState("");
   const [email, setEmail] = useState("");
   const [override, setOverride] = useState(false);
@@ -994,7 +1030,7 @@ export function SubstituteModal({
         <InfoBox>
           The token cycle belongs to the seat. The incoming customer gets what is left of it:{" "}
           <span className="font-mono font-semibold text-white">{formatTokens(remaining)}</span> until {formatDate(cycleEnds)}.
-          {" "}{client.company}&apos;s conversations and knowledge base do <span className="font-semibold">not</span> move; the account is archived and purged after 60 days.
+          {" "}{client.company}&apos;s conversations and knowledge base do <span className="font-semibold">not</span> move; {client.company} is archived, not deleted.
         </InfoBox>
 
         {client.swappedThisCycle && (
@@ -1012,10 +1048,12 @@ export function SubstituteModal({
           </div>
         )}
 
+        {error && <ErrorBox>{error}</ErrorBox>}
+
         <div className="flex gap-3 pt-1">
           <button onClick={onClose} className={secondaryBtn}>Cancel</button>
-          <button disabled={blocked || !valid} onClick={() => onSave(company.trim(), email.trim(), override)} className={primaryBtn}>
-            Substitute
+          <button disabled={blocked || !valid || busy} onClick={() => run(() => onSave(company.trim(), email.trim(), override))} className={primaryBtn}>
+            {busy ? "Saving…" : "Substitute"}
           </button>
         </div>
       </div>
@@ -1023,7 +1061,13 @@ export function SubstituteModal({
   );
 }
 
-export function InviteStaffModal({ onClose, onSave }: { onClose: () => void; onSave: (name: string, email: string, role: StaffRole) => void }) {
+export function InviteStaffModal({
+  onClose, onSave,
+}: {
+  onClose: () => void;
+  onSave: (name: string, email: string, role: StaffRole) => void | Promise<void>;
+}) {
+  const { busy, error, run } = useSave();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<StaffRole>("operator");
@@ -1054,107 +1098,245 @@ export function InviteStaffModal({ onClose, onSave }: { onClose: () => void; onS
             ))}
           </div>
         </div>
+        {error && <ErrorBox>{error}</ErrorBox>}
         <div className="flex gap-3 pt-1">
           <button onClick={onClose} className={secondaryBtn}>Cancel</button>
-          <button disabled={!valid} onClick={() => onSave(name.trim(), email.trim(), role)} className={primaryBtn}>Send invite</button>
+          <button disabled={!valid || busy} onClick={() => run(() => onSave(name.trim(), email.trim(), role))} className={primaryBtn}>
+            {busy ? "Saving…" : "Add staff"}
+          </button>
         </div>
       </div>
     </Modal>
   );
 }
 
-/* ──────────────── WORKSPACE SWITCH PREVIEW ──────────────── */
+/* ──────────────── SUPERADMIN-ONLY MODALS ──────────────── */
 
-export function WorkspacePreview({
-  agency, client, pool, onExit, actorEmail = agency.owner.email,
+function DeactivateModal({
+  client, onClose, onConfirm,
 }: {
-  agency: Agency; client: AgencyClient; pool: SeatPool; onExit: () => void; actorEmail?: string;
+  client: AgencyClient;
+  onClose: () => void;
+  onConfirm: () => Promise<void>;
 }) {
-  const conversations = [
-    { title: "Instagram plan for November", agent: pool.agents[1] ?? pool.agents[0], by: "agency", when: "Today 09:44" },
-    { title: "Reply to Google review", agent: pool.agents[0], by: "customer", when: "Yesterday" },
-    { title: "Newsletter: autumn promotion", agent: pool.agents[pool.agents.length - 1], by: "agency", when: "9 Oct" },
-    { title: "FAQ for the website", agent: pool.agents[0], by: "customer", when: "6 Oct" },
-  ];
-  const pct = Math.min(100, (client.tokensUsed / pool.monthlyTokenLimit) * 100);
-
+  const { busy, error, run } = useSave();
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-[#020617]">
-      {/* Agency banner */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-500/30 bg-gradient-to-r from-amber-500/20 to-orange-500/10 px-6 py-3">
-        <div className="flex items-center gap-3 text-sm">
-          <span className="rounded-md bg-amber-400 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-black">Agency view</span>
-          <span className="text-amber-100">
-            You are working in <span className="font-semibold text-white">{client.company}</span>&apos;s account as{" "}
-            <span className="font-semibold text-white">{actorEmail}</span> ({agency.name})
-          </span>
-        </div>
-        <button onClick={onExit} className="flex items-center gap-2 rounded-lg bg-white/10 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-white/20">
-          <ArrowLeft size={14} /> Back to agency
+    <Modal title={`Deactivate ${client.company}?`} subtitle="The seat is freed straight away." onClose={onClose}>
+      <div className="space-y-3 text-sm text-white/60">
+        <p>The customer is archived, <span className="text-white">not deleted</span>.</p>
+        <p>It can be restored later from &quot;Show archived&quot; if a seat in its pool is free.</p>
+      </div>
+      {error && <div className="mt-4"><ErrorBox>{error}</ErrorBox></div>}
+      <div className="mt-6 flex gap-3">
+        <button onClick={onClose} className={secondaryBtn}>Cancel</button>
+        <button
+          onClick={() => run(onConfirm)}
+          disabled={busy}
+          className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white transition hover:bg-red-500 disabled:opacity-40"
+        >
+          {busy ? "Deactivating…" : "Deactivate"}
         </button>
       </div>
+    </Modal>
+  );
+}
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-5xl p-8">
-          <p className="text-[10px] uppercase tracking-widest text-white/30">Customer workspace · demo</p>
-          <h2 className="mb-1 text-2xl font-bold">{client.company}</h2>
-          <p className="mb-8 text-sm text-white/50">
-            Shared account: the customer signs in with their own login, the agency enters through this switch. Every token comes from this seat.
-          </p>
+function RenewPoolModal({
+  pool, onClose, onSave,
+}: {
+  pool: SeatPool;
+  onClose: () => void;
+  onSave: (validUntil: string) => Promise<void>;
+}) {
+  const { busy, error, run } = useSave();
+  const [validUntil, setValidUntil] = useState(pool.validUntil);
+  const valid = /^\d{4}-\d{2}-\d{2}$/.test(validUntil) && validUntil >= pool.validFrom && validUntil !== pool.validUntil;
+  return (
+    <Modal title={`Renew ${pool.membership} pool`} subtitle={`Valid from ${formatDate(pool.validFrom)}. Seats and customers stay as they are.`} onClose={onClose}>
+      <div className="space-y-4">
+        <div>
+          <label className={labelCls}>Valid until (inclusive)</label>
+          <input type="date" value={validUntil} min={pool.validFrom} onChange={(e) => setValidUntil(e.target.value)} className={inputCls} />
+        </div>
+        {error && <ErrorBox>{error}</ErrorBox>}
+        <div className="flex gap-3 pt-1">
+          <button onClick={onClose} className={secondaryBtn}>Cancel</button>
+          <button disabled={!valid || busy} onClick={() => run(() => onSave(validUntil))} className={primaryBtn}>
+            {busy ? "Saving…" : "Save date"}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
-          <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-              <p className="text-[10px] uppercase tracking-wider text-white/35">Seat tokens this cycle</p>
-              <p className="mb-2 font-mono text-xl font-bold text-sky-400">{formatTokens(client.tokensUsed)} <span className="text-sm text-white/30">/ {formatTokens(pool.monthlyTokenLimit)}</span></p>
-              <SeatBar used={pct} total={100} />
+const oneYearFromToday = () => {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + 1);
+  d.setDate(d.getDate() - 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+function AddPoolModal({
+  memberships, onClose, onSave,
+}: {
+  memberships: AgencyMembership[];
+  onClose: () => void;
+  onSave: (input: { agencyMembershipId: string; seats: number; validUntil: string; note: string }) => Promise<void>;
+}) {
+  const { busy, error, run } = useSave();
+  const [membershipId, setMembershipId] = useState(memberships[0]?.id ?? "");
+  const [seats, setSeats] = useState(5);
+  const [validUntil, setValidUntil] = useState(oneYearFromToday);
+  const [note, setNote] = useState("");
+  const tpl = memberships.find((m) => m.id === membershipId) ?? memberships[0];
+  const valid = tpl && seats > 0 && /^\d{4}-\d{2}-\d{2}$/.test(validUntil);
+  return (
+    <Modal title="Add seat pool" subtitle="A new block of seats on an agency membership. Starts today." onClose={onClose}>
+      <div className="space-y-4">
+        <div>
+          <label className={labelCls}>Agency membership</label>
+          <select value={tpl?.id ?? ""} onChange={(e) => setMembershipId(e.target.value)} className={inputCls}>
+            {memberships.map((m) => <option key={m.id} value={m.id} className="bg-[#0B1221]">{m.name}</option>)}
+          </select>
+          {tpl && (
+            <div className="mt-2 flex flex-wrap items-center gap-1">
+              {tpl.agents.map((a) => (
+                <span key={a} className="rounded bg-indigo-500/20 px-1.5 py-0.5 text-[10px] font-medium text-indigo-300">{a}</span>
+              ))}
+              <span className="ml-1 text-[10px] text-white/40">{formatTokens(tpl.monthlyTokenLimit)} tokens / seat / 30d</span>
             </div>
-            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-              <p className="text-[10px] uppercase tracking-wider text-white/35">Membership</p>
-              <p className="text-xl font-bold">{pool.membership}</p>
-              <p className="text-xs text-white/40">Active until {formatDate(pool.validUntil)}</p>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-              <p className="text-[10px] uppercase tracking-wider text-white/35">Locked in agency view</p>
-              <p className="text-sm text-white/70">Email, password and account deletion</p>
-            </div>
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={labelCls}>Seats</label>
+            <input type="number" min={1} value={seats} onChange={(e) => setSeats(Math.max(1, Number(e.target.value) || 1))} className={inputCls} />
           </div>
-
-          <p className="mb-3 text-sm font-semibold">Agents</p>
-          <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
-            {pool.agents.map((a) => (
-              <div key={a} className="flex items-center gap-3 rounded-xl border border-white/10 bg-[#0F172A] p-4 transition hover:border-sky-400/30">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-500/20 text-indigo-300"><Bot size={18} /></div>
-                <p className="text-sm font-medium">{a}</p>
-              </div>
-            ))}
-            <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-[#0F172A] p-4">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal-500/20 text-teal-300"><BookOpen size={18} /></div>
-              <p className="text-sm font-medium">Knowledge base</p>
-            </div>
+          <div>
+            <label className={labelCls}>Valid until</label>
+            <input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} className={inputCls} />
           </div>
+        </div>
+        <div>
+          <label className={labelCls}>Note (invoice number)</label>
+          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="INV-2026-0450" className={inputCls} />
+        </div>
+        {error && <ErrorBox>{error}</ErrorBox>}
+        <div className="flex gap-3 pt-1">
+          <button onClick={onClose} className={secondaryBtn}>Cancel</button>
+          <button
+            disabled={!valid || busy}
+            onClick={() => run(() => onSave({ agencyMembershipId: tpl!.id, seats, validUntil, note: note.trim() }))}
+            className={primaryBtn}
+          >
+            {busy ? "Saving…" : "Add pool"}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
-          <p className="mb-3 text-sm font-semibold">Recent conversations</p>
-          <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#0F172A]">
-            {conversations.map((c) => (
-              <div key={c.title} className="flex items-center justify-between gap-4 border-b border-white/5 px-5 py-4 last:border-b-0">
-                <div className="flex items-center gap-3">
-                  <MessageSquare size={16} className="text-white/30" />
-                  <div>
-                    <p className="text-sm text-white">{c.title}</p>
-                    <p className="text-xs text-white/40">{c.agent} · {c.when}</p>
-                  </div>
-                </div>
-                {c.by === "agency" ? (
-                  <span className="rounded-md bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-300">by the agency</span>
-                ) : (
-                  <span className="flex items-center gap-1 text-[10px] text-white/30"><Activity size={11} /> customer</span>
-                )}
-              </div>
+function EditAgencyModal({
+  agency, onClose, onSave, onArchive,
+}: {
+  agency: Agency;
+  onClose: () => void;
+  onSave: (input: { name: string; ownerName: string; ownerEmail: string; country: string; status: Agency["status"] }) => Promise<void>;
+  onArchive: () => Promise<void>;
+}) {
+  const { busy, error, run } = useSave();
+  const [name, setName] = useState(agency.name);
+  const [ownerName, setOwnerName] = useState(agency.owner.name);
+  const [ownerEmail, setOwnerEmail] = useState(agency.owner.email);
+  const [country, setCountry] = useState(agency.country);
+  const [status, setStatus] = useState<Agency["status"]>(agency.status);
+  const [confirmArchive, setConfirmArchive] = useState(false);
+  const liveCustomers = agency.clients.filter((c) => c.status !== "archived").length;
+  const valid = name.trim() && ownerName.trim() && /\S+@\S+\.\S+/.test(ownerEmail);
+  const statuses: { id: Agency["status"]; hint: string }[] = [
+    { id: "active", hint: "Everything works" },
+    { id: "grace", hint: "Payment late, still works" },
+    { id: "suspended", hint: "No new customers or swaps" },
+  ];
+  return (
+    <Modal title="Edit agency" onClose={onClose} width="max-w-lg">
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={labelCls}>Agency name</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
+          </div>
+          <div>
+            <label className={labelCls}>Country</label>
+            <input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="Italy" className={inputCls} />
+          </div>
+          <div>
+            <label className={labelCls}>Owner name</label>
+            <input value={ownerName} onChange={(e) => setOwnerName(e.target.value)} className={inputCls} />
+          </div>
+          <div>
+            <label className={labelCls}>Owner email</label>
+            <input value={ownerEmail} onChange={(e) => setOwnerEmail(e.target.value)} className={inputCls} />
+          </div>
+        </div>
+        <div>
+          <label className={labelCls}>Status</label>
+          <div className="grid grid-cols-3 gap-2">
+            {statuses.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setStatus(s.id)}
+                className={`rounded-xl border p-2.5 text-left transition ${status === s.id ? "border-sky-400/40 bg-sky-500/10" : "border-white/10 hover:bg-white/5"}`}
+              >
+                <p className="text-sm font-medium capitalize">{s.id}</p>
+                <p className="text-[10px] leading-tight text-white/40">{s.hint}</p>
+              </button>
             ))}
           </div>
         </div>
+        {error && <ErrorBox>{error}</ErrorBox>}
+        <div className="flex gap-3 pt-1">
+          <button onClick={onClose} className={secondaryBtn}>Cancel</button>
+          <button
+            disabled={!valid || busy}
+            onClick={() => run(() => onSave({ name: name.trim(), ownerName: ownerName.trim(), ownerEmail: ownerEmail.trim(), country: country.trim(), status }))}
+            className={primaryBtn}
+          >
+            {busy ? "Saving…" : "Save changes"}
+          </button>
+        </div>
+
+        <div className="border-t border-white/10 pt-4">
+          {confirmArchive ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span className="text-white/60">Archive {agency.name}? It is hidden, nothing is deleted.</span>
+              <div className="flex gap-2">
+                <button onClick={() => setConfirmArchive(false)} className="rounded-lg px-2 py-1 text-white/50 transition hover:bg-white/5">No</button>
+                <button
+                  onClick={() => run(onArchive)}
+                  disabled={busy}
+                  className="rounded-lg bg-red-500/15 px-2 py-1 font-medium text-red-300 transition hover:bg-red-500/25 disabled:opacity-50"
+                >
+                  Archive
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmArchive(true)}
+              disabled={liveCustomers > 0}
+              title={liveCustomers > 0 ? "Deactivate every customer first" : undefined}
+              className="flex items-center gap-2 text-xs text-white/40 transition hover:text-red-400 disabled:cursor-not-allowed disabled:hover:text-white/40"
+            >
+              <Archive size={13} /> Archive agency{liveCustomers > 0 ? ` (deactivate ${liveCustomers} customer${liveCustomers === 1 ? "" : "s"} first)` : ""}
+            </button>
+          )}
+        </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 

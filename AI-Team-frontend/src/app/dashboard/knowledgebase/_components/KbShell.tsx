@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useUser, UserButton } from "@clerk/nextjs"
+import { useUser, UserButton } from "@/lib/session"
 import Link from "next/link"
 import {
     LayoutDashboard,

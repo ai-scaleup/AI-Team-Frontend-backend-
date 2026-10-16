@@ -22,7 +22,7 @@ import {
     ExternalLink, Menu, Home, BarChart3, Smartphone, Search, Filter, Download,
     ArrowDownRight, RefreshCw, Book, Tag, ArrowLeft, QrCode
 } from "lucide-react"
-import { useUser } from "@clerk/nextjs"
+import { useUser } from "@/lib/session"
 import { saraAiService } from "@/services/saraAiService"
 import type { ChatSession as SaraSession, ChatMessage as SaraMessage, StatsResponse, DailyAnalyticsBucket } from "@/types/sara-ai"
 

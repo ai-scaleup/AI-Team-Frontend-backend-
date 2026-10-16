@@ -1,3 +1,5 @@
+import { withoutAgencyPrefix } from "./agencyHost"
+
 /**
  * The one list of agents the dashboard knows about. The grid on /dashboard and
  * the access guard both read it, so an agent cannot appear in one and be
@@ -240,13 +242,14 @@ export const agents: UiAgent[] = [
 ]
 
 /** AgentName behind a dashboard path, or null when the path is not an agent. */
-export const agentKeyForPath = (pathname: string): string | null => {
-  const normalized = pathname.replace(/\/+$/, "");
-  return agents.find((agent) => agent.href === normalized)?.key ?? null;
-};
+export const agentKeyForPath = (pathname: string): string | null => agentForPath(pathname)?.key ?? null;
 
-/** The catalogue entry behind a dashboard path, for naming it in the UI. */
+/**
+ * The catalogue entry behind a dashboard path, for naming it in the UI. An
+ * agency customer's path carries the agency's name first
+ * (/<slug>/dashboard/alex-ai); it names the same agent.
+ */
 export const agentForPath = (pathname: string): UiAgent | null => {
-  const normalized = pathname.replace(/\/+$/, "");
+  const normalized = withoutAgencyPrefix(pathname).replace(/\/+$/, "");
   return agents.find((agent) => agent.href === normalized) ?? null;
 };

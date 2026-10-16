@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
-import { UserButton } from "@clerk/nextjs"
+import { UserButton } from "@/lib/session"
 import {
     Send,
     ChevronRight,
@@ -37,7 +37,7 @@ import { SUBJECTS, Subject } from "@/data/dan-ai-data"
 import OnboardingModal from "@/components/dan-ai/OnboardingModal"
 import PreferencesWizard from "@/components/preferences/PreferencesWizard"
 import PreferencesButton from "@/components/preferences/PreferencesButton"
-import { useUser } from "@clerk/nextjs"
+import { useUser } from "@/lib/session"
 import { UserPreferences, DEFAULT_PREFERENCES } from "@/types/preferences"
 import { preferenceService } from "@/services/preferenceService"
 import DanHome from "@/components/dan-ai/DanHome"

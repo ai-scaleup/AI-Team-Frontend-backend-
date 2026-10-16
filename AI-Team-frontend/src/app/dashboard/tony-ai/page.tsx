@@ -6,7 +6,7 @@ import { resolveAgentTokenSource, TOKEN_TYPE_LABELS, type AgentTokenSource } fro
 
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
-import { UserButton, useUser } from "@clerk/nextjs"
+import { UserButton, useUser } from "@/lib/session"
 import { conversationService } from "@/services/conversationService"
 import { useConversationCache } from "@/hooks/use-conversation-cache"
 import { extractFileContent } from "@/utils/fileExtraction"

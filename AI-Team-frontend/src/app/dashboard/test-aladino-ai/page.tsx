@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
-import { UserButton } from "@clerk/nextjs"
+import { UserButton } from "@/lib/session"
 import {
   Edit2,
   Trash2,

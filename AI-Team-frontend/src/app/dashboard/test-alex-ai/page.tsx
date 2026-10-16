@@ -38,7 +38,7 @@ import { CompactionNotice } from "@/components/ui/CompactionNotice"
 import * as pdfjsLib from "pdfjs-dist"
 import mammoth from "mammoth"
 import * as XLSX from "xlsx"
-import { useUser } from "@clerk/nextjs"
+import { useUser } from "@/lib/session"
 import { getDevUserEmail } from "@/lib/devToken"
 
 // --- Pinecone Vector Type Definition ---

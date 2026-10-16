@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@clerk/nextjs/server"
+import { getRequestSession } from "@/lib/serverSession"
 import {
     deleteVectorIds,
     listNamespaceDocuments,
@@ -48,7 +48,7 @@ function isDedicatedAgent(agent: unknown): boolean {
 }
 
 async function authorizeNamespace(namespace: string, agent?: string): Promise<AuthorizedPineconeTarget | NextResponse> {
-    const { userId } = await auth()
+    const userId = (await getRequestSession())?.userId
     if (!userId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }

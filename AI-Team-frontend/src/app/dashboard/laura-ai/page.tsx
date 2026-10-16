@@ -4,7 +4,7 @@ import { authenticatedFetch } from "@/lib/authenticatedFetch";
 
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
-import { UserButton } from "@clerk/nextjs"
+import { UserButton } from "@/lib/session"
 import {
     Edit2,
     Trash2,
@@ -39,7 +39,7 @@ import {
 import { CompactionNotice } from "@/components/ui/CompactionNotice"
 import PreferencesWizard from "@/components/preferences/PreferencesWizard"
 import PreferencesButton from "@/components/preferences/PreferencesButton"
-import { useUser } from "@clerk/nextjs"
+import { useUser } from "@/lib/session"
 import { type UserPreference, type AgentName } from "@/types/preferences"
 import { userPreferenceService } from "@/services/preferenceService"
 import { conversationService } from "@/services/conversationService"

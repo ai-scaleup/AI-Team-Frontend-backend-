@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { getRequestSession } from '@/lib/serverSession'
 import { fetchCompactionStatus } from '@/lib/compactionBridge'
 
 /**
@@ -7,8 +7,7 @@ import { fetchCompactionStatus } from '@/lib/compactionBridge'
  * told it a compaction started, until the new summary has landed.
  */
 export async function POST(request: NextRequest) {
-  const { userId } = await auth()
-  if (!userId) {
+  if (!(await getRequestSession())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

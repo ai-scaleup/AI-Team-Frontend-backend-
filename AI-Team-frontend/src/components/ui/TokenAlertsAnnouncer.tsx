@@ -2,7 +2,7 @@
 
 import { API_BASE } from "@/lib/apiBase"
 import { useEffect, useState } from "react";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "@/lib/session";
 import { authenticatedFetch } from "@/lib/authenticatedFetch";
 import { AlertTriangle, X } from "lucide-react";
 

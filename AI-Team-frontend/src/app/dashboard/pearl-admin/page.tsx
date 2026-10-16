@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useUser } from "@/lib/session";
 import {
   AlertTriangle,
   ArrowLeft,

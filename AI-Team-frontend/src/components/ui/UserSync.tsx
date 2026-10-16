@@ -4,7 +4,7 @@ import { API_BASE } from "@/lib/apiBase"
 import { authenticatedFetch } from "@/lib/authenticatedFetch";
 
 import { useEffect, useRef } from "react"
-import { useUser } from "@clerk/nextjs"
+import { useUser } from "@/lib/session"
 import { markUserSynced } from "@/lib/userSyncGate"
 
 

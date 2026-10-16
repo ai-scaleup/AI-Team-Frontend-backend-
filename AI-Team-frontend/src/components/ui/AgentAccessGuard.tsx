@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useUser } from "@/lib/session";
 import { Lock, Loader2, ArrowLeft } from "lucide-react";
 
 import { agentForPath } from "@/lib/agentCatalog";

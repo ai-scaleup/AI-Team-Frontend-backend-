@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth, currentUser } from '@clerk/nextjs/server'
+import { getRequestSession, requestEmail, type RequestSession } from '@/lib/serverSession'
 import {
   extractStreamedText,
   fetchCompactionContext,
@@ -119,9 +119,9 @@ async function proxy(request: NextRequest, method: 'GET' | 'POST') {
   // Only signed-in users may reach the workflows. The dashboard already
   // requires a Clerk session; this keeps the proxy from being an open relay
   // for anyone who discovers the route.
-  const session = await auth()
-  const { userId } = session
-  if (!userId) {
+  // Clerk on the platform, the agency login on an agency's own address.
+  const session = await getRequestSession()
+  if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -153,7 +153,7 @@ async function proxy(request: NextRequest, method: 'GET' | 'POST') {
   const compactionAgent =
     agent && !COMPACTION_EXCLUDED.has(agent) ? agent : null
 
-  const email = payload && compactionAgent ? await resolveEmail(payload) : undefined
+  const email = payload && compactionAgent ? await resolveEmail(payload, session) : undefined
 
   // What the user actually wrote. The backend's copy of the transcript gets
   // this, not the message with a summary put in front of it.
@@ -169,7 +169,7 @@ async function proxy(request: NextRequest, method: 'GET' | 'POST') {
   // paying grant but never choose the model itself.
   const modelAgentName = agent ? MODEL_AGENTS[agent] : undefined
   if (payload && modelAgentName) {
-    const modelEmail = await sessionEmail()
+    const modelEmail = await requestEmail(session)
     const teamId = payload.metadata?.teamId
     const membershipAssignmentId = payload.metadata?.membershipAssignmentId
     const singleAssignmentId = payload.metadata?.singleAssignmentId
@@ -321,28 +321,12 @@ interface ReportedTurn {
 
 /**
  * The chat's email. Pages that already send one in `metadata` win; otherwise
- * it comes from the Clerk session, which is the same person either way.
+ * it comes from the session, which is the same person either way.
  */
-async function resolveEmail(payload: ChatPayload): Promise<string | undefined> {
+async function resolveEmail(payload: ChatPayload, session: RequestSession): Promise<string | undefined> {
   const fromPayload = payload.metadata?.email
   if (typeof fromPayload === 'string' && fromPayload.trim()) return fromPayload.trim()
-
-  try {
-    const user = await currentUser()
-    return user?.primaryEmailAddress?.emailAddress ?? undefined
-  } catch {
-    return undefined
-  }
-}
-
-/** The signed-in user's own email, ignoring whatever the page sent. */
-async function sessionEmail(): Promise<string | undefined> {
-  try {
-    const user = await currentUser()
-    return user?.primaryEmailAddress?.emailAddress ?? undefined
-  } catch {
-    return undefined
-  }
+  return requestEmail(session)
 }
 
 /** Drains the copied stream, then reports the turn. Never throws. */

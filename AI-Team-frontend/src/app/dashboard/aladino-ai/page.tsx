@@ -6,7 +6,7 @@ import { resolveAgentTokenSource, TOKEN_TYPE_LABELS, type AgentTokenSource } fro
 
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
-import { UserButton } from "@clerk/nextjs"
+import { UserButton } from "@/lib/session"
 import {
   Edit2,
   Trash2,
@@ -38,7 +38,7 @@ import {
   Home,
   BookOpen,
 } from "lucide-react"
-import { useUser } from "@clerk/nextjs"
+import { useUser } from "@/lib/session"
 import { conversationService } from "@/services/conversationService"
 import { useConversationCache } from "@/hooks/use-conversation-cache"
 

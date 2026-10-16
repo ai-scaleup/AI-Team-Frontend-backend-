@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 
 import Image from "next/image"
 import Link from "next/link"
-import { SignedIn, SignedOut, SignInButton, SignUpButton, useUser } from "@clerk/nextjs"
+import { SignedIn, SignedOut, SignInButton, SignUpButton, useUser } from "@/lib/session"
 import { useRouter } from "next/navigation"
 import WhatsAppButton from "@/components/ui/Whatsappbutton"
 

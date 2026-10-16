@@ -8,12 +8,13 @@ import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { useUser, UserButton } from "@clerk/nextjs"
+import { useAgencyBranding, useUser, UserButton } from "@/lib/session"
 import { Moon, Sun } from "lucide-react"
 import { resolveUserEmail } from "@/lib/devToken"
 import { agents, type UiAgent } from "@/lib/agentCatalog"
 import { fetchAssignedAgents, type AssignedTeam } from "@/lib/assignedAgents"
 import TokenUsageSheet from "@/components/ui/TokenUsageSheet"
+import AgencyPortalLink from "./agency/AgencyPortalLink"
 
 /* ---------------------------- API base URL ---------------------------- */
 
@@ -40,6 +41,8 @@ interface GroupAgentsResponse {
 
 export default function HomePage() {
   const { user, isLoaded } = useUser()
+  // Set on an agency's own address: show its name and logo instead of AI TEAM.
+  const agencyBranding = useAgencyBranding()
   const [email, setEmail] = useState<string>("")
   const [assignedAgentNames, setAssignedAgentNames] = useState<string[]>([])
   const [assignedGroups, setAssignedGroups] = useState<AssignedTeam[]>([])
@@ -286,12 +289,27 @@ export default function HomePage() {
         {/* New Navigation Bar - Very Compact */}
         <nav className={`flex items-center justify-between mb-2 px-6 py-2 rounded-full border relative z-50 backdrop-blur-xl ${theme === "dark" ? "bg-[#0B1221]/80 border-white/5" : "bg-white/80 border-gray-200 shadow-md"}`}>
           {/* Left: Logo */}
-          <div className="flex flex-col">
-            <h1 className={`text-xl font-bold tracking-tight leading-none ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
-              AI TEAM
-            </h1>
-            <span className="text-[10px] text-blue-500 font-bold tracking-[0.2em] uppercase">Dashboard</span>
-          </div>
+          {agencyBranding ? (
+            <div className="flex items-center gap-2.5">
+              {agencyBranding.logoDataUrl && (
+                // eslint-disable-next-line @next/next/no-img-element -- data: URL from the agency's branding
+                <img src={agencyBranding.logoDataUrl} alt="" className="h-8 max-w-[120px] object-contain" />
+              )}
+              <div className="flex flex-col">
+                <h1 className={`text-xl font-bold tracking-tight leading-none ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+                  {agencyBranding.productName}
+                </h1>
+                <span className="text-[10px] font-bold tracking-[0.2em] uppercase" style={{ color: agencyBranding.primaryColor }}>Dashboard</span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col">
+              <h1 className={`text-xl font-bold tracking-tight leading-none ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+                AI TEAM
+              </h1>
+              <span className="text-[10px] text-blue-500 font-bold tracking-[0.2em] uppercase">Dashboard</span>
+            </div>
+          )}
 
           {/* Center: Toggle */}
           <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full p-0.5 border flex items-center ${theme === "dark" ? "bg-[#0F1729] border-white/5" : "bg-gray-100 border-gray-200"}`}>
@@ -339,6 +357,8 @@ export default function HomePage() {
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" /></svg>
             </Link>
 
+            {!agencyBranding && <AgencyPortalLink theme={theme} />}
+
             <Link
               href="/dashboard/settings"
               className={`p-2 transition-colors ${theme === "dark" ? "text-white/80 hover:text-white" : "text-gray-600 hover:text-gray-900"}`}
@@ -353,10 +373,12 @@ export default function HomePage() {
 
             <div className={`h-8 w-px mx-2 ${theme === "dark" ? "bg-white/10" : "bg-gray-300"}`}></div>
 
-            <div className="text-right hidden sm:block">
-              <p className={`text-[10px] font-medium ${theme === "dark" ? "text-white/60" : "text-gray-500"}`}>Admin</p>
-              <p className="text-xs text-[#0ea5e9] font-bold">Pro Plan</p>
-            </div>
+            {!agencyBranding && (
+              <div className="text-right hidden sm:block">
+                <p className={`text-[10px] font-medium ${theme === "dark" ? "text-white/60" : "text-gray-500"}`}>Admin</p>
+                <p className="text-xs text-[#0ea5e9] font-bold">Pro Plan</p>
+              </div>
+            )}
 
             <UserButton
               appearance={{
